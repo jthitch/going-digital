@@ -22,10 +22,10 @@
         <div class="view-toggle-container">
             <div class="view-toggle-group">
                 <button class="view-toggle-btn active" id="grid-view-btn" onclick="showGridView()" aria-label="View courses in grid layout">
-                    List View
+                    List
                 </button>
                 <button class="view-toggle-btn" id="map-view-btn" onclick="showMapView()" aria-label="View courses on map">
-                    Map View
+                    Map
                 </button>
             </div>
         </div>
@@ -213,20 +213,52 @@ function toggleFilters() {
     }
 }
 
-// View toggle functions
+// View toggle functions with smooth transitions
 function showGridView() {
-    document.getElementById('course-grid').classList.remove('hidden');
-    document.getElementById('map-container').classList.add('hidden');
-    document.getElementById('grid-view-btn').classList.add('active');
-    document.getElementById('map-view-btn').classList.remove('active');
+    const gridContainer = document.getElementById('course-grid');
+    const mapContainer = document.getElementById('map-container');
+    const gridBtn = document.getElementById('grid-view-btn');
+    const mapBtn = document.getElementById('map-view-btn');
+    
+    // Remove map view class first
+    document.body.classList.remove('map-view-active');
+    
+    // Switch active states
+    gridBtn.classList.add('active');
+    mapBtn.classList.remove('active');
+    
+    // Hide map with transition
+    mapContainer.classList.add('hidden');
+    
+    // Show grid with slight delay for smoother transition
+    setTimeout(function() {
+        gridContainer.classList.remove('hidden');
+    }, 50);
 }
 
 function showMapView() {
-    document.getElementById('course-grid').classList.add('hidden');
-    document.getElementById('map-container').classList.remove('hidden');
-    document.getElementById('grid-view-btn').classList.remove('active');
-    document.getElementById('map-view-btn').classList.add('active');
-    initializeMap();
+    const gridContainer = document.getElementById('course-grid');
+    const mapContainer = document.getElementById('map-container');
+    const gridBtn = document.getElementById('grid-view-btn');
+    const mapBtn = document.getElementById('map-view-btn');
+    
+    // Switch active states
+    gridBtn.classList.remove('active');
+    mapBtn.classList.add('active');
+    
+    // Hide grid with transition
+    gridContainer.classList.add('hidden');
+    
+    // Add map view class and show map with slight delay
+    document.body.classList.add('map-view-active');
+    
+    setTimeout(function() {
+        mapContainer.classList.remove('hidden');
+        // Initialize map after transition starts
+        setTimeout(function() {
+            initializeMap();
+        }, 100);
+    }, 50);
 }
 
 // Locations toggle functionality
@@ -273,27 +305,38 @@ function initializeMap() {
         return;
     }
     
-    // Location data from Django
-    const locations = {{ locations_data|safe }};
+    // Instance data from Django - all bookable instances
+    const instances = {{ instances_data|safe }};
     
-    if (locations.length === 0) {
-        document.getElementById('course-map').innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">No course locations available to display on the map.</div>';
+    if (instances.length === 0) {
+        document.getElementById('course-map').innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">No bookable course instances available to display on the map.</div>';
         return;
     }
     
-    // Create map centered on first location or UK center
-    const centerLat = locations[0]?.latitude || 54.7024;
-    const centerLng = locations[0]?.longitude || -3.2766;
+    // Create map centered on first instance or UK center
+    const centerLat = instances[0]?.latitude || 54.7024;
+    const centerLng = instances[0]?.longitude || -3.2766;
     
     map = L.map('course-map').setView([centerLat, centerLng], 6);
     
-    // Add OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
+    // Add Carto Positron tiles (light, clean style)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
         maxZoom: 19
     }).addTo(map);
     
-    // Add markers for each location
+    // Group instances by location for clustering
+    const locationGroups = {};
+    instances.forEach(function(instance) {
+        const key = instance.latitude + ',' + instance.longitude;
+        if (!locationGroups[key]) {
+            locationGroups[key] = [];
+        }
+        locationGroups[key].push(instance);
+    });
+    
+    // Add markers for each instance
     function getThemeColors() {
         const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark' ||
             (!document.documentElement.getAttribute('data-theme') && 
@@ -301,23 +344,138 @@ function initializeMap() {
         return {
             primary: isDarkMode ? '#4a9eff' : '#0066cc',
             text: isDarkMode ? '#ffffff' : '#1a1a1a',
-            textSecondary: isDarkMode ? '#b0b0b0' : '#666'
+            textSecondary: isDarkMode ? '#b0b0b0' : '#666',
+            bg: isDarkMode ? '#1a1a1a' : '#ffffff',
+            border: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)'
         };
     }
     
     const colors = getThemeColors();
     
-    locations.forEach(function(location) {
-        const marker = L.marker([location.latitude, location.longitude])
-            .addTo(map)
-            .bindPopup(`
-                <div style="min-width: 200px; color: ${colors.text};">
-                    <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; color: ${colors.text};"><a href="${location.course_url}" style="color: ${colors.primary}; text-decoration: none;">${location.course_title}</a></h3>
-                    <p style="margin: 0.25rem 0; color: ${colors.textSecondary}; font-size: 0.9rem;"><strong>${location.location_name}</strong></p>
-                    <p style="margin: 0.25rem 0; color: ${colors.textSecondary}; font-size: 0.85rem;">${location.address}</p>
-                    <a href="${location.course_url}" style="display: inline-block; margin-top: 0.5rem; padding: 0.5rem 1rem; background: ${colors.primary}; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9rem; transition: opacity 0.2s;">View Course →</a>
+    // Level colors matching homepage
+    const levelColors = {
+        'beginner': '#4caf50',      // Green
+        'intermediate': '#ff9800',   // Orange
+        'advanced': '#9c27b0'        // Purple
+    };
+    
+    // Function to create custom marker icon with logo and colored circle
+    function createCustomIcon(level, logoUrl) {
+        const circleColor = levelColors[level] || levelColors['beginner'];
+        const iconSize = 40;
+        const circleSize = 50;
+        
+        const iconHtml = `
+            <div style="
+                width: ${circleSize}px;
+                height: ${circleSize}px;
+                border-radius: 50%;
+                background: ${circleColor};
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+                border: 3px solid white;
+            ">
+                <img src="${logoUrl}" 
+                     alt="Course" 
+                     style="
+                         width: ${iconSize}px;
+                         height: ${iconSize}px;
+                         object-fit: contain;
+                         filter: brightness(0) invert(1);
+                     "
+                     onerror="this.style.display='none';">
+            </div>
+        `;
+        
+        return L.divIcon({
+            html: iconHtml,
+            className: 'custom-marker',
+            iconSize: [circleSize, circleSize],
+            iconAnchor: [circleSize / 2, circleSize / 2],
+            popupAnchor: [0, -circleSize / 2]
+        });
+    }
+    
+    // Get logo URL from static files
+    const logoUrl = "{% static 'img/logo/logo-eye.png' %}";
+    
+    // Create markers for each location group
+    Object.keys(locationGroups).forEach(function(key) {
+        const groupInstances = locationGroups[key];
+        const firstInstance = groupInstances[0];
+        
+        // Determine marker color based on course level (use first instance's level)
+        const markerLevel = firstInstance.course_level || 'beginner';
+        
+        // If multiple instances at same location, show count and list them
+        let popupContent = '';
+        if (groupInstances.length === 1) {
+            // Single instance - show full details
+            const inst = groupInstances[0];
+            popupContent = `
+                <div style="min-width: 250px; color: ${colors.text}; background: ${colors.bg}; padding: 0;">
+                    <div style="padding: 1rem; border-bottom: 1px solid ${colors.border};">
+                        <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; color: ${colors.text};">
+                            <a href="${inst.course_url}" style="color: ${colors.primary}; text-decoration: none; font-weight: 600;">${inst.course_title}</a>
+                        </h3>
+                        <p style="margin: 0.25rem 0; color: ${colors.textSecondary}; font-size: 0.9rem;"><strong>${inst.location_name}</strong></p>
+                        <p style="margin: 0.25rem 0; color: ${colors.textSecondary}; font-size: 0.85rem;">${inst.address}</p>
+                    </div>
+                    <div style="padding: 1rem;">
+                        <p style="margin: 0.5rem 0; color: ${colors.text}; font-size: 0.9rem;"><strong>Date:</strong> ${inst.date_display}</p>
+                        <p style="margin: 0.5rem 0; color: ${colors.text}; font-size: 0.9rem;"><strong>Price:</strong> £${inst.price.toFixed(2)}</p>
+                        ${inst.spaces_available !== null ? `<p style="margin: 0.5rem 0; color: ${colors.text}; font-size: 0.9rem;"><strong>Spaces:</strong> ${inst.spaces_available} available</p>` : ''}
+                        ${inst.instructor_name ? `<p style="margin: 0.5rem 0; color: ${colors.textSecondary}; font-size: 0.85rem;"><strong>Instructor:</strong> ${inst.instructor_name}</p>` : ''}
+                        <a href="${inst.course_url}" style="display: inline-block; margin-top: 0.75rem; padding: 0.625rem 1.25rem; background: ${colors.primary}; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9rem; font-weight: 600; transition: opacity 0.2s;">Book Now →</a>
+                    </div>
                 </div>
-            `);
+            `;
+        } else {
+            // Multiple instances - show list
+            popupContent = `
+                <div style="min-width: 280px; max-width: 350px; color: ${colors.text}; background: ${colors.bg}; padding: 0;">
+                    <div style="padding: 1rem; border-bottom: 1px solid ${colors.border};">
+                        <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; color: ${colors.text};">${groupInstances.length} Course Instances</h3>
+                        <p style="margin: 0.25rem 0; color: ${colors.textSecondary}; font-size: 0.9rem;"><strong>${firstInstance.location_name}</strong></p>
+                        <p style="margin: 0.25rem 0; color: ${colors.textSecondary}; font-size: 0.85rem;">${firstInstance.address}</p>
+                    </div>
+                    <div style="padding: 1rem; max-height: 400px; overflow-y: auto;">
+                        ${groupInstances.map(function(inst) {
+                            return `
+                                <div style="padding: 0.75rem 0; border-bottom: 1px solid ${colors.border};">
+                                    <a href="${inst.course_url}" style="color: ${colors.primary}; text-decoration: none; font-weight: 600; font-size: 0.95rem; display: block; margin-bottom: 0.25rem;">${inst.course_title}</a>
+                                    <p style="margin: 0.25rem 0; color: ${colors.textSecondary}; font-size: 0.85rem;">${inst.date_display}</p>
+                                    <p style="margin: 0.25rem 0; color: ${colors.text}; font-size: 0.9rem;"><strong>£${inst.price.toFixed(2)}</strong>${inst.spaces_available !== null ? ` • ${inst.spaces_available} spaces` : ''}</p>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Create custom marker with logo and colored circle
+        const customIcon = createCustomIcon(markerLevel, logoUrl);
+        
+        const marker = L.marker([firstInstance.latitude, firstInstance.longitude], {
+            icon: customIcon
+        })
+            .addTo(map)
+            .bindPopup(popupContent, {
+                maxWidth: 400,
+                className: 'course-instance-popup'
+            });
+        
+        // Add badge if multiple instances
+        if (groupInstances.length > 1) {
+            marker.bindTooltip(`${groupInstances.length} instances`, {
+                permanent: false,
+                direction: 'top',
+                offset: [0, -10]
+            });
+        }
         
         markers.push(marker);
     });

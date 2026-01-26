@@ -1,5 +1,10 @@
 /* Modern Course List Page Styles - Dark/Light Mode Compatible */
 
+.course-list-page {
+    position: relative;
+    min-height: 100vh;
+}
+
 /* Page Header Row - Flex Container */
 .page-header-row {
     display: flex;
@@ -8,6 +13,32 @@
     margin-bottom: 1rem;
     gap: 1.5rem;
     flex-wrap: wrap;
+    position: relative;
+    z-index: 101;
+    transition: all 0.3s ease;
+}
+
+/* When map is visible, overlay header - no background */
+body.map-view-active .page-header-row {
+    position: fixed;
+    top: 80px; /* Below header */
+    left: auto;
+    right: 2rem;
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    z-index: 102;
+    margin-bottom: 0;
+    border: none;
+    width: auto;
+    justify-content: flex-end;
+}
+
+/* Hide title/subtitle in map view, keep only view toggle */
+body.map-view-active .page-header {
+    display: none;
 }
 
 /* Page Header - Compact */
@@ -41,6 +72,27 @@
     flex-shrink: 0;
 }
 
+/* In map view, ensure view toggle group has consistent width */
+body.map-view-active .view-toggle-group {
+    width: 240px; /* Increased to accommodate "List" and "Map" text */
+    justify-content: center;
+}
+
+/* In map view, add background to view toggle only */
+body.map-view-active .view-toggle-group {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+[data-theme="dark"] body.map-view-active .view-toggle-group {
+    background: rgba(26, 26, 26, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
 .view-toggle-group {
     display: inline-flex;
     background-color: var(--bg-secondary);
@@ -52,19 +104,22 @@
 }
 
 .view-toggle-btn {
-    padding: 0.875rem 1.75rem;
+    padding: 0.875rem 1.5rem;
     border: none;
     background: transparent;
     color: var(--text-secondary);
     border-radius: 8px;
     cursor: pointer;
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     transition: all 0.25s ease;
     font-family: inherit;
     position: relative;
     z-index: 1;
     white-space: nowrap;
+    flex: 1;
+    text-align: center;
+    min-width: 0;
 }
 
 .view-toggle-btn:hover:not(.active) {
@@ -86,6 +141,30 @@
 /* Collapsible Filters Section */
 .filters-section-collapsed {
     margin-bottom: 1rem;
+    position: relative;
+    z-index: 101;
+    transition: all 0.3s ease;
+}
+
+/* When map is visible, overlay filters on the right, aligned below view toggle */
+body.map-view-active .filters-section-collapsed {
+    position: fixed;
+    top: 145px; /* Below view toggle (80px header + ~65px for toggle) */
+    right: 2rem;
+    left: auto;
+    z-index: 102;
+    margin-bottom: 0;
+    width: 240px; /* Match view toggle group width exactly */
+}
+
+/* Make filter button same size as view toggle in map view */
+body.map-view-active .filter-toggle-modern {
+    width: 100%;
+    min-width: 240px;
+    max-width: 240px;
+    justify-content: center;
+    padding: 0.875rem 1.75rem; /* Match view toggle button padding */
+    box-sizing: border-box;
 }
 
 .filter-toggle-modern {
@@ -356,30 +435,94 @@
 
 /* Map Container */
 .map-container {
-    margin: 2rem 0;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 4px 20px var(--shadow);
-    border: 1px solid var(--border-color);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
     background-color: var(--bg-primary);
+    z-index: 100;
+    overflow: hidden;
+}
+
+/* Ensure filters content has proper background when overlaid */
+body.map-view-active .filters-content {
+    background: rgba(255, 255, 255, 0.98) !important;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="dark"] body.map-view-active .filters-content {
+    background: rgba(26, 26, 26, 0.98) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.map-container {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    transform: translateY(20px) scale(0.98);
+}
+
+.map-container:not(.hidden) {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
 }
 
 .map-container.hidden {
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(20px) scale(0.98);
 }
 
 #course-map {
     width: 100%;
-    height: 600px;
+    height: 100%;
+    min-height: 100vh;
+}
+
+/* Custom marker styling */
+.custom-marker {
+    background: transparent !important;
+    border: none !important;
+}
+
+.custom-marker img {
+    pointer-events: none;
 }
 
 /* Course Grid */
 .course-grid-container {
     display: block;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateY(0) scale(1);
+    position: relative;
 }
 
 .course-grid-container.hidden {
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px) scale(0.98);
+    pointer-events: none;
+    position: absolute;
+    width: 100%;
+    top: 0;
+    left: 0;
+    z-index: 1;
 }
 
 .course-grid {
@@ -685,6 +828,13 @@
         gap: 1rem;
     }
     
+    body.map-view-active .page-header-row {
+        padding: 0;
+        right: 1rem;
+        top: 70px;
+        justify-content: flex-end;
+    }
+    
     .page-header {
         width: 100%;
     }
@@ -693,13 +843,61 @@
         font-size: 2rem;
     }
     
+    body.map-view-active .page-header h1 {
+        font-size: 1.5rem;
+    }
+    
     .page-subtitle {
         font-size: 1rem;
+    }
+    
+    body.map-view-active .page-subtitle {
+        font-size: 0.85rem;
     }
     
     .view-toggle-container {
         width: 100%;
         justify-content: center;
+    }
+    
+    body.map-view-active .filters-section-collapsed {
+        left: auto;
+        right: 1rem;
+        width: calc(100% - 2rem);
+        max-width: 240px;
+        top: 135px;
+    }
+    
+    body.map-view-active .view-toggle-group {
+        width: calc(100% - 2rem);
+        max-width: 240px;
+    }
+    
+    body.map-view-active .view-toggle-btn {
+        padding: 0.875rem 1.25rem;
+        font-size: 0.85rem;
+    }
+    
+    body.map-view-active .page-header-row {
+        justify-content: flex-end;
+    }
+    
+    body.map-view-active .filters-section-collapsed {
+        left: auto;
+        right: 1rem;
+        width: calc(100% - 2rem);
+        max-width: 240px;
+        top: 135px;
+    }
+    
+    body.map-view-active .view-toggle-group {
+        width: calc(100% - 2rem);
+        max-width: 240px;
+    }
+    
+    body.map-view-active .view-toggle-btn {
+        padding: 0.875rem 1.25rem;
+        font-size: 0.85rem;
     }
     
     .filters-section {

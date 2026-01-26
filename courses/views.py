@@ -213,27 +213,56 @@ class CourseListView(ListView):
             course_instances__start_date__gte=timezone.now()
         ).values_list('city', flat=True).distinct().order_by('city')
         
-        # Prepare location data for map (convert to JSON-safe format)
+        # Prepare instance data for map (convert to JSON-safe format)
+        # Show all bookable instances, not just one per course
         import json
-        locations_data = []
+        from datetime import datetime
+        instances_data = []
+        
+        # Get all bookable instances from the filtered courses
         for course in context['courses']:
-            # Get first available instance for each course
-            first_instance = course.instances.first()
-            if first_instance and first_instance.location:
-                location = first_instance.location
-                if location.latitude and location.longitude:
-                    locations_data.append({
+            for instance in course.instances.all():
+                if (instance.enrollment_open and 
+                    instance.start_date >= timezone.now() and 
+                    instance.location and 
+                    instance.location.is_active and
+                    instance.location.latitude and 
+                    instance.location.longitude):
+                    
+                    # Format start date for display
+                    start_date_str = instance.start_date.strftime('%B %d, %Y')
+                    if instance.start_date.date() == instance.end_date.date():
+                        date_display = start_date_str
+                    else:
+                        end_date_str = instance.end_date.strftime('%B %d, %Y')
+                        date_display = f"{start_date_str} - {end_date_str}"
+                    
+                    # Get instance-specific URL
+                    instance_url = instance.get_absolute_url()
+                    
+                    # Get price (property method)
+                    instance_price = instance.price_override if instance.price_override is not None else course.price
+                    
+                    instances_data.append({
+                        'instance_id': instance.id,
                         'course_title': course.title,
                         'course_slug': course.slug,
-                        'course_url': course.get_absolute_url(),  # Use general course URL to show all instances
-                        'location_name': location.name,
-                        'city': location.city,
-                        'address': location.full_address,
-                        'latitude': float(location.latitude),
-                        'longitude': float(location.longitude),
-                        'postcode': location.postal_code,
+                        'course_level': course.level,  # Add level for marker color
+                        'course_url': instance_url,
+                        'location_name': instance.location.name,
+                        'city': instance.location.city,
+                        'address': instance.location.full_address,
+                        'latitude': float(instance.location.latitude),
+                        'longitude': float(instance.location.longitude),
+                        'postcode': instance.location.postal_code,
+                        'start_date': start_date_str,
+                        'date_display': date_display,
+                        'price': float(instance_price),
+                        'spaces_available': instance.spaces_available,
+                        'instructor_name': instance.instructor.user.get_full_name() if instance.instructor and instance.instructor.user else None,
                     })
-        context['locations_data'] = json.dumps(locations_data)
+        
+        context['instances_data'] = json.dumps(instances_data)
         
         # Current filters
         context['current_category'] = self.request.GET.get('category', '')
