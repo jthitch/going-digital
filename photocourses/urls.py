@@ -8,6 +8,11 @@ from django.conf.urls.static import static
 from django.views.generic import RedirectView
 from django.contrib.staticfiles.storage import staticfiles_storage
 
+# Customize admin site
+admin.site.site_header = "Going Digital Administration"
+admin.site.site_title = "Going Digital Admin"
+admin.site.index_title = "Welcome to Going Digital Administration"
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('favicon.ico', RedirectView.as_view(url=staticfiles_storage.url('img/favicon/favicon.png'), permanent=True)),
