@@ -12,34 +12,54 @@
 
 {% block content %}
 <main class="course-list-page">
-    <div class="page-header">
-        <h1>Photography Courses</h1>
-        <p class="page-subtitle">Discover photography courses tailored to your skill level and interests</p>
-    </div>
-    
-    <!-- View Toggle Buttons -->
-    <div class="view-toggle-container">
-        <div class="view-toggle-group">
-            <button class="view-toggle-btn active" id="grid-view-btn" onclick="showGridView()" aria-label="View courses in grid layout">
-                List View
-            </button>
-            <button class="view-toggle-btn" id="map-view-btn" onclick="showMapView()" aria-label="View courses on map">
-                Map View
-            </button>
+    <div class="page-header-row">
+        <div class="page-header">
+            <h1>Photography Courses</h1>
+            <p class="page-subtitle">Discover photography courses tailored to your skill level and interests</p>
+        </div>
+        
+        <!-- View Toggle Buttons -->
+        <div class="view-toggle-container">
+            <div class="view-toggle-group">
+                <button class="view-toggle-btn active" id="grid-view-btn" onclick="showGridView()" aria-label="View courses in grid layout">
+                    List View
+                </button>
+                <button class="view-toggle-btn" id="map-view-btn" onclick="showMapView()" aria-label="View courses on map">
+                    Map View
+                </button>
+            </div>
         </div>
     </div>
     
-    <!-- Server-rendered search filters -->
-    <section class="filters-section" aria-label="Filter Courses">
-        <div class="filters-header">
-            <h2 class="filters-title">Filter Courses</h2>
-            {% if current_search or current_category or current_level or current_city %}
-            <a href="{% url 'courses:course_list' %}" class="clear-filters-btn">
-                Clear All
-            </a>
+    <!-- Collapsible Filters -->
+    <section class="filters-section-collapsed" aria-label="Filter Courses">
+        <button type="button" class="filter-toggle-modern" id="filter-toggle-btn" onclick="toggleFilters()" aria-label="Toggle filters">
+            <svg class="filter-icon-modern" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="4" y1="21" x2="4" y2="14"></line>
+                <line x1="4" y1="10" x2="4" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12" y2="3"></line>
+                <line x1="20" y1="21" x2="20" y2="16"></line>
+                <line x1="20" y1="12" x2="20" y2="3"></line>
+                <line x1="1" y1="14" x2="7" y2="14"></line>
+                <line x1="9" y1="8" x2="15" y2="8"></line>
+                <line x1="17" y1="16" x2="23" y2="16"></line>
+            </svg>
+            <span class="filter-toggle-text">Filters</span>
+            {% if current_search or current_category or current_level or current_city or current_instructor %}
+            <span class="filter-badge-modern"></span>
             {% endif %}
-        </div>
-        <form method="get" action="{% url 'courses:course_list' %}" class="filters-form">
+            <svg class="filter-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+        </button>
+        <div class="filters-content" id="filters-content">
+            <div class="filters-header">
+                {% if current_search or current_category or current_level or current_city or current_instructor %}
+                <a href="{% url 'courses:course_list' %}" class="clear-filters-btn">Clear All</a>
+                {% endif %}
+            </div>
+            <form method="get" action="{% url 'courses:course_list' %}" class="filters-form">
             <div class="filter-group">
                 <label for="search" class="filter-label">Search</label>
                 <input type="text" id="search" name="q" value="{{ current_search }}" placeholder="Search courses..." class="filter-input">
@@ -75,8 +95,14 @@
                 </select>
             </div>
             
-            <button type="submit" class="filter-submit-btn">Apply Filters</button>
-        </form>
+            <div class="filter-group">
+                <label for="instructor" class="filter-label">Instructor</label>
+                <input type="text" id="instructor" name="instructor" value="{{ current_instructor }}" placeholder="Search by instructor..." class="filter-input">
+            </div>
+            
+            <button type="submit" class="filter-submit-btn">Apply</button>
+            </form>
+        </div>
     </section>
     
     <!-- Map View -->
@@ -89,34 +115,52 @@
         {% if courses %}
             {% for course in courses %}
             <article class="course-card">
-                <div class="course-image-wrapper">
-                    {% if course.image %}
-                    <img src="{{ course.image.url }}" alt="{{ course.title }}" class="course-thumbnail">
-                    {% else %}
-                    <div class="course-placeholder">📷</div>
-                    {% endif %}
-                    <div class="course-level-badge">{{ course.get_level_display }}</div>
-                </div>
-                <div class="course-card-content">
-                    <div class="course-header">
-                        <h2 class="course-title">
-                            <a href="{% url 'courses:course_detail' slug=course.slug %}">{{ course.title }}</a>
-                        </h2>
+                <a href="{% url 'courses:course_detail' slug=course.slug %}" class="course-card-link">
+                    <div class="course-image-wrapper">
+                        {% if course.image %}
+                        <img src="{{ course.image.url }}" alt="{{ course.title }}" class="course-thumbnail">
+                        {% else %}
+                        <div class="course-placeholder">📷</div>
+                        {% endif %}
+                        <div class="course-level-badge" data-level="{{ course.level }}">{{ course.get_level_display }}</div>
                     </div>
-                    <p class="course-short-desc">{{ course.short_description|truncatewords:20 }}</p>
-                    <div class="course-meta">
-                        <span class="meta-item category">
-                            {{ course.get_category_display }}
-                        </span>
-                        <span class="meta-item duration">
-                            {{ course.duration_hours }}h
-                        </span>
+                    <div class="course-card-content">
+                        <div class="course-header">
+                            <h2 class="course-title">
+                                {{ course.title }}
+                            </h2>
+                        </div>
+                        <p class="course-short-desc">{{ course.short_description|truncatewords:20 }}</p>
+                        <div class="course-meta">
+                            <span class="meta-item category">
+                                {{ course.get_category_display }}
+                            </span>
+                            <span class="meta-item duration">
+                                {{ course.duration_hours }}h
+                            </span>
+                        </div>
+                        {% if course.instances.all %}
+                        {% regroup course.instances.all by location as location_groups %}
+                        {% if location_groups %}
+                        <div class="course-locations" data-course-id="{{ course.id }}" onclick="event.stopPropagation();">
+                            <div class="course-locations-list" id="locations-{{ course.id }}">
+                                {% for location_group in location_groups %}
+                                <span class="location-item">{{ location_group.grouper.name }}</span>
+                                {% endfor %}
+                            </div>
+                            <button type="button" class="locations-more-btn" onclick="event.stopPropagation(); toggleLocations({{ course.id }});" aria-label="Show more locations" style="display: none;">
+                                <span class="more-text">more</span>
+                                <span class="less-text" style="display: none;">less</span>
+                            </button>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                        <div class="course-footer">
+                            <div class="course-price">From £{{ course.price }}</div>
+                            <span class="btn-view">View Details →</span>
+                        </div>
                     </div>
-                    <div class="course-footer">
-                        <div class="course-price">From £{{ course.price }}</div>
-                        <a href="{% url 'courses:course_detail' slug=course.slug %}" class="btn-view">View Details →</a>
-                    </div>
-                </div>
+                </a>
             </article>
             {% endfor %}
         {% else %}
@@ -154,6 +198,21 @@
 <!-- Leaflet JS for map -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+// Toggle filters
+function toggleFilters() {
+    const content = document.getElementById('filters-content');
+    const btn = document.getElementById('filter-toggle-btn');
+    const isActive = content.classList.contains('active');
+    
+    if (isActive) {
+        content.classList.remove('active');
+        btn.classList.remove('active');
+    } else {
+        content.classList.add('active');
+        btn.classList.add('active');
+    }
+}
+
 // View toggle functions
 function showGridView() {
     document.getElementById('course-grid').classList.remove('hidden');
@@ -169,6 +228,40 @@ function showMapView() {
     document.getElementById('map-view-btn').classList.add('active');
     initializeMap();
 }
+
+// Locations toggle functionality
+function toggleLocations(courseId) {
+    const listElement = document.getElementById('locations-' + courseId);
+    const btnElement = listElement.nextElementSibling;
+    
+    if (listElement.classList.contains('expanded')) {
+        listElement.classList.remove('expanded');
+        btnElement.classList.remove('expanded');
+    } else {
+        listElement.classList.add('expanded');
+        btnElement.classList.add('expanded');
+    }
+}
+
+// Check if locations list needs "more" button on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const locationLists = document.querySelectorAll('.course-locations-list');
+    locationLists.forEach(function(list) {
+        // Temporarily remove max-height to measure full height
+        const originalMaxHeight = list.style.maxHeight;
+        list.style.maxHeight = 'none';
+        const fullHeight = list.scrollHeight;
+        list.style.maxHeight = originalMaxHeight || '3em';
+        
+        // Check if content exceeds 2 lines (approximately 3em)
+        if (fullHeight > 3 * parseFloat(getComputedStyle(list).lineHeight)) {
+            const btn = list.nextElementSibling;
+            if (btn && btn.classList.contains('locations-more-btn')) {
+                btn.style.display = 'inline-block';
+            }
+        }
+    });
+});
 
 // Map initialization
 let map;

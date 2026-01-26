@@ -191,6 +191,15 @@ class CourseListView(ListView):
                 instances__location__is_active=True
             ).distinct()
         
+        # Filter by instructor
+        instructor = self.request.GET.get('instructor', '')
+        if instructor:
+            queryset = queryset.filter(
+                Q(instances__instructor__user__first_name__icontains=instructor) |
+                Q(instances__instructor__user__last_name__icontains=instructor) |
+                Q(instances__instructor__user__username__icontains=instructor)
+            ).distinct()
+        
         return queryset
     
     def get_context_data(self, **kwargs):
@@ -231,6 +240,7 @@ class CourseListView(ListView):
         context['current_level'] = self.request.GET.get('level', '')
         context['current_city'] = self.request.GET.get('city', '')
         context['current_search'] = self.request.GET.get('q', '')
+        context['current_instructor'] = self.request.GET.get('instructor', '')
         
         return context
 
