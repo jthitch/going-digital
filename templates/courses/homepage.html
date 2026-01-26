@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Photography Courses - Start Your Photography Journey{% endblock %}
+{% block meta_description %}Master photography from beginner to professional. Learn from expert instructors in hands-on courses designed for every skill level.{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/homepage.css' %}">
+
+<!-- Schema.org Structured Data for SEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://goingdigital.co.uk/#website",
+      "url": "https://goingdigital.co.uk/",
+      "name": "Going Digital Photography Courses",
+      "description": "Professional photography courses and workshops for all skill levels. Learn photography from beginner to professional with Going Digital.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://goingdigital.co.uk/courses/?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "LocalBusiness",
+      "@id": "https://goingdigital.co.uk/#business",
+      "name": "Going Digital",
+      "image": "https://goingdigital.co.uk/static/img/logo/logo-dark.png",
+      "url": "https://goingdigital.co.uk",
+      "telephone": "",
+      "priceRange": "££",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "GB"
+      },
+      "geo": {},
+      "sameAs": [],
+      "description": "Going Digital offers professional photography courses and workshops across the UK. From beginner to advanced, learn photography skills through hands-on training.",
+      "serviceArea": {
+        "@type": "Country",
+        "name": "United Kingdom"
+      },
+      "areaServed": {
+        "@type": "Country",
+        "name": "United Kingdom"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://goingdigital.co.uk/#faqpage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What photography courses are available near me?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Going Digital offers photography courses and workshops across the UK for all skill levels. Our courses include beginner photography courses, intermediate skills training, and advanced photography workshops. We cover various genres including portrait, landscape, wildlife, and sports photography. Visit goingdigital.co.uk to find photography courses in your area."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Where can I find photography workshops in my local area?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Going Digital provides photography workshops in multiple locations across the UK. Our photography workshops are designed for hands-on learning and are available for beginners through to advanced photographers. Check goingdigital.co.uk to find photography workshops near you, including residential photography courses and bespoke training options."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Are photography courses suitable for complete beginners?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, Going Digital's photography courses are perfect for complete beginners. Our Level 1 courses, including 'Get Off Auto', are ideal for people new to photography or anyone not comfortable with all the features on their camera. We start with the basics and guide you through your photography journey step by step. All skill levels are welcome at goingdigital.co.uk."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is included in photography workshops?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Going Digital's photography workshops provide hands-on, practical learning experiences. Workshops include instructor-led sessions, real-world practice, before and after examples, and personalized feedback. Our workshops cover camera settings, composition techniques, lighting, and genre-specific photography skills. Visit goingdigital.co.uk to explore our range of photography workshops and courses."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I book a photography course?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "You can book photography courses and workshops through Going Digital's website at goingdigital.co.uk. Browse our course listings by level, category, or location, select your preferred date and location, and complete your booking online. We offer courses for all skill levels from beginner to advanced, as well as residential photography courses and bespoke training options."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What photography skills will I learn in a course?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Going Digital's photography courses teach essential skills including camera settings and manual controls, composition and framing techniques, understanding light and exposure, focusing and depth of field, and genre-specific techniques for portrait, landscape, wildlife, and sports photography. Advanced courses cover more complex techniques and professional workflows. Visit goingdigital.co.uk to see detailed course content."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do you offer residential photography courses?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, Going Digital offers immersive residential photography courses in stunning locations. These intensive photography experiences allow you to fully focus on developing your photography skills while exploring beautiful locations. Residential courses provide extended learning opportunities with expert guidance. Find out more about our residential photography courses at goingdigital.co.uk."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
+{% endblock %}
+
+{% block main_attrs %}style="padding: 0; max-width: 100%;"{% endblock %}
+
+{% block content %}
+<!-- Hero Section with Image Slider -->
+<!-- Hero images are managed by platform admins in Django admin -->
+<section class="hero-section">
+    <div class="hero-slider">
+        {% if hero_images %}
+            {% for image_url in hero_images %}
+            <div class="hero-slide {% if forloop.first %}active{% endif %}" style="background-image: url('{{ image_url }}');">
+                <div class="hero-overlay"></div>
+                <div class="hero-content">
+                    <h1 class="hero-title">Start Your Photography Journey</h1>
+                    <p class="hero-subtitle">From beginner to professional, we'll guide you every step of the way</p>
+                    <a href="#journey" class="btn-hero">Explore Courses</a>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <!-- Fallback if no hero images are found -->
+            <div class="hero-slide active" style="background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="hero-overlay"></div>
+                <div class="hero-content">
+                    <h1 class="hero-title">Start Your Photography Journey</h1>
+                    <p class="hero-subtitle">From beginner to professional, we'll guide you every step of the way</p>
+                    <a href="#journey" class="btn-hero">Explore Courses</a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    {% if hero_images|length > 1 %}
+    <div class="hero-indicators">
+        {% for image_url in hero_images %}
+        <button class="hero-indicator {% if forloop.first %}active{% endif %}" data-slide="{{ forloop.counter0 }}"></button>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+
+<!-- Testimonials Section -->
+{% if testimonials %}
+<section class="testimonials-section">
+    <div class="testimonials-conveyor-container">
+        <div class="testimonials-conveyor" id="testimonials-conveyor">
+            {% for testimonial in testimonials %}
+            <div class="testimonial-item">
+                <div class="testimonial-quote">
+                    <svg class="quote-icon" width="30" height="30" viewBox="0 0 40 40" fill="none">
+                        <path d="M10 20C10 15 13 12 16 10C13 8 11 5 11 2C11 1 10 0 9 0C4 0 0 4 0 10C0 18 4 25 10 30V20Z" fill="currentColor" opacity="0.2"/>
+                        <path d="M29 20C29 15 32 12 35 10C32 8 30 5 30 2C30 1 29 0 28 0C23 0 19 4 19 10C19 18 23 25 29 30V20Z" fill="currentColor" opacity="0.2"/>
+                    </svg>
+                    <p class="testimonial-text">"{{ testimonial.testimonial_text }}"</p>
+                    <div class="testimonial-name-below">{{ testimonial.name }}{% if testimonial.role %} — {{ testimonial.role }}{% endif %}</div>
+                </div>
+                <div class="testimonial-rating">
+                    <div class="stars">
+                        {% for i in "12345"|make_list %}
+                            <span class="star {% if forloop.counter <= testimonial.rating %}filled{% endif %}">★</span>
+                        {% endfor %}
+                    </div>
+                    {% if testimonial.venue or testimonial.course_date %}
+                    <div class="testimonial-meta-info">
+                        {% if testimonial.venue %}
+                        <span class="testimonial-venue">📍 {{ testimonial.venue }}</span>
+                        {% endif %}
+                        {% if testimonial.course_date %}
+                        <span class="testimonial-date">{{ testimonial.course_date|date:"F Y" }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            <!-- Duplicate for seamless loop -->
+            {% for testimonial in testimonials %}
+            <div class="testimonial-item">
+                <div class="testimonial-quote">
+                    <svg class="quote-icon" width="30" height="30" viewBox="0 0 40 40" fill="none">
+                        <path d="M10 20C10 15 13 12 16 10C13 8 11 5 11 2C11 1 10 0 9 0C4 0 0 4 0 10C0 18 4 25 10 30V20Z" fill="currentColor" opacity="0.2"/>
+                        <path d="M29 20C29 15 32 12 35 10C32 8 30 5 30 2C30 1 29 0 28 0C23 0 19 4 19 10C19 18 23 25 29 30V20Z" fill="currentColor" opacity="0.2"/>
+                    </svg>
+                    <p class="testimonial-text">"{{ testimonial.testimonial_text }}"</p>
+                    <div class="testimonial-name-below">{{ testimonial.name }}{% if testimonial.role %} — {{ testimonial.role }}{% endif %}</div>
+                </div>
+                <div class="testimonial-rating">
+                    <div class="stars">
+                        {% for i in "12345"|make_list %}
+                            <span class="star {% if forloop.counter <= testimonial.rating %}filled{% endif %}">★</span>
+                        {% endfor %}
+                    </div>
+                    {% if testimonial.venue or testimonial.course_date %}
+                    <div class="testimonial-meta-info">
+                        {% if testimonial.venue %}
+                        <span class="testimonial-venue">📍 {{ testimonial.venue }}</span>
+                        {% endif %}
+                        {% if testimonial.course_date %}
+                        <span class="testimonial-date">{{ testimonial.course_date|date:"F Y" }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Photography Journey Guide - Level-Based Structure -->
+<section id="journey" class="journey-section">
+    <div class="container">
+        <h2 class="section-title">Your Photography Journey</h2>
+        <p class="section-subtitle">Follow your personalized path from first click to mastering your craft</p>
+        
+        <div class="journey-levels-grid">
+            <!-- Level 1 -->
+            <div class="journey-level-box level-box-1">
+                <h3 class="level-box-title">Level 1</h3>
+                <p class="level-box-description">Beginner courses to get you started</p>
+                {% if level_1_courses %}
+                <div class="level-box-courses">
+                    {% for course in level_1_courses %}
+                    <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                        <span class="course-title">{{ course.title }}</span>
+                        <span class="course-price">£{{ course.price }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="level-box-empty">No courses available</p>
+                {% endif %}
+            </div>
+            
+            <!-- Level 2 -->
+            <div class="journey-level-box level-box-2">
+                <h3 class="level-box-title">Level 2</h3>
+                <p class="level-box-description">Intermediate courses to expand your skills</p>
+                {% if level_2_courses %}
+                <div class="level-box-courses">
+                    {% for course in level_2_courses %}
+                    <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                        <span class="course-title">{{ course.title }}</span>
+                        <span class="course-price">£{{ course.price }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="level-box-empty">No courses available</p>
+                {% endif %}
+            </div>
+            
+            <!-- Level 3 -->
+            <div class="journey-level-box level-box-3">
+                <h3 class="level-box-title">Level 3</h3>
+                <p class="level-box-description">Advanced courses for experienced photographers</p>
+                {% if level_3_courses %}
+                <div class="level-box-courses">
+                    {% for course in level_3_courses %}
+                    <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                        <span class="course-title">{{ course.title }}</span>
+                        <span class="course-price">£{{ course.price }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="level-box-empty">No courses available</p>
+                {% endif %}
+            </div>
+            
+            <!-- Editing -->
+            <div class="journey-level-box level-box-editing">
+                <h3 class="level-box-title"><a href="{% url 'courses:editing_course_page' %}" class="level-title-link">Editing</a></h3>
+                <p class="level-box-description">Master post-processing and image editing</p>
+                {% if editing_courses %}
+                <div class="level-box-courses">
+                    {% for course in editing_courses %}
+                    <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                        <span class="course-title">{{ course.title }}</span>
+                        <span class="course-price">£{{ course.price }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="level-box-empty">No courses available</p>
+                {% endif %}
+            </div>
+            
+            <!-- Residentials -->
+            <div class="journey-level-box level-box-residentials">
+                <h3 class="level-box-title">Residentials</h3>
+                <p class="level-box-description">Intensive residential photography courses</p>
+                {% if residentials_courses %}
+                <div class="level-box-courses">
+                    {% for course in residentials_courses %}
+                    <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                        <span class="course-title">{{ course.title }}</span>
+                        <span class="course-price">£{{ course.price }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="level-box-empty">No courses available</p>
+                {% endif %}
+            </div>
+            
+            <!-- Bespoke -->
+            <div class="journey-level-box level-box-bespoke">
+                <h3 class="level-box-title">Bespoke</h3>
+                <p class="level-box-description">Custom tailored courses for your specific needs</p>
+                {% if bespoke_courses %}
+                <div class="level-box-courses">
+                    {% for course in bespoke_courses %}
+                    <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                        <span class="course-title">{{ course.title }}</span>
+                        <span class="course-price">£{{ course.price }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="level-box-empty">No courses available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Featured Courses Section -->
+{% if beginner_courses or intermediate_courses or advanced_courses %}
+<section class="featured-courses">
+    <div class="container">
+        <h2 class="section-title">Popular Courses</h2>
+        <div class="courses-grid">
+            {% for course in beginner_courses|slice:":3" %}
+            <article class="course-card-featured">
+                {% if course.image %}
+                <img src="{{ course.image.url }}" alt="{{ course.title }}" class="course-image">
+                {% endif %}
+                <div class="course-content">
+                    <span class="course-level">{{ course.get_level_display }}</span>
+                    <h3><a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}">{{ course.title }}</a></h3>
+                    <p class="course-short">{{ course.short_description|truncatewords:15 }}</p>
+                    <div class="course-footer">
+                        <span class="course-price">From £{{ course.price }}</span>
+                        <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="btn-course">Learn More</a>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        <div class="section-footer">
+            <a href="{% url 'courses:course_list' %}" class="btn-view-all">View All Courses</a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Call to Action Section -->
+<section class="cta-section">
+    <div class="container">
+        <h2>Ready to Start Your Photography Journey?</h2>
+        <p>Join thousands of students learning photography with expert instructors</p>
+        <div class="cta-buttons">
+            <a href="{% url 'courses:course_list' %}" class="btn-cta-primary">Browse All Courses</a>
+            <a href="{% url 'courses:course_list' %}?level=beginner" class="btn-cta-secondary">Start as Beginner</a>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Add homepage class to body for CSS targeting (header opacity)
+document.body.classList.add('homepage');
+
+// Header opacity on scroll
+document.addEventListener('DOMContentLoaded', function() {
+    const header = document.querySelector('body.homepage header');
+    
+    if (header) {
+        let lastScrollTop = 0;
+        const scrollThreshold = 10; // Start reducing opacity after 10px scroll
+        
+        function handleScroll() {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            
+            if (scrollTop > scrollThreshold) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+            
+            lastScrollTop = scrollTop;
+        }
+        
+        // Throttle scroll events for better performance
+        let ticking = false;
+        window.addEventListener('scroll', function() {
+            if (!ticking) {
+                window.requestAnimationFrame(function() {
+                    handleScroll();
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        });
+        
+        // Check initial scroll position
+        handleScroll();
+    }
+});
+</script>
+
+{% if hero_images|length > 1 %}
+<script>
+// Simple hero image slider - automatically cycles through images
+document.addEventListener('DOMContentLoaded', function() {
+    const slides = document.querySelectorAll('.hero-slide');
+    const indicators = document.querySelectorAll('.hero-indicator');
+    let currentSlide = 0;
+    let slideInterval;
+    
+    function showSlide(index) {
+        slides.forEach((slide, i) => {
+            slide.classList.toggle('active', i === index);
+        });
+        indicators.forEach((indicator, i) => {
+            indicator.classList.toggle('active', i === index);
+        });
+        currentSlide = index;
+    }
+    
+    function nextSlide() {
+        const next = (currentSlide + 1) % slides.length;
+        showSlide(next);
+    }
+    
+    // Auto-advance slides every 5 seconds
+    function startSlider() {
+        slideInterval = setInterval(nextSlide, 5000);
+    }
+    
+    function stopSlider() {
+        clearInterval(slideInterval);
+    }
+    
+    // Indicator click handlers
+    indicators.forEach((indicator, index) => {
+        indicator.addEventListener('click', () => {
+            stopSlider();
+            showSlide(index);
+            startSlider();
+        });
+    });
+    
+    // Pause on hover
+    const heroSection = document.querySelector('.hero-section');
+    if (heroSection) {
+        heroSection.addEventListener('mouseenter', stopSlider);
+        heroSection.addEventListener('mouseleave', startSlider);
+    }
+    
+    // Start the slider
+    startSlider();
+});
+</script>
+{% endif %}
+{% endblock %}

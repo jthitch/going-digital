@@ -1,0 +1,40 @@
+-- Django Photography Course Booking Platform Schema
+-- PostgreSQL compatible schema
+-- 
+-- To recreate this database in production:
+-- 1. Create database: CREATE DATABASE photocourses;
+-- 2. Run migrations: python manage.py migrate
+--
+-- OR use PostgreSQL dump: pg_dump -s photocourses > schema.sql
+--
+-- Table structure overview:
+-- - users (custom User model with roles)
+-- - franchises (franchise entities)
+-- - locations (course locations)
+-- - courses (course definitions)
+-- - course_instances (scheduled course instances)
+-- - instructors (instructor profiles)
+-- - course_faqs (FAQ entries)
+-- - bookings (course bookings)
+-- - payments (Stripe payment records)
+--
+-- For the actual table creation SQL, use one of these methods:
+--
+-- Method 1: Generate from migrations (recommended)
+-- python manage.py sqlmigrate core 0001
+-- python manage.py sqlmigrate franchises 0001
+-- python manage.py sqlmigrate courses 0001
+-- python manage.py sqlmigrate bookings 0001
+-- python manage.py sqlmigrate payments 0001
+--
+-- Method 2: Use pg_dump on an existing database
+-- pg_dump -s -U postgres photocourses > schema.sql
+--
+-- Method 3: Use Django's inspectdb (on existing database)
+-- python manage.py inspectdb > models_generated.py
+--
+-- The recommended approach for production is to use Django migrations:
+-- 1. Set DATABASES to PostgreSQL in settings.py
+-- 2. Run: python manage.py migrate
+--
+-- This ensures proper dependency handling and migration tracking.

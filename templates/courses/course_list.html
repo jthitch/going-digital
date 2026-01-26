@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Browse Photography Courses{% endblock %}
+{% block meta_description %}Browse our selection of photography courses by location, date, level, and category.{% endblock %}
+
+{% block extra_head %}
+<!-- Leaflet CSS for map -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="{% static 'css/course-list.css' %}">
+{% endblock %}
+
+{% block content %}
+<main class="course-list-page">
+    <div class="page-header">
+        <h1>Photography Courses</h1>
+        <p class="page-subtitle">Discover photography courses tailored to your skill level and interests</p>
+    </div>
+    
+    <!-- View Toggle Buttons -->
+    <div class="view-toggle-container">
+        <div class="view-toggle-group">
+            <button class="view-toggle-btn active" id="grid-view-btn" onclick="showGridView()" aria-label="View courses in grid layout">
+                List View
+            </button>
+            <button class="view-toggle-btn" id="map-view-btn" onclick="showMapView()" aria-label="View courses on map">
+                Map View
+            </button>
+        </div>
+    </div>
+    
+    <!-- Server-rendered search filters -->
+    <section class="filters-section" aria-label="Filter Courses">
+        <div class="filters-header">
+            <h2 class="filters-title">Filter Courses</h2>
+            {% if current_search or current_category or current_level or current_city %}
+            <a href="{% url 'courses:course_list' %}" class="clear-filters-btn">
+                Clear All
+            </a>
+            {% endif %}
+        </div>
+        <form method="get" action="{% url 'courses:course_list' %}" class="filters-form">
+            <div class="filter-group">
+                <label for="search" class="filter-label">Search</label>
+                <input type="text" id="search" name="q" value="{{ current_search }}" placeholder="Search courses..." class="filter-input">
+            </div>
+            
+            <div class="filter-group">
+                <label for="category" class="filter-label">Category</label>
+                <select id="category" name="category" class="filter-select">
+                    <option value="">All Categories</option>
+                    {% for value, label in categories %}
+                    <option value="{{ value }}" {% if current_category == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="level" class="filter-label">Level</label>
+                <select id="level" name="level" class="filter-select">
+                    <option value="">All Levels</option>
+                    {% for value, label in levels %}
+                    <option value="{{ value }}" {% if current_level == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="city" class="filter-label">City</label>
+                <select id="city" name="city" class="filter-select">
+                    <option value="">All Cities</option>
+                    {% for city in cities %}
+                    <option value="{{ city }}" {% if current_city == city %}selected{% endif %}>{{ city }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <button type="submit" class="filter-submit-btn">Apply Filters</button>
+        </form>
+    </section>
+    
+    <!-- Map View -->
+    <div class="map-container hidden" id="map-container">
+        <div id="course-map"></div>
+    </div>
+    
+    <!-- Course listings -->
+    <section class="course-grid course-grid-container" id="course-grid" aria-label="Course Listings">
+        {% if courses %}
+            {% for course in courses %}
+            <article class="course-card">
+                <div class="course-image-wrapper">
+                    {% if course.image %}
+                    <img src="{{ course.image.url }}" alt="{{ course.title }}" class="course-thumbnail">
+                    {% else %}
+                    <div class="course-placeholder">📷</div>
+                    {% endif %}
+                    <div class="course-level-badge">{{ course.get_level_display }}</div>
+                </div>
+                <div class="course-card-content">
+                    <div class="course-header">
+                        <h2 class="course-title">
+                            <a href="{% url 'courses:course_detail' slug=course.slug %}">{{ course.title }}</a>
+                        </h2>
+                    </div>
+                    <p class="course-short-desc">{{ course.short_description|truncatewords:20 }}</p>
+                    <div class="course-meta">
+                        <span class="meta-item category">
+                            {{ course.get_category_display }}
+                        </span>
+                        <span class="meta-item duration">
+                            {{ course.duration_hours }}h
+                        </span>
+                    </div>
+                    <div class="course-footer">
+                        <div class="course-price">From £{{ course.price }}</div>
+                        <a href="{% url 'courses:course_detail' slug=course.slug %}" class="btn-view">View Details →</a>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        {% else %}
+            <div class="no-results">
+                <h3>No courses found</h3>
+                <p>Try adjusting your filters to see more results.</p>
+                <a href="{% url 'courses:course_list' %}" class="btn-clear-search">Clear all filters</a>
+            </div>
+        {% endif %}
+    </section>
+    
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="Course pagination">
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+            <li><a href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+            {% endif %}
+            
+            <li>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</li>
+            
+            {% if page_obj.has_next %}
+            <li><a href="?page={{ page_obj.next_page_number }}">Next</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</main>
+
+<!-- React component for enhanced filtering (progressive enhancement) -->
+<div id="react-filters" style="display: none;"></div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Leaflet JS for map -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// View toggle functions
+function showGridView() {
+    document.getElementById('course-grid').classList.remove('hidden');
+    document.getElementById('map-container').classList.add('hidden');
+    document.getElementById('grid-view-btn').classList.add('active');
+    document.getElementById('map-view-btn').classList.remove('active');
+}
+
+function showMapView() {
+    document.getElementById('course-grid').classList.add('hidden');
+    document.getElementById('map-container').classList.remove('hidden');
+    document.getElementById('grid-view-btn').classList.remove('active');
+    document.getElementById('map-view-btn').classList.add('active');
+    initializeMap();
+}
+
+// Map initialization
+let map;
+let markers = [];
+
+function initializeMap() {
+    // Only initialize if map doesn't exist yet
+    if (map) {
+        return;
+    }
+    
+    // Location data from Django
+    const locations = {{ locations_data|safe }};
+    
+    if (locations.length === 0) {
+        document.getElementById('course-map').innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">No course locations available to display on the map.</div>';
+        return;
+    }
+    
+    // Create map centered on first location or UK center
+    const centerLat = locations[0]?.latitude || 54.7024;
+    const centerLng = locations[0]?.longitude || -3.2766;
+    
+    map = L.map('course-map').setView([centerLat, centerLng], 6);
+    
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(map);
+    
+    // Add markers for each location
+    function getThemeColors() {
+        const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark' ||
+            (!document.documentElement.getAttribute('data-theme') && 
+             window.matchMedia('(prefers-color-scheme: dark)').matches);
+        return {
+            primary: isDarkMode ? '#4a9eff' : '#0066cc',
+            text: isDarkMode ? '#ffffff' : '#1a1a1a',
+            textSecondary: isDarkMode ? '#b0b0b0' : '#666'
+        };
+    }
+    
+    const colors = getThemeColors();
+    
+    locations.forEach(function(location) {
+        const marker = L.marker([location.latitude, location.longitude])
+            .addTo(map)
+            .bindPopup(`
+                <div style="min-width: 200px; color: ${colors.text};">
+                    <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; color: ${colors.text};"><a href="${location.course_url}" style="color: ${colors.primary}; text-decoration: none;">${location.course_title}</a></h3>
+                    <p style="margin: 0.25rem 0; color: ${colors.textSecondary}; font-size: 0.9rem;"><strong>${location.location_name}</strong></p>
+                    <p style="margin: 0.25rem 0; color: ${colors.textSecondary}; font-size: 0.85rem;">${location.address}</p>
+                    <a href="${location.course_url}" style="display: inline-block; margin-top: 0.5rem; padding: 0.5rem 1rem; background: ${colors.primary}; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9rem; transition: opacity 0.2s;">View Course →</a>
+                </div>
+            `);
+        
+        markers.push(marker);
+    });
+    
+    // Fit map bounds to show all markers
+    if (markers.length > 1) {
+        const group = new L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.1));
+    }
+}
+</script>
+{% endblock %}

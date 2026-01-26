@@ -1,0 +1,788 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Editing Courses - Photography Courses{% endblock %}
+{% block meta_description %}Learn professional photo editing with Going Digital. Courses in Adobe Lightroom, Photoshop, and Affinity Photo. Transform good photos into finished images.{% endblock %}
+{% block meta_keywords %}photo editing course, Lightroom course, Photoshop course, Affinity Photo, photo editing training, photography editing{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/main.css' %}">
+<link rel="stylesheet" href="{% static 'css/homepage.css' %}">
+
+<!-- FAQPage Schema.org Structured Data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What's the best way to learn Photoshop 2026?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The best way to learn Photoshop 2026 is through hands-on, instructor-led training that covers both fundamental techniques and advanced workflows. Going Digital's Photoshop editing courses teach you how to work with layers and masks, retouch portraits naturally, remove distractions, refine details, and create composites. You'll learn practical skills through real examples with before and after edits, so you can clearly see how each adjustment affects the final image. Visit goingdigital.co.uk to explore our Photoshop courses."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How long does it take to learn photo editing?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The time it takes to learn photo editing varies depending on the software and your goals. For beginners, Going Digital's introductory courses can teach you the basics in a few sessions. To become proficient in professional editing workflows typically takes several weeks of structured learning and practice. Our courses at goingdigital.co.uk are designed to teach practical skills you can use immediately, with guidance on building a clean, repeatable editing workflow."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which photo editing software should I learn - Lightroom, Photoshop, or Affinity Photo?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The choice depends on your needs and budget. Lightroom is ideal for organizing and editing large batches of photos efficiently. Photoshop offers the most advanced editing capabilities for detailed retouching and compositing. Affinity Photo provides professional results without subscription fees. Going Digital offers dedicated courses in all three platforms, so you can learn on the software that suits you best. Many photographers use Lightroom and Photoshop together for a complete workflow. Visit goingdigital.co.uk to see all our editing course options."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Are photo editing courses suitable for beginners?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, Going Digital's photo editing courses are designed for photographers of all levels. We welcome beginner photographers learning to edit for the first time, hobbyists who want better-looking images, and professionals refining their workflow. Our courses at goingdigital.co.uk start with fundamental concepts like understanding light, exposure, and colour in editing, then progress to more advanced techniques. No matter your level, the focus is on practical skills you can use straight away."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What will I learn in a Lightroom course?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "In Going Digital's Lightroom course, you'll learn how to import and organise your photo library, use global and local adjustments effectively, master colour, tone curves, and profiles, and create and use presets without damaging your images. You'll also learn to edit entire shoots efficiently. This course focuses on speed, consistency, and control - ideal for photographers who want clean, natural edits and a fast workflow. Find out more at goingdigital.co.uk."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need my own camera or equipment for editing courses?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "For Going Digital's photo editing courses, you'll need access to the editing software (Adobe Lightroom, Photoshop, or Affinity Photo) and a computer capable of running it. While having your own camera to practice with your own photos is helpful, it's not required for the courses. We provide example images and exercises to help you learn the editing techniques. Visit goingdigital.co.uk for full course details and requirements."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I learn photo editing online or are in-person courses better?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Both online and in-person photo editing courses have their benefits. In-person courses offer direct interaction with instructors and hands-on guidance, which is particularly valuable when learning complex software. Going Digital offers courses in various formats to suit different learning preferences. Our courses at goingdigital.co.uk include real examples with before and after edits, allowing you to see exactly how editing transforms images, regardless of the delivery method."
+      }
+    }
+  ]
+}
+</script>
+
+<style>
+.editing-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem 1rem 2rem 1rem;
+}
+
+.editing-hero {
+    text-align: center;
+    padding: 1rem 0 1.5rem 0;
+    margin-bottom: 1.5rem;
+}
+
+.editing-hero h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.editing-hero-subtitle {
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+}
+
+.editing-intro {
+    padding: 1.5rem 0;
+    font-size: 1.125rem;
+    line-height: 1.8;
+}
+
+.intro-lead {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: var(--text-primary);
+}
+
+.editing-intro p {
+    margin-bottom: 1.5rem;
+    color: var(--text-secondary);
+}
+
+.editing-intro em {
+    font-style: italic;
+    color: var(--text-primary);
+}
+
+.intro-cta {
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.btn-explore-courses {
+    display: inline-block;
+    padding: 1rem 2.5rem;
+    background: var(--primary-color, #0066cc);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1.125rem;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-explore-courses:hover {
+    background: var(--primary-hover, #0052a3);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 102, 204, 0.3);
+}
+
+.editing-what-youll-learn,
+.editing-visual,
+.editing-audience {
+    padding: 2rem 0;
+    border-top: 1px solid var(--border-color);
+}
+
+.editing-what-youll-learn h2,
+.editing-visual h2,
+.editing-audience h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: var(--text-primary);
+}
+
+.editing-what-youll-learn p,
+.editing-visual p,
+.editing-audience p {
+    font-size: 1.125rem;
+    line-height: 1.8;
+    margin-bottom: 1.5rem;
+    color: var(--text-secondary);
+}
+
+.learning-topics {
+    list-style: none;
+    padding-left: 0;
+    margin: 2rem 0;
+}
+
+.learning-topics li {
+    padding: 0.75rem 0;
+    padding-left: 2rem;
+    position: relative;
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.learning-topics li:last-child {
+    border-bottom: none;
+}
+
+.learning-topics li:before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #4caf50;
+    font-weight: bold;
+    font-size: 1.25rem;
+}
+
+.editing-courses {
+    padding: 2rem 0;
+    border-top: 1px solid var(--border-color);
+}
+
+.editing-course-card {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 2.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border-color);
+}
+
+.editing-course-card h3 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    color: var(--text-primary);
+}
+
+.course-card-subtitle {
+    font-size: 1.125rem;
+    font-weight: 500;
+    margin-bottom: 1.5rem;
+    color: var(--text-secondary);
+}
+
+.editing-course-card ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 1rem 0;
+}
+
+.editing-course-card li {
+    padding: 0.5rem 0;
+    padding-left: 1.5rem;
+    position: relative;
+    color: var(--text-secondary);
+}
+
+.editing-course-card li:before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: var(--primary-color, #0066cc);
+    font-weight: bold;
+}
+
+.course-card-note {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    font-style: italic;
+    color: var(--text-secondary);
+}
+
+.audience-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 2rem 0;
+}
+
+.audience-list li {
+    padding: 0.75rem 0;
+    padding-left: 2rem;
+    position: relative;
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+}
+
+.audience-list li:before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    color: var(--primary-color, #0066cc);
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.editing-cta {
+    padding: 3rem 0;
+    text-align: center;
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+    border-radius: 16px;
+    margin-top: 2rem;
+}
+
+.editing-cta h2 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.editing-cta p {
+    font-size: 1.125rem;
+    line-height: 1.8;
+    margin-bottom: 2rem;
+    color: var(--text-secondary);
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.editing-course-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+    margin: 2rem 0;
+}
+
+.btn-editing-course {
+    display: inline-block;
+    padding: 1rem 2.5rem;
+    background: var(--primary-color, #0066cc);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1.125rem;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-editing-course:hover {
+    background: var(--primary-hover, #0052a3);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 102, 204, 0.3);
+}
+
+.cta-footer {
+    margin-top: 2rem;
+    font-size: 1rem;
+    font-style: italic;
+    color: var(--text-secondary);
+}
+
+/* Before/After Image Slider */
+.before-after-container-top {
+    margin: 0 0 1.5rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.before-after-container {
+    margin-top: 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+}
+
+.before-after-slider {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.before-after-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    background: var(--bg-secondary);
+}
+
+.before-after-before,
+.before-after-after {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.ba-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.before-after-after {
+    clip-path: inset(0 0 0 50%);
+}
+
+.before-after-divider {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: white;
+    cursor: ew-resize;
+    z-index: 10;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.divider-line {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: white;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    transform: translateX(-50%);
+}
+
+.divider-handle {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 50px;
+    height: 50px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    cursor: grab;
+    transition: transform 0.1s ease;
+    z-index: 11;
+}
+
+.divider-handle:active {
+    cursor: grabbing;
+    transform: translate(-50%, -50%) scale(1.1);
+}
+
+.divider-handle svg {
+    width: 20px;
+    height: 20px;
+    color: var(--text-primary);
+}
+
+.before-after-label {
+    position: absolute;
+    top: 20px;
+    padding: 0.5rem 1rem;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-radius: 20px;
+    z-index: 12;
+    backdrop-filter: blur(10px);
+}
+
+.before-after-label.before-label {
+    left: 20px;
+}
+
+.before-after-label.after-label {
+    right: 20px;
+}
+
+.before-after-title {
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 1rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .editing-hero h1 {
+        font-size: 2rem;
+    }
+    
+    .editing-hero-subtitle {
+        font-size: 1.25rem;
+    }
+    
+    .editing-intro,
+    .editing-what-youll-learn,
+    .editing-visual,
+    .editing-audience {
+        padding: 2rem 0;
+    }
+    
+    .editing-course-card {
+        padding: 1.5rem;
+    }
+    
+    .editing-cta {
+        padding: 3rem 1.5rem;
+    }
+    
+    .editing-cta h2 {
+        font-size: 1.75rem;
+    }
+    
+    .btn-editing-course {
+        padding: 0.875rem 2rem;
+        font-size: 1rem;
+    }
+    
+    .before-after-wrapper {
+        aspect-ratio: 3 / 2;
+    }
+    
+    .divider-handle {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .divider-handle svg {
+        width: 16px;
+        height: 16px;
+    }
+    
+    .before-after-label {
+        font-size: 0.75rem;
+        padding: 0.4rem 0.8rem;
+        top: 10px;
+    }
+    
+    .before-after-label.before-label {
+        left: 10px;
+    }
+    
+    .before-after-label.after-label {
+        right: 10px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="editing-page">
+    <!-- Hero Section -->
+    <div class="editing-hero">
+        <h1>Editing Courses</h1>
+        <p class="editing-hero-subtitle">Turn Good Photos Into Finished Images</p>
+    </div>
+
+    <!-- Before/After Slider Section -->
+    {% if before_after_images %}
+    <div class="before-after-container-top">
+        {% for comparison in before_after_images %}
+        <div class="before-after-slider" data-comparison="{{ forloop.counter0 }}">
+            <div class="before-after-wrapper">
+                <div class="before-after-before">
+                    <img src="{{ comparison.before_image.url }}" alt="Before: {{ comparison.title }}" class="ba-image">
+                </div>
+                <div class="before-after-after" style="clip-path: inset(0 0 0 50%);">
+                    <img src="{{ comparison.after_image.url }}" alt="After: {{ comparison.title }}" class="ba-image">
+                </div>
+                <div class="before-after-divider" style="left: 50%;">
+                    <div class="divider-handle">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M15 18L21 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="divider-line"></div>
+                </div>
+                <div class="before-after-label before-label">Before</div>
+                <div class="before-after-label after-label">After</div>
+            </div>
+            {% if comparison.title %}
+            <p class="before-after-title">{{ comparison.title }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Introduction Section -->
+    <div class="editing-intro">
+        <p class="intro-lead">Taking the photo is only half the story. Editing is where your images come together, your style develops, and your work starts to look professional.</p>
+        
+        <p>The Going Digital editing courses are designed to help photographers understand <em>why</em> they edit, not just which buttons to press. Whether you're fixing exposure, refining colour, or creating a polished final image, these courses give you the skills to edit with confidence.</p>
+        
+        <p>We offer dedicated courses in Adobe Lightroom, Adobe Photoshop, and Affinity Photo, so you can learn on the platform that suits you best.</p>
+        
+        <div class="intro-cta">
+            <a href="{% url 'courses:course_list' %}" class="btn-explore-courses">Explore Courses</a>
+        </div>
+    </div>
+
+    <!-- What You'll Learn Section -->
+    <section class="editing-what-youll-learn">
+        <h2>What You'll Learn</h2>
+        
+        <p>Our photo editing courses cover the full workflow, from import to export. You'll learn how to work efficiently, make strong creative decisions, and produce consistent results across your images.</p>
+        
+        <p><strong>Topics include:</strong></p>
+        
+        <ul class="learning-topics">
+            <li>Understanding light, exposure, and colour in editing</li>
+            <li>Building a clean, repeatable editing workflow</li>
+            <li>Correcting exposure, contrast, and white balance</li>
+            <li>Colour grading and tonal control</li>
+            <li>Retouching portraits and landscapes</li>
+            <li>Sharpening images without overdoing it</li>
+            <li>Preparing images for print, web, and social media</li>
+            <li>Editing with intention, not guesswork</li>
+        </ul>
+        
+        <p>You'll see real examples throughout the course, including before and after edits, so you can clearly see how each adjustment affects the final image.</p>
+    </section>
+
+    <!-- Course Types Section -->
+    <section class="editing-courses">
+        <!-- Lightroom Course -->
+        <div class="editing-course-card">
+            <h3>Lightroom Course</h3>
+            <p class="course-card-subtitle">Our Lightroom editing course focuses on speed, consistency, and control.</p>
+            
+            <p><strong>You'll learn how to:</strong></p>
+            <ul>
+                <li>Import and organise your photo library</li>
+                <li>Use global and local adjustments effectively</li>
+                <li>Master colour, tone curves, and profiles</li>
+                <li>Create and use presets without damaging your images</li>
+                <li>Edit entire shoots efficiently</li>
+            </ul>
+            
+            <p class="course-card-note"><em>Ideal for photographers who want clean, natural edits and a fast workflow.</em></p>
+        </div>
+
+        <!-- Photoshop Course -->
+        <div class="editing-course-card">
+            <h3>Photoshop Course</h3>
+            <p class="course-card-subtitle">The Photoshop editing course goes deeper into precision and creative control.</p>
+            
+            <p><strong>You'll learn how to:</strong></p>
+            <ul>
+                <li>Work with layers and masks</li>
+                <li>Retouch portraits naturally</li>
+                <li>Remove distractions and refine details</li>
+                <li>Combine images and create composites</li>
+                <li>Use Photoshop alongside Lightroom</li>
+            </ul>
+            
+            <p class="course-card-note"><em>Perfect for photographers who want full control over every detail of their images.</em></p>
+        </div>
+
+        <!-- Affinity Photo Course -->
+        <div class="editing-course-card">
+            <h3>Affinity Photo Course</h3>
+            <p class="course-card-subtitle">The Affinity Photo course offers a powerful, affordable alternative to Adobe software.</p>
+            
+            <p><strong>You'll learn how to:</strong></p>
+            <ul>
+                <li>Navigate the Affinity Photo interface</li>
+                <li>Use adjustment layers and masks</li>
+                <li>Retouch and enhance images professionally</li>
+                <li>Build a complete editing workflow without subscriptions</li>
+            </ul>
+            
+            <p class="course-card-note"><em>A great choice for photographers looking for professional results using Affinity tools.</em></p>
+        </div>
+    </section>
+
+    <!-- Visual Learning Section -->
+    <section class="editing-visual">
+        <h2>Learn by Seeing the Difference</h2>
+        <p>Editing is best understood visually. That's why this page includes a before and after image slider, letting you see exactly how raw files are transformed through the editing process.</p>
+        <p><strong>No tricks. No heavy-handed effects. Just thoughtful, professional photo editing.</strong></p>
+    </section>
+
+    <!-- Who These Courses Are For Section -->
+    <section class="editing-audience">
+        <h2>Who These Courses Are For</h2>
+        <ul class="audience-list">
+            <li>Beginner photographers learning to edit for the first time</li>
+            <li>Hobbyists who want better-looking images</li>
+            <li>Professionals refining their workflow and style</li>
+            <li>Anyone frustrated by inconsistent edits</li>
+        </ul>
+        <p>No matter your level, the focus is on practical skills you can use straight away.</p>
+    </section>
+
+    <!-- Call to Action Section -->
+    <section class="editing-cta">
+        <h2>Ready to Edit With Confidence?</h2>
+        <p>If you're tired of guessing your way through editing or relying on presets you don't understand, this course will change how you approach your photos.</p>
+        
+        {% if editing_courses %}
+        <div class="editing-course-links">
+            {% for course in editing_courses %}
+            <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="btn-editing-course">
+                Enrol in {{ course.title }}
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <a href="{% url 'courses:course_list' %}" class="btn-editing-course">
+            Browse Editing Courses
+        </a>
+        {% endif %}
+        
+        <p class="cta-footer">Learn to edit with purpose. Learn to finish your images properly. Learn with Going Digital.</p>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Interactive Before/After Image Slider
+document.addEventListener('DOMContentLoaded', function() {
+    const sliders = document.querySelectorAll('.before-after-slider');
+    
+    sliders.forEach((slider, index) => {
+        const wrapper = slider.querySelector('.before-after-wrapper');
+        const divider = slider.querySelector('.before-after-divider');
+        const afterImage = slider.querySelector('.before-after-after');
+        const handle = slider.querySelector('.divider-handle');
+        let isDragging = false;
+        let startX = 0;
+        let startLeft = 0;
+        
+        function updateSlider(x) {
+            const rect = wrapper.getBoundingClientRect();
+            const percentage = ((x - rect.left) / rect.width) * 100;
+            const clampedPercentage = Math.max(0, Math.min(100, percentage));
+            
+            divider.style.left = clampedPercentage + '%';
+            // Clip from left: as percentage increases, reveal more of the after image
+            afterImage.style.clipPath = `inset(0 0 0 ${clampedPercentage}%)`;
+        }
+        
+        function handleMove(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            updateSlider(clientX);
+        }
+        
+        function handleEnd() {
+            isDragging = false;
+            handle.style.cursor = 'grab';
+            document.removeEventListener('mousemove', handleMove);
+            document.removeEventListener('touchmove', handleMove);
+            document.removeEventListener('mouseup', handleEnd);
+            document.removeEventListener('touchend', handleEnd);
+        }
+        
+        function handleStart(e) {
+            isDragging = true;
+            handle.style.cursor = 'grabbing';
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            startX = clientX;
+            const rect = divider.getBoundingClientRect();
+            startLeft = rect.left + rect.width / 2 - wrapper.getBoundingClientRect().left;
+            
+            document.addEventListener('mousemove', handleMove);
+            document.addEventListener('touchmove', handleMove);
+            document.addEventListener('mouseup', handleEnd);
+            document.addEventListener('touchend', handleEnd);
+            
+            e.preventDefault();
+        }
+        
+        // Mouse events
+        divider.addEventListener('mousedown', handleStart);
+        handle.addEventListener('mousedown', handleStart);
+        
+        // Touch events for mobile
+        divider.addEventListener('touchstart', handleStart);
+        handle.addEventListener('touchstart', handleStart);
+        
+        // Click on wrapper to move slider
+        wrapper.addEventListener('click', function(e) {
+            if (!isDragging) {
+                updateSlider(e.clientX);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

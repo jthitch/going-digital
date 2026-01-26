@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ course.title }} - Photography Courses{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+{% block meta_keywords %}{{ meta_keywords }}{% endblock %}
+
+{% block extra_head %}
+    <!-- JSON-LD Structured Data for SEO -->
+    <script type="application/ld+json">
+    {{ schema_data|safe }}
+    </script>
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:title" content="{{ course.title }}">
+    <meta property="og:description" content="{{ course.short_description }}">
+    {% if course.image %}
+    <meta property="og:image" content="{{ request.build_absolute_uri }}{{ course.image.url }}">
+    {% endif %}
+    <meta property="og:type" content="product">
+{% endblock %}
+
+{% block content %}
+<article class="course-detail">
+    <!-- H1: Course Name -->
+    <h1>{{ course.title }}</h1>
+    
+    <!-- Course Image -->
+    {% if course.image %}
+    <img src="{{ course.image.url }}" alt="{{ course.title }}" class="course-image">
+    {% endif %}
+    
+    <!-- Key Facts -->
+    <section class="course-facts" aria-label="Course Details">
+        <div class="fact-item">
+            <strong>Level:</strong> {{ course.get_level_display }}
+        </div>
+        <div class="fact-item">
+            <strong>Duration:</strong> {{ course.duration_hours }} hours
+        </div>
+        <div class="fact-item">
+            <strong>Category:</strong> {{ course.get_category_display }}
+        </div>
+        {% if featured_instance %}
+        <div class="fact-item">
+            <strong>Price:</strong> £{{ featured_instance.price }}
+        </div>
+        <div class="fact-item">
+            <strong>Location:</strong> {{ featured_instance.location.city }}
+        </div>
+        {% endif %}
+    </section>
+    
+    <!-- Course Description -->
+    <section class="course-description">
+        <h2>About This Course</h2>
+        <div>{{ course.description|linebreaks }}</div>
+    </section>
+    
+    <!-- What You'll Learn -->
+    {% if course.what_youll_learn %}
+    <section class="what-youll-learn">
+        <h2>What You'll Learn</h2>
+        <ul>
+            {% for item in course.what_youll_learn %}
+            <li>{{ item }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+    
+    <!-- Audience -->
+    <section class="audience">
+        <h2>Who This Course Is For</h2>
+        <p>{{ course.audience }}</p>
+    </section>
+    
+    <!-- Prerequisites -->
+    {% if course.prerequisites %}
+    <section class="prerequisites">
+        <h2>Prerequisites</h2>
+        <p>{{ course.prerequisites|linebreaks }}</p>
+    </section>
+    {% endif %}
+    
+    <!-- Instructor (only shown on location-specific pages) -->
+    {% if is_location_specific and featured_instance and featured_instance.instructor %}
+    <section class="instructor">
+        <h2>Instructor</h2>
+        <div class="instructor-profile">
+            {% if featured_instance.instructor.photo %}
+            <img src="{{ featured_instance.instructor.photo.url }}" 
+                 alt="{{ featured_instance.instructor.user.get_full_name|default:featured_instance.instructor.user.username }}" 
+                 class="instructor-photo">
+            {% endif %}
+            <div class="instructor-info">
+                <h3>{{ featured_instance.instructor.user.get_full_name|default:featured_instance.instructor.user.username }}</h3>
+                <p>{{ featured_instance.instructor.bio|linebreaks }}</p>
+                {% if featured_instance.instructor.specialties %}
+                <p><strong>Specialties:</strong> {{ featured_instance.instructor.specialties }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+    
+    <!-- Available Course Instances (Dates & Locations) -->
+    <section class="course-instances">
+        <h2>Available Dates & Locations</h2>
+        {% if instances_by_city %}
+            {% for city, instances in instances_by_city.items %}
+            <div class="city-group">
+                <h3>{{ city }}</h3>
+                <ul class="instance-list">
+                    {% for instance in instances %}
+                    <li class="instance-item">
+                        <a href="{{ instance.get_absolute_url }}" class="instance-link" aria-label="View {{ course.title }} at {{ instance.location.city }}">
+                            <div class="instance-date">
+                                <strong>{{ instance.start_date|date:"F j, Y" }}</strong>
+                                <span>{{ instance.start_date|date:"g:i A" }} - {{ instance.end_date|date:"g:i A" }}</span>
+                            </div>
+                            <div class="instance-location">
+                                <address>
+                                    {{ instance.location.name }}<br>
+                                    {{ instance.location.address_line_1 }}<br>
+                                    {% if instance.location.address_line_2 %}{{ instance.location.address_line_2 }}<br>{% endif %}
+                                    {{ instance.location.city }}, {{ instance.location.state }} {{ instance.location.postal_code }}
+                                </address>
+                            </div>
+                            <div class="instance-info">
+                                <span class="price">£{{ instance.price }}</span>
+                                <span class="spaces">Spaces: {{ instance.spaces_available }} available</span>
+                            </div>
+                        </a>
+                        <div class="instance-actions">
+                            {% if instance.is_full %}
+                            <span class="status-badge full">Fully Booked</span>
+                            {% elif instance.enrollment_open %}
+                            <a href="{% url 'bookings:create' instance.id %}" class="btn-book">Book Now</a>
+                            {% else %}
+                            <span class="status-badge closed">Enrollment Closed</span>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>No upcoming dates available at this time. Please check back soon or contact us for more information.</p>
+        {% endif %}
+    </section>
+    
+    <!-- FAQs with FAQPage Schema -->
+    {% if course.faqs.exists %}
+    <section class="faqs" itemscope itemtype="https://schema.org/FAQPage">
+        <h2>Frequently Asked Questions</h2>
+        <dl>
+            {% for faq in course.faqs.all %}
+            <div itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">
+                <dt itemprop="name">{{ faq.question }}</dt>
+                <dd itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer">
+                    <span itemprop="text">{{ faq.answer|linebreaks }}</span>
+                </dd>
+            </div>
+            {% endfor %}
+        </dl>
+    </section>
+    {% endif %}
+</article>
+
+<!-- React component for booking (progressive enhancement) -->
+<div id="booking-widget" data-course-instance-id="{% if featured_instance %}{{ featured_instance.id }}{% endif %}"></div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Load React booking component (if needed) -->
+<script src="{% static 'js/booking-widget.js' %}" defer></script>
+{% endblock %}
