@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Payment Successful - Photography Courses{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/booking.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="payment-success-container">
+    <div class="success-icon">✓</div>
+    <h1>Payment Successful!</h1>
+    <p class="success-message">Thank you for your booking. Your payment has been processed successfully.</p>
+    
+    {% if booking %}
+    <div class="booking-info">
+        <h2>Booking Details</h2>
+        <p><strong>Booking Reference:</strong> {{ booking.booking_reference }}</p>
+        <p><strong>Course:</strong> {{ booking.course_instance.course.title }}</p>
+        <p><strong>Date:</strong> {{ booking.course_instance.start_date|date:"F j, Y" }} at {{ booking.course_instance.start_date|date:"g:i A" }}</p>
+        <p><strong>Location:</strong> {{ booking.course_instance.location.name }}, {{ booking.course_instance.location.city }}</p>
+        <p><strong>Amount Paid:</strong> £{{ booking.price_paid }}</p>
+        <p>You will receive a confirmation email shortly.</p>
+    </div>
+    {% elif request.GET.session_id %}
+    <div class="booking-info">
+        <p>Your booking is being confirmed. You will receive a confirmation email shortly.</p>
+        <p><strong>Session ID:</strong> {{ request.GET.session_id }}</p>
+    </div>
+    {% endif %}
+    
+    <div class="actions">
+        <a href="{% url 'courses:course_list' %}" class="btn-primary">Browse More Courses</a>
+        <a href="/" class="btn-secondary">Return to Home</a>
+    </div>
+</div>
+{% endblock %}

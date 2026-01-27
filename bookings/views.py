@@ -4,6 +4,7 @@ Booking views - server-rendered forms for SEO.
 from django.shortcuts import get_object_or_404, redirect
 from django.views.generic import CreateView, DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.conf import settings
 from django.contrib.messages.views import SuccessMessageMixin
 from django.urls import reverse_lazy
 from rest_framework.views import APIView
@@ -14,13 +15,21 @@ from .models import Booking
 from .forms import BookingForm
 
 
-class CreateBookingView(LoginRequiredMixin, CreateView):
+class CreateBookingView(CreateView):
     """
     Server-rendered booking form.
+    In dev mode, allows booking without authentication.
     """
     model = Booking
     form_class = BookingForm
     template_name = 'bookings/create_booking.html'
+    
+    def dispatch(self, request, *args, **kwargs):
+        # In dev mode, allow unauthenticated users
+        if not settings.DEBUG and not request.user.is_authenticated:
+            from django.contrib.auth.views import redirect_to_login
+            return redirect_to_login(request.get_full_path())
+        return super().dispatch(request, *args, **kwargs)
     
     def get_course_instance(self):
         """Get the course instance for this booking."""
@@ -30,7 +39,8 @@ class CreateBookingView(LoginRequiredMixin, CreateView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['course_instance'] = self.get_course_instance()
-        kwargs['user'] = self.request.user
+        # Pass user only if authenticated, otherwise pass None
+        kwargs['user'] = self.request.user if self.request.user.is_authenticated else None
         return kwargs
     
     def get_context_data(self, **kwargs):
@@ -42,7 +52,17 @@ class CreateBookingView(LoginRequiredMixin, CreateView):
         """Create booking and redirect to payment."""
         booking = form.save(commit=False)
         booking.course_instance = self.get_course_instance()
-        booking.user = self.request.user
+        # In dev mode, allow anonymous users (create a user if needed)
+        if self.request.user.is_authenticated:
+            booking.user = self.request.user
+        else:
+            # For dev mode: create or get an anonymous user
+            from core.models import User
+            anonymous_user, _ = User.objects.get_or_create(
+                username='anonymous',
+                defaults={'email': form.cleaned_data.get('student_email', 'anonymous@example.com')}
+            )
+            booking.user = anonymous_user
         booking.price_paid = booking.course_instance.price
         booking.save()
         

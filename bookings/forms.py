@@ -27,11 +27,11 @@ class BookingForm(forms.ModelForm):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         
-        # Pre-fill user information if available
-        if self.user:
-            self.fields['student_first_name'].initial = self.user.first_name
-            self.fields['student_last_name'].initial = self.user.last_name
-            self.fields['student_email'].initial = self.user.email
+        # Pre-fill user information if available and user is authenticated
+        if self.user and self.user.is_authenticated:
+            self.fields['student_first_name'].initial = self.user.first_name or ''
+            self.fields['student_last_name'].initial = self.user.last_name or ''
+            self.fields['student_email'].initial = self.user.email or ''
     
     def clean(self):
         cleaned_data = super().clean()

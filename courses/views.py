@@ -261,6 +261,8 @@ class CourseListView(ListView):
                         'price': float(instance_price),
                         'spaces_available': instance.spaces_available,
                         'instructor_name': instance.instructor.user.get_full_name() if instance.instructor and instance.instructor.user else None,
+                        'enrollment_open': instance.enrollment_open,
+                        'is_full': instance.is_full,
                     })
         
         context['instances_data'] = json.dumps(instances_data)

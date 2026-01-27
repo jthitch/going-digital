@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Payment Cancelled - Photography Courses{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/booking.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="payment-cancel-container">
+    <div class="cancel-icon">✕</div>
+    <h1>Payment Cancelled</h1>
+    <p class="cancel-message">Your payment was cancelled. No charges have been made.</p>
+    
+    <div class="actions">
+        <a href="{% url 'courses:course_list' %}" class="btn-primary">Browse Courses</a>
+        <a href="/" class="btn-secondary">Return to Home</a>
+    </div>
+</div>
+{% endblock %}

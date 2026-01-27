@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Book {{ course_instance.course.title }} - Photography Courses{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/booking.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="booking-container">
+    <h1>Book Your Course</h1>
+    
+    <div class="course-summary">
+        <h2>{{ course_instance.course.title }}</h2>
+        <div class="course-details">
+            <p><strong>Date:</strong> {{ course_instance.start_date|date:"F j, Y" }} at {{ course_instance.start_date|date:"g:i A" }}</p>
+            <p><strong>Location:</strong> {{ course_instance.location.name }}, {{ course_instance.location.city }}</p>
+            <p><strong>Price:</strong> £{{ course_instance.price }}</p>
+            {% if course_instance.spaces_available %}
+            <p><strong>Spaces Available:</strong> {{ course_instance.spaces_available }}</p>
+            {% else %}
+            <p class="warning"><strong>Only {{ course_instance.spaces_available }} space(s) remaining!</strong></p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <form method="post" class="booking-form">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="{{ form.student_first_name.id_for_label }}">First Name *</label>
+            {{ form.student_first_name }}
+            {% if form.student_first_name.errors %}
+            <span class="error">{{ form.student_first_name.errors }}</span>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.student_last_name.id_for_label }}">Last Name *</label>
+            {{ form.student_last_name }}
+            {% if form.student_last_name.errors %}
+            <span class="error">{{ form.student_last_name.errors }}</span>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.student_email.id_for_label }}">Email *</label>
+            {{ form.student_email }}
+            {% if form.student_email.errors %}
+            <span class="error">{{ form.student_email.errors }}</span>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.student_phone.id_for_label }}">Phone</label>
+            {{ form.student_phone }}
+            {% if form.student_phone.errors %}
+            <span class="error">{{ form.student_phone.errors }}</span>
+            {% endif %}
+            <small>Format: +1234567890</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.special_requirements.id_for_label }}">Special Requirements</label>
+            {{ form.special_requirements }}
+            {% if form.special_requirements.errors %}
+            <span class="error">{{ form.special_requirements.errors }}</span>
+            {% endif %}
+            <small>Dietary requirements, accessibility needs, etc.</small>
+        </div>
+        
+        {% if form.non_field_errors %}
+        <div class="error-message">
+            {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+        
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">Continue to Payment</button>
+            <a href="{{ course_instance.get_absolute_url }}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

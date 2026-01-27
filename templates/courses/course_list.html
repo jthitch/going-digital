@@ -428,7 +428,15 @@ function initializeMap() {
                         <p style="margin: 0.5rem 0; color: ${colors.text}; font-size: 0.9rem;"><strong>Price:</strong> £${inst.price.toFixed(2)}</p>
                         ${inst.spaces_available !== null ? `<p style="margin: 0.5rem 0; color: ${colors.text}; font-size: 0.9rem;"><strong>Spaces:</strong> ${inst.spaces_available} available</p>` : ''}
                         ${inst.instructor_name ? `<p style="margin: 0.5rem 0; color: ${colors.textSecondary}; font-size: 0.85rem;"><strong>Instructor:</strong> ${inst.instructor_name}</p>` : ''}
-                        <a href="${inst.course_url}" style="display: inline-block; margin-top: 0.75rem; padding: 0.625rem 1.25rem; background: ${colors.primary}; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9rem; font-weight: 600; transition: opacity 0.2s;">Book Now →</a>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap;">
+                            ${inst.is_full ? 
+                                `<span style="display: inline-block; padding: 0.625rem 1.25rem; background: #fee2e2; color: #dc2626; border-radius: 6px; font-size: 0.9rem; font-weight: 600; flex: 1; text-align: center;">Fully Booked</span>` :
+                                inst.enrollment_open ?
+                                `<a href="/bookings/create/${inst.instance_id}/" style="display: inline-block; padding: 0.625rem 1.25rem; background: ${colors.primary}; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9rem; font-weight: 600; transition: opacity 0.2s; flex: 1; text-align: center;">Book Now - £${inst.price.toFixed(2)}</a>` :
+                                `<span style="display: inline-block; padding: 0.625rem 1.25rem; background: #f3f4f6; color: #6b7280; border-radius: 6px; font-size: 0.9rem; font-weight: 600; flex: 1; text-align: center;">Enrollment Closed</span>`
+                            }
+                            <a href="${inst.course_url}" style="display: inline-block; padding: 0.625rem 1rem; background: transparent; color: ${colors.primary}; text-decoration: none; border: 1px solid ${colors.primary}; border-radius: 6px; font-size: 0.9rem; font-weight: 600; transition: opacity 0.2s;">View Details</a>
+                        </div>
                     </div>
                 </div>
             `;
@@ -443,11 +451,20 @@ function initializeMap() {
                     </div>
                     <div style="padding: 1rem; max-height: 400px; overflow-y: auto;">
                         ${groupInstances.map(function(inst) {
+                            let bookingButton = '';
+                            if (inst.is_full) {
+                                bookingButton = `<span style="display: inline-block; margin-top: 0.5rem; padding: 0.5rem 1rem; background: #fee2e2; color: #dc2626; border-radius: 6px; font-size: 0.85rem; font-weight: 600;">Fully Booked</span>`;
+                            } else if (inst.enrollment_open) {
+                                bookingButton = `<a href="/bookings/create/${inst.instance_id}/" style="display: inline-block; margin-top: 0.5rem; padding: 0.5rem 1rem; background: ${colors.primary}; color: white; text-decoration: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600;">Book Now - £${inst.price.toFixed(2)}</a>`;
+                            } else {
+                                bookingButton = `<span style="display: inline-block; margin-top: 0.5rem; padding: 0.5rem 1rem; background: #f3f4f6; color: #6b7280; border-radius: 6px; font-size: 0.85rem; font-weight: 600;">Enrollment Closed</span>`;
+                            }
                             return `
                                 <div style="padding: 0.75rem 0; border-bottom: 1px solid ${colors.border};">
                                     <a href="${inst.course_url}" style="color: ${colors.primary}; text-decoration: none; font-weight: 600; font-size: 0.95rem; display: block; margin-bottom: 0.25rem;">${inst.course_title}</a>
                                     <p style="margin: 0.25rem 0; color: ${colors.textSecondary}; font-size: 0.85rem;">${inst.date_display}</p>
                                     <p style="margin: 0.25rem 0; color: ${colors.text}; font-size: 0.9rem;"><strong>£${inst.price.toFixed(2)}</strong>${inst.spaces_available !== null ? ` • ${inst.spaces_available} spaces` : ''}</p>
+                                    ${bookingButton}
                                 </div>
                             `;
                         }).join('')}

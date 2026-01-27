@@ -136,7 +136,7 @@
                             {% if instance.is_full %}
                             <span class="status-badge full">Fully Booked</span>
                             {% elif instance.enrollment_open %}
-                            <a href="{% url 'bookings:create' instance.id %}" class="btn-book">Book Now</a>
+                            <a href="{% url 'bookings:create' instance.id %}" class="btn-book btn-primary">Book Now - £{{ instance.price }}</a>
                             {% else %}
                             <span class="status-badge closed">Enrollment Closed</span>
                             {% endif %}

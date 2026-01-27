@@ -17,8 +17,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('favicon.ico', RedirectView.as_view(url=staticfiles_storage.url('img/favicon/favicon.png'), permanent=True)),
     path('', include('courses.urls')),
-    path('api/bookings/', include('bookings.urls')),
-    path('api/payments/', include('payments.urls')),
+    path('bookings/', include('bookings.urls')),
+    path('payments/', include('payments.urls')),
 ]
 
 if settings.DEBUG:
