@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     # Local apps
     'core',
     'courses',
+    'website',
     'bookings',
     'franchises',
     'payments',
@@ -268,7 +269,7 @@ JAZZMIN_SETTINGS = {
     "hide_models": [],
     
     # List of apps (and/or models) to base side menu ordering off of
-    "order_with_respect_to": ["courses", "bookings", "franchises", "payments"],
+    "order_with_respect_to": ["courses", "website", "bookings", "franchises", "payments"],
     
     # Custom links to append to app groups, keyed on app name
     "custom_links": {
@@ -288,10 +289,11 @@ JAZZMIN_SETTINGS = {
         "courses.Course": "fas fa-book",
         "courses.CourseInstance": "fas fa-calendar-alt",
         "courses.Instructor": "fas fa-chalkboard-teacher",
-        "courses.HeroImage": "fas fa-image",
-        "courses.Testimonial": "fas fa-quote-left",
-        "courses.BeforeAfterImage": "fas fa-images",
-        "courses.FAQ": "fas fa-question-circle",
+        "website": "fas fa-globe",
+        "website.HeroImage": "fas fa-image",
+        "website.Testimonial": "fas fa-quote-left",
+        "website.BeforeAfterImage": "fas fa-images",
+        "website.FAQ": "fas fa-question-circle",
         "bookings.Booking": "fas fa-ticket-alt",
         "franchises.Franchise": "fas fa-building",
         "franchises.Location": "fas fa-map-marker-alt",

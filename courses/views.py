@@ -7,7 +7,8 @@ from django.db.models import Q, Prefetch
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Course, CourseInstance, Location, FAQ, HeroImage, Testimonial, BeforeAfterImage
+from .models import Course, CourseInstance, Location
+from website.models import HeroImage, Testimonial, BeforeAfterImage, FAQ
 from .serializers import CourseInstanceSerializer
 
 
