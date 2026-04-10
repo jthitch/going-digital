@@ -60,74 +60,57 @@ class HomePageView(TemplateView):
         context['testimonials'] = Testimonial.objects.filter(
             is_active=True
         ).order_by('order', 'created_at')
-        
-        # Get "Get Off Auto" course (Step 1 - Introduction to Photography)
-        context['intro_course'] = Course.objects.filter(
-            active=True,
-            slug__icontains='get-off-auto'
-        ).prefetch_related('workshops').first()
-        
-        # If not found by slug, try by course name
-        if not context['intro_course']:
-            context['intro_course'] = Course.objects.filter(
-                active=True,
-                course_name__icontains='Get Off Auto'
-            ).prefetch_related('workshops').first()
-        
-        # Get courses organized by level-based structure
-        # Level 1, 2, 3 correspond to beginner, intermediate, advanced
-        context['level_1_courses'] = Course.objects.filter(
-            active=True,
-            course_skill_level_id=LEVEL_NAME_TO_ID.get('beginner')
-        ).prefetch_related('workshops')
-        
-        context['level_2_courses'] = Course.objects.filter(
-            active=True,
-            course_skill_level_id=LEVEL_NAME_TO_ID.get('intermediate')
-        ).prefetch_related('workshops')
-        
-        context['level_3_courses'] = Course.objects.filter(
-            active=True,
-            course_skill_level_id=LEVEL_NAME_TO_ID.get('advanced')
-        ).prefetch_related('workshops')
-        
-        # Editing, Residentials, Bespoke - search by course name/description
-        context['editing_courses'] = Course.objects.filter(
-            active=True
-        ).filter(
-            Q(course_name__icontains='editing') | Q(course_name__icontains='edit') |
-            Q(course_description__icontains='editing') | Q(description_for_workshop__icontains='editing')
-        ).prefetch_related('workshops')
-        
-        context['residentials_courses'] = Course.objects.filter(
-            active=True
-        ).filter(
-            Q(course_name__icontains='residential') | Q(course_name__icontains='residentials') |
-            Q(course_description__icontains='residential') | Q(description_for_workshop__icontains='residential')
-        ).prefetch_related('workshops')
-        
-        context['bespoke_courses'] = Course.objects.filter(
-            active=True
-        ).filter(
-            Q(course_name__icontains='bespoke') | Q(course_name__icontains='custom') |
-            Q(course_description__icontains='bespoke') | Q(description_for_workshop__icontains='bespoke')
-        ).prefetch_related('workshops')
-        
-        # Get featured courses by level (for other sections)
-        context['beginner_courses'] = Course.objects.filter(
-            active=True,
-            course_skill_level_id=LEVEL_NAME_TO_ID.get('beginner')
-        ).prefetch_related('workshops', 'media')[:6]
 
-        context['intermediate_courses'] = Course.objects.filter(
-            active=True,
-            course_skill_level_id=LEVEL_NAME_TO_ID.get('intermediate')
-        ).prefetch_related('workshops', 'media')[:6]
+        now = timezone.now()
+        workshop_prefetch = Prefetch(
+            'workshops',
+            queryset=Workshop.objects.filter(active=1, date__gte=now).select_related('venue'),
+        )
+        homepage_course_qs = (
+            Course.objects.filter(active=True)
+            .select_related('image', 'course_category', 'course_skill_level')
+            .prefetch_related(workshop_prefetch, 'media')
+        )
 
-        context['advanced_courses'] = Course.objects.filter(
-            active=True,
-            course_skill_level_id=LEVEL_NAME_TO_ID.get('advanced')
-        ).prefetch_related('workshops', 'media')[:6]
+        def level_courses(level_key):
+            pk = LEVEL_NAME_TO_ID.get(level_key)
+            return list(homepage_course_qs.filter(course_skill_level_id=pk))
+
+        level_1 = level_courses('beginner')
+        level_2 = level_courses('intermediate')
+        level_3 = level_courses('advanced')
+
+        context['level_1_courses'] = level_1
+        context['level_2_courses'] = level_2
+        context['level_3_courses'] = level_3
+
+        context['editing_courses'] = list(
+            homepage_course_qs.filter(
+                Q(course_name__icontains='editing') | Q(course_name__icontains='edit') |
+                Q(course_description__icontains='editing') | Q(description_for_workshop__icontains='editing')
+            )
+        )
+        context['residentials_courses'] = list(
+            homepage_course_qs.filter(
+                Q(course_name__icontains='residential') | Q(course_name__icontains='residentials') |
+                Q(course_description__icontains='residential') | Q(description_for_workshop__icontains='residential')
+            )
+        )
+        context['bespoke_courses'] = list(
+            homepage_course_qs.filter(
+                Q(course_name__icontains='bespoke') | Q(course_name__icontains='custom') |
+                Q(course_description__icontains='bespoke') | Q(description_for_workshop__icontains='bespoke')
+            )
+        )
+
+        context['beginner_courses'] = level_1[:6]
+        context['intermediate_courses'] = level_2[:6]
+        context['advanced_courses'] = level_3[:6]
+
+        intro = homepage_course_qs.filter(slug__icontains='get-off-auto').first()
+        if not intro:
+            intro = homepage_course_qs.filter(course_name__icontains='Get Off Auto').first()
+        context['intro_course'] = intro
         
         # Get all categories from database (id, name) for templates
         context['categories'] = [
@@ -447,7 +430,10 @@ class VenueListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['venue_count'] = self.get_queryset().count()
+        # One evaluation for both count and template (no separate COUNT query).
+        venues = list(context['venues'])
+        context['venues'] = venues
+        context['venue_count'] = len(venues)
         return context
 
 

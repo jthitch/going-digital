@@ -58,8 +58,12 @@ going-digital/
    EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
    DEFAULT_FROM_EMAIL=noreply@example.com
    CONTACT_EMAIL=info@goingdigital.co.uk
+
+   # Optional: when DEBUG=True, require this passcode for the whole site (session cookie).
+   # Leave unset or empty to disable. Not used when DEBUG=False.
+   # DEV_SITE_PASSWORD=your-secret-passcode
    ```
-   For production: `DEBUG=False`, real `SECRET_KEY`, set `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` (HTTPS origins), and use a transactional email backend. Behind a reverse proxy, set `USE_PROXY_SSL=True`. See `photocourses/settings.py` (secure cookies and HSTS apply when `DEBUG=False`).
+   For production: `DEBUG=False`, real `SECRET_KEY`, set `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` (HTTPS origins), and use a transactional email backend. Behind a reverse proxy, set `USE_PROXY_SSL=True`. See `photocourses/settings.py` (secure cookies and HSTS apply when `DEBUG=False`). Do **not** set `DEV_SITE_PASSWORD` in production unless you intentionally want the gate (still only active when `DEBUG=True`).
 
 3. **Database:** create the MySQL database, then migrate. Details: [MYSQL_SETUP.md](MYSQL_SETUP.md).
    ```bash

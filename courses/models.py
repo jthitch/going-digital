@@ -608,6 +608,11 @@ class Course(models.Model):
             return ''
         return text[:500]
 
+    @property
+    def instances(self):
+        """Alias for legacy related_name `instances` (CourseInstance); use workshops."""
+        return self.workshops
+
     # Not in gd_course; calculated from workshops when available
     @property
     def duration_hours(self):

@@ -18,11 +18,14 @@ try:
     SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-me-in-production')
     DEBUG = env('DEBUG', default=True)
     ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+    # When DEBUG is True and this is non-empty, DevSiteAccessMiddleware requires a passcode (see /dev-access/).
+    DEV_SITE_PASSWORD = env('DEV_SITE_PASSWORD', default='')
 except ImportError:
     # Fallback if django-environ is not installed
     SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-me-in-production')
     DEBUG = os.environ.get('DEBUG', 'True') == 'True'
     ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+    DEV_SITE_PASSWORD = os.environ.get('DEV_SITE_PASSWORD', '')
 
 # Application definition
 INSTALLED_APPS = [
@@ -52,6 +55,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'website.middleware.DevSiteAccessMiddleware',
     'django.middleware.common.CommonMiddleware',
     'website.middleware.RedirectMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -463,3 +467,11 @@ if not DEBUG:
         SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 else:
     SECURE_SSL_REDIRECT = False
+
+# In-process cache (redirect lookups, safe for single-server; use Redis/Memcached in multi-worker prod)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'goingdigital',
+    }
+}

@@ -11,6 +11,7 @@ from django.contrib.staticfiles.storage import staticfiles_storage
 
 from courses.sitemaps import StaticViewSitemap, CourseOverviewSitemap, WorkshopSitemap, VenueSitemap
 from courses.views import RobotsTxtView
+from website.views import DevSiteAccessView
 
 # Customize admin site
 admin.site.site_header = "Going Digital Administration"
@@ -25,6 +26,7 @@ sitemaps = {
 }
 
 urlpatterns = [
+    path('dev-access/', DevSiteAccessView.as_view(), name='dev_site_access'),
     path('admin/', admin.site.urls),
     path('favicon.ico', RedirectView.as_view(url=staticfiles_storage.url('img/favicon/favicon.png'), permanent=True)),
     path('robots.txt', RobotsTxtView.as_view(), name='robots_txt'),
