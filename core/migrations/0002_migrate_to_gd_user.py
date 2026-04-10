@@ -47,7 +47,7 @@ def migrate_users_to_gd_user_mysql(apps, schema_editor):
     cursor = schema_editor.connection.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS gd_user (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
             firstname VARCHAR(255) DEFAULT '',
             lastname VARCHAR(255) DEFAULT '',
             email VARCHAR(255) NOT NULL,
@@ -116,7 +116,7 @@ class Migration(migrations.Migration):
                 migrations.CreateModel(
                     name='User',
                     fields=[
-                        ('id', models.AutoField(primary_key=True, serialize=False, db_column='id')),
+                        ('id', models.BigAutoField(primary_key=True, serialize=False, db_column='id')),
                         ('password', models.CharField(max_length=255, db_column='password')),
                         ('last_login', models.DateTimeField(null=True, blank=True, db_column='last_login_date')),
                         ('FID', models.IntegerField(null=True, blank=True, db_column='FID')),

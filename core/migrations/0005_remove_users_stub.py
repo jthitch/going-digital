@@ -9,6 +9,11 @@ def remove_users_stub(apps, schema_editor):
     vendor = schema_editor.connection.vendor
     with schema_editor.connection.cursor() as cursor:
         if vendor == 'mysql':
+            # Must match BIGINT FKs (e.g. payments.user_id from BigAutoField User in 0001).
+            # Older 0002 used INT for gd_user.id; widen before adding FK to gd_user.
+            cursor.execute(
+                "ALTER TABLE gd_user MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT"
+            )
             # Get FK constraint name (Django uses table_column_hash_fk_reftable_id format)
             cursor.execute("""
                 SELECT CONSTRAINT_NAME

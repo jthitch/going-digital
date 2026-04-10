@@ -34,7 +34,7 @@ class User(AbstractBaseUser):
 
     objects = GdUserManager()
 
-    id = models.AutoField(primary_key=True, db_column='id')
+    id = models.BigAutoField(primary_key=True, db_column='id')
     password = models.CharField(max_length=255, db_column='password')
     last_login = models.DateTimeField(null=True, blank=True, db_column='last_login_date')
     FID = models.IntegerField(null=True, blank=True, db_column='FID')
