@@ -7,6 +7,8 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('courses', '0023_fix_workshop_created_updated_zero_dates'),
+        # Merge graph: 0024 is only referenced by bookings.0003; tie it into courses leaves.
+        ('courses', '0024_create_gd_workshop_gd_venue_if_missing'),
     ]
 
     operations = [
