@@ -22,12 +22,11 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+00*
 
 # Django
 *.log
 local_settings.py
-db.sqlite3
-db.sqlite3-journal
 /media
 /staticfiles
 
@@ -47,3 +46,28 @@ db.sqlite3-journal
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Node.js
+node_modules/   
+
+# Yarn
+yarn.lock
+
+# NPM
+package-lock.json
+
+# Composer
+composer.lock
+
+# Ruby
+Gemfile.lock
+
+# PHP
+composer.lock
+
+# Laravel
+.env
+.env.local
+.env.development
+.env.production
+.env.testing
