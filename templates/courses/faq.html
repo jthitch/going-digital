@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Going Digital Photography Courses - Frequently Asked Questions{% endblock %}
+{% block meta_description %}Frequently asked questions about Going Digital photography workshops - times, equipment, bookings, cancellations, locations, one-to-one training and more.{% endblock %}
+{% block meta_keywords %}photography course FAQ, workshop times, booking photography course, Going Digital questions{% endblock %}
+
+{% block extra_head %}
+<!-- FAQPage Schema.org Structured Data for SEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type": "Question", "name": "What time does my workshop start and finish?", "acceptedAnswer": {"@type": "Answer", "text": "Our workshops run from 10 am to 4 pm unless otherwise stated. Full details are contained in the workshop listings and will be confirmed in your Joining Instructions."}},
+    {"@type": "Question", "name": "I already use my camera regularly, should I book the Introduction to Photography workshops?", "acceptedAnswer": {"@type": "Answer", "text": "If you are already confidently setting the right Aperture to suit the type of photograph you're capturing for static subjects, then our Introduction to Photography - Movement workshop is for you. If not, you should book Introduction to Photography - Get off Auto. On each subsequent workshop page you'll find a Previous Experience section which will tell you what you should ideally already know."}},
+    {"@type": "Question", "name": "What photographic equipment should I bring to my workshop?", "acceptedAnswer": {"@type": "Answer", "text": "You'll need your camera and at least one fully charged battery and at least one empty memory card. Your local tutor may have loan cameras and tripods. Other equipment may vary from one workshop to another - please read the Equipment section on the Workshop page. We'll supply course notes, but a pen is essential and a small notebook could be useful. Bring wet weather gear for outdoor workshops and sturdy footwear."}},
+    {"@type": "Question", "name": "Where are your workshops held?", "acceptedAnswer": {"@type": "Answer", "text": "You can find your nearest workshop by visiting our courses page and filtering by workshop type. Many workshops begin and end in a classroom. For photographers with experience we offer photo walks with an experienced tutor."}},
+    {"@type": "Question", "name": "How do I book a workshop?", "acceptedAnswer": {"@type": "Answer", "text": "Click on the Book Now link for your chosen workshop. Complete your details then proceed to checkout. You can add more workshops or proceed to payment."}},
+    {"@type": "Question", "name": "What happens if I need to cancel or rearrange my workshop?", "acceptedAnswer": {"@type": "Answer", "text": "You should immediately contact your local tutor whose details will be in your confirmation email. Please see our Terms and Conditions for full details."}}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="faq-page">
+    <h1>FAQs</h1>
+
+    <nav class="faq-toc" aria-label="FAQ sections">
+        <ul>
+            <li><a href="#Times">Workshop Times</a></li>
+            <li><a href="#Experience">Previous Photographic Experience</a></li>
+            <li><a href="#Equipment">Photographic &amp; Other Equipment</a></li>
+            <li><a href="#Locations">Workshop Locations</a></li>
+            <li><a href="#Bespoke">One-to-One Training</a></li>
+            <li><a href="#Bookings">Bookings</a></li>
+            <li><a href="#Cancellations">Cancellations</a></li>
+            <li><a href="#Children">Workshops for Children</a></li>
+            <li><a href="#Accessibility">Accessibility</a></li>
+        </ul>
+    </nav>
+
+    <hr class="faq-divider">
+
+    <section id="Times" class="faq-section" itemscope itemtype="https://schema.org/FAQPage">
+        <h2>WORKSHOP TIMES</h2>
+        <dl class="faqs">
+            <dt itemprop="name">What time does my workshop start and finish?</dt>
+            <dd itemprop="acceptedAnswer" itemscope itemtype="https://schema.org/Answer">
+                <span itemprop="text">Our workshops run from 10 am to 4 pm unless otherwise stated. Full details are contained in the workshop listings and will be confirmed in your Joining Instructions.</span>
+            </dd>
+        </dl>
+    </section>
+
+    <section id="Experience" class="faq-section">
+        <h2>PREVIOUS PHOTOGRAPHIC EXPERIENCE</h2>
+        <dl class="faqs">
+            <dt>I already use my camera regularly, should I book the Introduction to Photography workshops?</dt>
+            <dd>
+                <p>If you are already confidently setting the right Aperture to suit the type of photograph you're capturing, for static subjects, then our <a href="{% url 'courses:course_list' %}?category=general">Introduction to Photography - Movement</a> workshop is for you. If not, you should book <a href="{% url 'courses:course_list' %}?level=beginner">Introduction to Photography - Get off Auto</a>.</p>
+                <p>On each subsequent workshop page you'll find a Previous Experience section which will tell you what you should ideally already know to get the best from each workshop.</p>
+            </dd>
+        </dl>
+    </section>
+
+    <section id="Equipment" class="faq-section">
+        <h2>PHOTOGRAPHIC &amp; OTHER EQUIPMENT</h2>
+        <dl class="faqs">
+            <dt>What photographic equipment should I bring to my workshop?</dt>
+            <dd>
+                <p>A full list will be included in your Joining Instructions, but here's a summary of the essentials.</p>
+                <p>You'll need your camera and at least one fully charged battery and at least one empty memory card.</p>
+                <p>Your local tutor may have loan cameras and tripods - you can find their contact details on the Region and Venue pages of the website.</p>
+                <p>Other equipment may vary from one workshop to another, so please read the Equipment section on the Workshop page of the website.</p>
+                <p>We'll supply you with ample course notes to take home, but a pen is essential and a small notebook could be useful.</p>
+                <p>If in doubt please bring wet weather gear for outdoor workshops, as well as sturdy footwear.</p>
+            </dd>
+            <dt>What type of camera do I need?</dt>
+            <dd>
+                <p>Most of our workshops are suitable for all types of camera, but to help you there's an Equipment section on most of our workshop pages where you can find more information.</p>
+            </dd>
+            <dt>Loan cameras</dt>
+            <dd>
+                <p>If you feel your camera is not suitable, or you don't yet have one, you'll find that many of our tutors have cameras available for free loan and these can be reserved as part of the booking process. If in doubt please <a href="{% url 'courses:contact' %}">contact</a> your local tutor for more information.</p>
+            </dd>
+        </dl>
+    </section>
+
+    <section id="Locations" class="faq-section">
+        <h2>WORKSHOP LOCATIONS</h2>
+        <dl class="faqs">
+            <dt>Where are your workshops held?</dt>
+            <dd>
+                <p>You can find your nearest workshop by visiting our <a href="{% url 'courses:course_list' %}">courses page</a> and filtering by workshop type.</p>
+                <p>You'll then see all venues near you offering your chosen workshop, on our map.</p>
+                <p>Many of our workshops begin and end in a classroom, giving you the best possible opportunity to prepare for your workshop and ask questions as well as the opportunity to review your images as a group.</p>
+                <p>For photographers with some previous experience we offer photo walks, where you'll be accompanied by one of our experienced tutors who will advise you how to take the very best photographs during your walk.</p>
+            </dd>
+        </dl>
+    </section>
+
+    <section id="Bespoke" class="faq-section">
+        <h2>ONE-TO-ONE TRAINING</h2>
+        <dl class="faqs">
+            <dt>What do you cover on your one-to-one experience days?</dt>
+            <dd>
+                <p>Our one-to-one days are tailored to your specific requirements, so we can cover most aspects of photography and basic photo editing. Your local tutor will get in touch with you before your training to discuss your requirements so that you have the best possible day. If in doubt, please <a href="{% url 'courses:contact' %}">contact</a> your local tutor before making your booking.</p>
+            </dd>
+        </dl>
+    </section>
+
+    <section id="Bookings" class="faq-section">
+        <h2>BOOKINGS</h2>
+        <dl class="faqs">
+            <dt>How do I book a workshop?</dt>
+            <dd>
+                <p>Click on the Book Now link for your chosen workshop. Complete your details then proceed to checkout. You can add more workshops, or proceed to payment.</p>
+            </dd>
+            <dt>How can I pay?</dt>
+            <dd>
+                <p>You can pay by credit or debit card.</p>
+                <p>If you're arranging tailored training your tutor will create a new workshop especially for you, so that you can click the Book Now link and pay through the usual channels.</p>
+            </dd>
+            <dt>How do I redeem gift vouchers and promo codes?</dt>
+            <dd>
+                <p>When you checkout you'll have the opportunity to enter your Voucher number or Promo Code. You should then click the Redeem button. If you have more than one voucher or code you should enter them one at a time and click Redeem after each one. The value will be deducted from the balance to pay.</p>
+                <p>If the value of your voucher is greater than the cost of your booking, we'll send you a new voucher for the unspent balance.</p>
+            </dd>
+            <dt>What happens when I've made my booking?</dt>
+            <dd>
+                <p>You'll receive a confirmation email with detailed Joining Instructions, by return. If you can't find it in your inbox, please check your junk mail just in case it's been moved there.</p>
+                <p>Nearer the date of the workshop you'll also receive a reminder email, which may contain additional notes to help you on the day of the workshop.</p>
+            </dd>
+        </dl>
+    </section>
+
+    <section id="Cancellations" class="faq-section">
+        <h2>CANCELLATIONS</h2>
+        <dl class="faqs">
+            <dt>What happens if I need to rearrange my workshop date or cancel my booking?</dt>
+            <dd>
+                <p>You should immediately contact your local tutor whose details will be in your confirmation email. Please see our Terms and Conditions for full details.</p>
+            </dd>
+            <dt>What happens if Going Digital cancel a workshop?</dt>
+            <dd>
+                <p>We'll offer you the choice of an available place on any of our equivalent future workshops in the same Going Digital region.</p>
+            </dd>
+        </dl>
+    </section>
+
+    <section id="Children" class="faq-section">
+        <h2>WORKSHOPS FOR CHILDREN</h2>
+        <dl class="faqs">
+            <dt>Do you run workshops for children?</dt>
+            <dd>
+                <p>Under 16's must be accompanied by an adult throughout the workshop. We regret that we cannot accept under 16's on certain workshops - please see the appropriate venue page for details. If in doubt, please <a href="{% url 'courses:contact' %}">contact</a> your local tutor for more information.</p>
+            </dd>
+        </dl>
+    </section>
+
+    <section id="Accessibility" class="faq-section">
+        <h2>ACCESSIBILITY</h2>
+        <dl class="faqs">
+            <dd>
+                <p>As some of our workshops are held in historic houses, accessibility for people with mobility issues varies from venue to venue. If in doubt, please <a href="{% url 'courses:contact' %}">contact</a> your local tutor for more information.</p>
+            </dd>
+        </dl>
+    </section>
+</div>
+
+<style>
+.faq-page {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+}
+.faq-page h1 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-primary);
+}
+.faq-toc {
+    margin-bottom: 2rem;
+}
+.faq-toc ul {
+    list-style: none;
+    padding: 0;
+}
+.faq-toc li {
+    margin-bottom: 0.5rem;
+}
+.faq-toc a {
+    color: var(--primary-color, #4a9eff);
+    text-decoration: none;
+}
+.faq-toc a:hover {
+    text-decoration: underline;
+}
+.faq-divider {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 2rem 0;
+}
+.faq-section {
+    margin-bottom: 2.5rem;
+}
+.faq-section h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+    letter-spacing: 0.05em;
+}
+.faqs dt {
+    font-weight: 600;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+.faqs dt:first-child {
+    margin-top: 0;
+}
+.faqs dd {
+    margin-left: 0;
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+.faqs dd p {
+    margin-bottom: 0.5rem;
+}
+.faqs a {
+    color: var(--primary-color, #4a9eff);
+    text-decoration: none;
+}
+.faqs a:hover {
+    text-decoration: underline;
+}
+</style>
+{% endblock %}

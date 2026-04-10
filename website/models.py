@@ -1,9 +1,29 @@
 """
-Website models: HeroImage, Testimonial, BeforeAfterImage, FAQ.
+Website models: HeroImage, GiftVoucherPageImage, Testimonial, BeforeAfterImage, FAQ.
 These models manage website content separate from course definitions.
 """
 from django.db import models
 from courses.models import Course
+
+
+class GiftVoucherPageImage(models.Model):
+    """
+    Single promotional image for /gift-vouchers/ (one row — add via admin once).
+    Managed alongside hero images for platform admins.
+    """
+    image = models.ImageField(
+        upload_to='gift-vouchers/',
+        help_text='Shown below the title on the gift vouchers page. Recommended: wide graphic (e.g. voucher artwork).',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'gift_voucher_page_image'
+        verbose_name = 'Gift vouchers page image'
+        verbose_name_plural = 'Gift vouchers page image'
+
+    def __str__(self):
+        return 'Gift vouchers page image'
 
 
 class HeroImage(models.Model):
@@ -145,3 +165,35 @@ class FAQ(models.Model):
     
     def __str__(self):
         return f"{self.course.title}: {self.question[:50]}"
+
+
+class Redirect(models.Model):
+    """
+    Permanent (301) or temporary (302) redirects for managing URL changes.
+    Add rows for old paths that should redirect to new paths (e.g. after a restructure).
+    """
+    old_path = models.CharField(
+        max_length=500,
+        unique=True,
+        help_text="Incoming path (e.g. /photography-workshops/). Must start with /."
+    )
+    new_path = models.CharField(
+        max_length=500,
+        help_text="Destination path or full URL (e.g. /photography-courses/)."
+    )
+    permanent = models.BooleanField(
+        default=True,
+        help_text="Use 301 (permanent) if True, 302 (temporary) if False."
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'redirects'
+        ordering = ['old_path']
+        verbose_name = 'Redirect'
+        verbose_name_plural = 'Redirects'
+
+    def __str__(self):
+        return f"{self.old_path} → {self.new_path}"

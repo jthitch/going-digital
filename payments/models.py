@@ -26,7 +26,10 @@ class Payment(models.Model):
         ('payment_intent', 'Payment Intent'),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name='payments')
+    user = models.ForeignKey(
+        User, on_delete=models.PROTECT, related_name='payments',
+        null=True, blank=True  # Null for guest gift voucher purchases (gd_customer only)
+    )
     intent_type = models.CharField(max_length=20, choices=INTENT_CHOICES)
     stripe_id = models.CharField(max_length=255, unique=True, db_index=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')

@@ -1,0 +1,674 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Photography Course Gift Vouchers | Photo Vouchers & Experience Days | Going Digital{% endblock %}
+{% block meta_description %}Photography course gift vouchers – the perfect present for photographers. Ideal for {% for o in promoted_occasions %}{{ o.name }}{% if not forloop.last %}, {% endif %}{% endfor %}. Photo course vouchers from £5. Valid 9 months.{% endblock %}
+{% block meta_keywords %}photography course gift vouchers, photography vouchers, photo course vouchers, mother's day experiences, fathers day experiences, birthday present idea, present ideas for dad, present ideas for mum{% endblock %}
+
+{% block extra_head %}
+<!-- Schema.org Structured Data for SEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Product",
+      "@id": "https://goingdigital.co.uk/gift-vouchers/#product",
+      "name": "Photography Course Gift Vouchers",
+      "description": "Going Digital photography course gift vouchers and photo course vouchers. Use towards our photography courses across the UK, from beginner to aspiring professional. The perfect birthday present idea, Mother's Day experience or Father's Day experience. Ideal present ideas for mum and dad who love photography. Valid for nine months. Virtual vouchers sent by email.",
+      "brand": {
+        "@type": "Organization",
+        "name": "Going Digital",
+        "url": "https://goingdigital.co.uk"
+      },
+      "category": "Photography Vouchers",
+      "additionalProperty": [
+        {"@type": "PropertyValue", "name": "Gift Type", "value": "Experience"},
+        {"@type": "PropertyValue", "name": "Ideal For", "value": "{% for o in promoted_occasions %}{{ o.name }}{% if not forloop.last %}, {% endif %}{% endfor %}"},
+        {"@type": "PropertyValue", "name": "Gift Ideas", "value": "Birthday present, Mother's Day experience, Father's Day experience, Christmas gift, present ideas for mum and dad, anniversary gift, wedding gift, retirement gift"},
+        {"@type": "PropertyValue", "name": "Validity", "value": "9 months"}
+      ],
+      "offers": {
+        "@type": "AggregateOffer",
+        "url": "https://goingdigital.co.uk/gift-vouchers/",
+        "priceCurrency": "GBP",
+        "lowPrice": "5",
+        "highPrice": "250",
+        "offerCount": "9"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://goingdigital.co.uk/"},
+        {"@type": "ListItem", "position": 2, "name": "Gift Vouchers", "item": "https://goingdigital.co.uk/gift-vouchers/"}
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Are photography course gift vouchers a good birthday present?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes! Photography course gift vouchers make an excellent birthday present. Recipients can choose from a range of workshops including beginner courses, wildlife photography, portraits and more. Our vouchers are valid for nine months, so they have plenty of time to book their preferred date."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What are good present ideas for mum and dad?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Photography vouchers are a popular present idea for mum and dad. Going Digital gift vouchers give them an experience day learning new skills, from £5 to £250. Perfect for parents who enjoy photography or want to learn – ideal for Mother's Day, Father's Day or birthday gifts."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Are photography vouchers suitable for Mother's Day or Father's Day experiences?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Absolutely. Our photo course vouchers make memorable Mother's Day and Father's Day experiences. Give a voucher and they can choose from one-to-one training, wildlife workshops, portrait courses and more. Virtual vouchers are sent by email – ready to print and give."
+          }
+        }
+      ]
+    },
+    {
+      "@type": "ItemList",
+      "name": "Gift Ideas for Photography Course Vouchers",
+      "description": "Going Digital photography course gift vouchers are ideal for: birthday presents, Mother's Day experiences, Father's Day experiences, Christmas gifts, anniversary presents, wedding gifts, retirement gifts, and present ideas for mum and dad who love photography. Perfect for photographers of all levels from beginner to professional.",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "Birthday present for photographers"},
+        {"@type": "ListItem", "position": 2, "name": "Mother's Day experience"},
+        {"@type": "ListItem", "position": 3, "name": "Father's Day experience"},
+        {"@type": "ListItem", "position": 4, "name": "Christmas gift"},
+        {"@type": "ListItem", "position": 5, "name": "Present ideas for mum and dad"},
+        {"@type": "ListItem", "position": 6, "name": "Anniversary gift"},
+        {"@type": "ListItem", "position": 7, "name": "Wedding gift"},
+        {"@type": "ListItem", "position": 8, "name": "Retirement gift"}
+      ]
+    }
+  ]
+}
+</script>
+<link rel="stylesheet" href="{% static 'css/booking.css' %}">
+<style>
+.gift-vouchers-page {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+}
+.gift-vouchers-page h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+.gift-vouchers-page .subtitle {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    margin-bottom: 1.25rem;
+}
+.gift-vouchers-hero-image {
+    margin: 0 0 1.75rem;
+    text-align: center;
+}
+.gift-vouchers-hero-image img {
+    max-width: min(100%, 640px);
+    height: auto;
+    vertical-align: middle;
+    border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--border-color);
+}
+[data-theme="dark"] .gift-vouchers-hero-image img {
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+.gift-vouchers-section {
+    margin-bottom: 2rem;
+}
+.gift-vouchers-section h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+.gift-vouchers-section p,
+.gift-vouchers-section li {
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin-bottom: 0.75rem;
+}
+.gift-vouchers-section ul {
+    margin: 1rem 0;
+    padding-left: 1.5rem;
+}
+.voucher-benefits {
+    background: var(--bg-secondary);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+    border: 1px solid var(--border-color);
+}
+.voucher-benefits li {
+    margin-bottom: 0.5rem;
+}
+.virtual-vouchers-note {
+    background: var(--bg-secondary);
+    padding: 1.25rem;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+    border-left: 4px solid var(--primary-color, #4a9eff);
+}
+.price-guide {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-top: 0.75rem;
+}
+.purchase-section {
+    background: var(--bg-secondary);
+    padding: 2rem;
+    border-radius: 12px;
+    margin-top: 2rem;
+    border: 1px solid var(--border-color);
+}
+.purchase-section h2 {
+    margin-top: 0;
+}
+.gift-guide-section {
+    margin: 2rem 0;
+}
+.gift-guide-section h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1.25rem;
+    color: var(--text-primary);
+}
+.gift-guide-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.gift-guide-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+}
+.gift-guide-number {
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-color, #4a9eff);
+    color: white;
+    font-weight: 700;
+    font-size: 1rem;
+    border-radius: 50%;
+}
+.gift-guide-content strong {
+    display: block;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+.gift-guide-content p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+.form-group select {
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 1rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    width: 100%;
+}
+.message-success {
+    background: #d1fae5;
+    color: #065f46;
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+}
+[data-theme="dark"] .message-success {
+    background: #064e3b;
+    color: #6ee7b7;
+}
+.occasion-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+.occasion-card {
+    flex: 1 1 auto;
+    min-width: 200px;
+    padding: 1rem 1.25rem;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.occasion-card .occasion-name {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+.occasion-card .occasion-date {
+    font-size: 0.85rem;
+    color: var(--primary-color, #4a9eff);
+}
+.occasion-card .occasion-promo {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+.occasion-card.occasion-christmas {
+    border-color: #c41e3a;
+    background: linear-gradient(135deg, rgba(196, 30, 58, 0.08) 0%, rgba(196, 30, 58, 0.02) 100%);
+}
+.occasion-card.occasion-christmas .occasion-name {
+    color: #c41e3a;
+}
+.occasion-card.occasion-mothers-day {
+    border-color: #e91e63;
+    background: linear-gradient(135deg, rgba(233, 30, 99, 0.08) 0%, rgba(233, 30, 99, 0.02) 100%);
+}
+.occasion-card.occasion-mothers-day .occasion-name {
+    color: #c2185b;
+}
+.occasion-card.occasion-fathers-day {
+    border-color: #1976d2;
+    background: linear-gradient(135deg, rgba(25, 118, 210, 0.08) 0%, rgba(25, 118, 210, 0.02) 100%);
+}
+.occasion-card.occasion-fathers-day .occasion-name {
+    color: #1565c0;
+}
+.occasion-card.occasion-birthday {
+    border-color: var(--primary-color, #4a9eff);
+    background: linear-gradient(135deg, rgba(74, 158, 255, 0.08) 0%, rgba(74, 158, 255, 0.02) 100%);
+}
+.occasion-card.occasion-birthday .occasion-name {
+    color: var(--primary-color, #4a9eff);
+}
+.occasion-card.occasion-anniversary {
+    border-color: #7b1fa2;
+    background: linear-gradient(135deg, rgba(123, 31, 162, 0.08) 0%, rgba(123, 31, 162, 0.02) 100%);
+}
+.occasion-card.occasion-anniversary .occasion-name {
+    color: #6a1b9a;
+}
+@media (max-width: 600px) {
+    .occasion-cards {
+        flex-direction: column;
+    }
+}
+.voucher-amount-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+.voucher-amount-btn {
+    padding: 0.875rem 1.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 2px solid var(--primary-color, #4a9eff);
+    background: var(--bg-primary);
+    color: var(--primary-color, #4a9eff);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.voucher-amount-btn:hover {
+    background: var(--primary-color, #4a9eff);
+    color: white;
+    transform: translateY(-2px);
+}
+.voucher-amount-btn[data-amount="custom"] {
+    border-style: dashed;
+}
+.voucher-step.hidden,
+.voucher-form-step.hidden {
+    display: none !important;
+}
+/* Smooth expand for voucher details - override display:none to allow height animation */
+.voucher-step-details {
+    overflow: hidden;
+    transition: max-height 0.4s ease-out, opacity 0.3s ease-out;
+}
+.voucher-step-details.hidden {
+    max-height: 0 !important;
+    opacity: 0;
+    display: block !important;
+    visibility: hidden;
+    pointer-events: none;
+}
+.voucher-step-details:not(.hidden) {
+    max-height: 1200px;
+    opacity: 1;
+    visibility: visible;
+}
+.form-group-hidden {
+    display: none !important;
+}
+.voucher-back-btn {
+    background: none;
+    border: none;
+    color: var(--primary-color, #4a9eff);
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+}
+.voucher-back-btn:hover {
+    color: var(--primary-hover, #6bb0ff);
+}
+.voucher-selected-summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+.voucher-selected-label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+.voucher-selected-amount {
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--primary-color, #4a9eff);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gift-vouchers-page">
+    <h1>Going Digital Gift Vouchers</h1>
+    <p class="subtitle">For Skills that will Last a Lifetime</p>
+
+    <figure class="gift-vouchers-hero-image">
+        <img src="{{ gift_voucher_image_url }}" alt="Going Digital photography gift vouchers" loading="lazy" decoding="async" />
+    </figure>
+
+    {% if promoted_occasions %}
+    <div class="occasion-cards">
+        {% for occasion in promoted_occasions %}
+        <div class="occasion-card occasion-{{ occasion.slug }}">
+            <span class="occasion-name">{{ occasion.name }}</span>
+            {% if occasion.date %}<span class="occasion-date">{{ occasion.date|date:"d F Y" }}</span>{% endif %}
+            <span class="occasion-promo">{{ occasion.promo }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <section class="gift-guide-section">
+        <h2>How It Works</h2>
+        <ol class="gift-guide-steps">
+            <li class="gift-guide-step">
+                <span class="gift-guide-number">1</span>
+                <div class="gift-guide-content">
+                    <strong>Buy a voucher</strong>
+                    <p>The perfect gift for any photographer.</p>
+                </div>
+            </li>
+            <li class="gift-guide-step">
+                <span class="gift-guide-number">2</span>
+                <div class="gift-guide-content">
+                    <strong>Let them select and book any of our courses</strong>
+                </div>
+            </li>
+            <li class="gift-guide-step">
+                <span class="gift-guide-number">3</span>
+                <div class="gift-guide-content">
+                    <strong>Attend our exciting courses and improve their skills</strong>
+                </div>
+            </li>
+        </ol>
+    </section>
+
+    <div class="gift-vouchers-section">
+        <p>Going Digital vouchers are the gift every photographer will love, whether they're a complete beginner or an aspiring professional wishing to refine their skills. Use them towards our photography courses across the UK. Our vouchers:</p>
+
+        <ul class="voucher-benefits">
+            <li>Vouchers can be used in part or full payment for all our workshops, one-to-one training &amp; experience days (please just check that suitable courses are available on our website before purchasing a voucher).</li>
+            <li><strong>They are valid for NINE Months</strong> (and the workshop booked can be after the expiry date)</li>
+            <li>If the full value of the voucher isn't redeemed, we'll issue another voucher for the unspent balance</li>
+            <li>Your voucher will be sent by return email, ready for you to print.</li>
+            <li>As a guide our Introduction to Photography - Get Off Auto course usually costs between £90 & £100</li>
+
+        </ul>
+    </div>
+
+
+    <div class="purchase-section" id="voucher-checkout">
+        <h2>Buy Now</h2>
+
+        <div class="voucher-step voucher-step-amount" id="voucher-step-amount">
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">Choose an amount:</p>
+            <div class="voucher-amount-buttons">
+                <button type="button" class="voucher-amount-btn" data-amount="25">£25</button>
+                <button type="button" class="voucher-amount-btn" data-amount="50">£50</button>
+                <button type="button" class="voucher-amount-btn" data-amount="100">£100</button>
+                <button type="button" class="voucher-amount-btn" data-amount="custom">Custom</button>
+            </div>
+        </div>
+
+        <div class="voucher-step voucher-step-details hidden" id="voucher-step-details">
+            <div class="voucher-selected-summary" id="voucher-selected-summary">
+                <span class="voucher-selected-label">Voucher amount:</span>
+                <span class="voucher-selected-amount" id="voucher-selected-amount"></span>
+                <button type="button" class="voucher-back-btn" id="voucher-back-btn" aria-label="Change amount">← Change amount</button>
+            </div>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">Enter your details to add to basket:</p>
+
+            {% if messages %}
+            {% for message in messages %}
+            <div class="message-success">{{ message }}</div>
+            {% endfor %}
+            {% endif %}
+
+            <form method="post" class="booking-form" id="voucher-form">
+                {% csrf_token %}
+
+                <div class="form-group form-group-hidden" id="voucher-amount-form-group">
+                    <label for="{{ form.amount.id_for_label }}">Custom amount (£) *</label>
+                    {{ form.amount }}
+                    {% if form.amount.errors %}
+                    <span class="error">{{ form.amount.errors }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="form-group form-group-hidden">
+                    <label for="{{ form.quantity.id_for_label }}">{{ form.quantity.label }} *</label>
+                    {{ form.quantity }}
+                    {% if form.quantity.errors %}
+                    <span class="error">{{ form.quantity.errors }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="voucher-form-step" id="voucher-form-step-1">
+                    <div class="form-group">
+                        <label for="{{ form.name.id_for_label }}">Your Name *</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                        <span class="error">{{ form.name.errors }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.email.id_for_label }}">Your Email *</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                        <span class="error">{{ form.email.errors }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.phone.id_for_label }}">Your Phone *</label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}
+                        <span class="error">{{ form.phone.errors }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group" style="margin-top: 1.25rem;">
+                        {{ form.captcha }}
+                        {% if form.captcha.errors %}
+                        <span class="error">{{ form.captcha.errors }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-actions" style="margin-top: 1.5rem;">
+                        <button type="button" class="btn-primary" id="voucher-continue-btn">Continue</button>
+                    </div>
+                </div>
+
+                <div class="voucher-form-step hidden" id="voucher-form-step-2">
+                    <p style="color: var(--text-secondary); margin-bottom: 0.5rem;">Add a personal touch (optional):</p>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                        <button type="button" class="voucher-back-btn" id="voucher-form-back-btn" aria-label="Back to your details">← Back</button>
+                    </p>
+
+                    <div class="form-group">
+                        <label for="{{ form.recipient_name.id_for_label }}">{{ form.recipient_name.label }}</label>
+                        {{ form.recipient_name }}
+                        {% if form.recipient_name.errors %}
+                        <span class="error">{{ form.recipient_name.errors }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.message.id_for_label }}">Gift Message (optional)</label>
+                        {{ form.message }}
+                        {% if form.message.errors %}
+                        <span class="error">{{ form.message.errors }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-actions" style="margin-top: 1.5rem;">
+                        <button type="submit" class="btn-primary">Purchases</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var amountButtons = document.querySelectorAll('.voucher-amount-btn');
+    var amountSelect = document.getElementById('id_amount');
+    var stepAmount = document.getElementById('voucher-step-amount');
+    var stepDetails = document.getElementById('voucher-step-details');
+    var checkoutSection = document.getElementById('voucher-checkout');
+
+    var amountFormGroup = document.getElementById('voucher-amount-form-group');
+    var quantitySelect = document.getElementById('id_quantity');
+    var selectedAmountDisplay = document.getElementById('voucher-selected-amount');
+
+    function updateSelectedAmountDisplay(amount) {
+        if (!selectedAmountDisplay) return;
+        if (amount === 'custom') {
+            selectedAmountDisplay.textContent = 'Custom amount';
+        } else if (amount) {
+            selectedAmountDisplay.textContent = '£' + amount;
+        } else {
+            selectedAmountDisplay.textContent = '';
+        }
+    }
+
+    amountButtons.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var amount = this.getAttribute('data-amount');
+            if (amount === 'custom') {
+                if (amountSelect) {
+                    amountSelect.value = '';
+                    amountSelect.focus();
+                }
+                if (amountFormGroup) amountFormGroup.classList.remove('form-group-hidden');
+                updateSelectedAmountDisplay('custom');
+            } else {
+                if (amountSelect) amountSelect.value = amount;
+                if (amountFormGroup) amountFormGroup.classList.add('form-group-hidden');
+                if (quantitySelect) quantitySelect.value = '1';
+                updateSelectedAmountDisplay(amount);
+            }
+            stepAmount.classList.add('hidden');
+            stepDetails.classList.remove('hidden');
+            checkoutSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+
+    if (amountSelect && selectedAmountDisplay) {
+        amountSelect.addEventListener('input', function() {
+            var val = amountSelect.value;
+            if (val && !isNaN(val)) {
+                selectedAmountDisplay.textContent = '£' + val;
+            } else {
+                selectedAmountDisplay.textContent = 'Custom amount';
+            }
+        });
+    }
+
+    var formStep1 = document.getElementById('voucher-form-step-1');
+    var formStep2 = document.getElementById('voucher-form-step-2');
+    var continueBtn = document.getElementById('voucher-continue-btn');
+
+    if (continueBtn && formStep1 && formStep2) {
+        continueBtn.addEventListener('click', function() {
+            var nameInput = document.getElementById('id_name');
+            var emailInput = document.getElementById('id_email');
+            var phoneInput = document.getElementById('id_phone');
+            var valid = true;
+            if (amountFormGroup && !amountFormGroup.classList.contains('form-group-hidden')) {
+                var amt = amountSelect ? parseInt(amountSelect.value, 10) : 0;
+                if (!amountSelect || !amountSelect.value || isNaN(amt) || amt < 5) {
+                    valid = false;
+                    if (amountSelect) amountSelect.focus();
+                }
+            }
+            if (valid && (!nameInput || !nameInput.value.trim())) { valid = false; if (nameInput) nameInput.focus(); }
+            else if (valid && (!emailInput || !emailInput.value.trim())) { valid = false; if (emailInput) emailInput.focus(); }
+            else if (valid && (!phoneInput || !phoneInput.value.trim())) { valid = false; if (phoneInput) phoneInput.focus(); }
+            if (valid) {
+                formStep1.classList.add('hidden');
+                formStep2.classList.remove('hidden');
+            }
+        });
+    }
+
+    var formBackBtn = document.getElementById('voucher-form-back-btn');
+    if (formBackBtn && formStep1 && formStep2) {
+        formBackBtn.addEventListener('click', function() {
+            formStep2.classList.add('hidden');
+            formStep1.classList.remove('hidden');
+        });
+    }
+
+    var backBtn = document.getElementById('voucher-back-btn');
+    if (backBtn) {
+        backBtn.addEventListener('click', function() {
+            stepDetails.classList.add('hidden');
+            stepAmount.classList.remove('hidden');
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -174,6 +174,14 @@
     }
 }
 
+.section-stats {
+    text-align: center;
+    font-size: 1.1rem;
+    color: var(--text-secondary, #666);
+    margin-top: -2rem;
+    margin-bottom: 2rem;
+}
+
 /* Level-Based Box Structure */
 .journey-levels-grid {
     display: grid;
@@ -233,6 +241,20 @@
     color: white;
 }
 
+.level-box-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    margin: -0.5rem 0 0 -0.5rem;
+    padding: 0.5rem 0 0 0.5rem;
+    border-radius: 8px;
+    transition: background 0.2s ease;
+}
+
+.level-box-link:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
 .level-box-title {
     font-size: 2rem;
     font-weight: 700;
@@ -253,9 +275,45 @@
 
 .level-box-description {
     font-size: 1rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     opacity: 0.95;
     color: inherit;
+}
+
+.level-expand-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.level-expand-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.8);
+}
+
+.level-box-courses-wrap {
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+}
+
+.level-box-courses-wrap.collapsed {
+    max-height: 0;
+    margin-top: 0;
+}
+
+.level-box-courses-wrap:not(.collapsed) {
+    max-height: 2000px;
+    margin-top: 0.5rem;
 }
 
 .level-box-courses {

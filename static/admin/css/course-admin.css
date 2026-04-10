@@ -1,0 +1,23 @@
+/* Widen Main Content editor on Course admin Page Content tab */
+#content-main .change-form {
+    max-width: none;
+}
+#content-main .change-form .form-row,
+#content-main .change-form .fieldBox {
+    max-width: none;
+}
+#content-main .change-form .cke {
+    width: 100% !important;
+    max-width: none;
+    min-width: 600px;
+}
+#content-main .change-form #id_main_content {
+    width: 100%;
+}
+/* CKEditor iframe - ensure editing area is wide */
+#content-main .change-form .cke_inner {
+    width: 100% !important;
+}
+#content-main .change-form .cke_contents {
+    min-height: 400px;
+}

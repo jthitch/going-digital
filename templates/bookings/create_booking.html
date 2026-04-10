@@ -14,7 +14,7 @@
     <div class="course-summary">
         <h2>{{ course_instance.course.title }}</h2>
         <div class="course-details">
-            <p><strong>Date:</strong> {{ course_instance.start_date|date:"F j, Y" }} at {{ course_instance.start_date|date:"g:i A" }}</p>
+            <p><strong>Date:</strong> {{ course_instance.start_date|date:"d F Y" }} at {{ course_instance.start_date|date:"g:i A" }}</p>
             <p><strong>Location:</strong> {{ course_instance.location.name }}, {{ course_instance.location.city }}</p>
             <p><strong>Price:</strong> £{{ course_instance.price }}</p>
             {% if course_instance.spaces_available %}

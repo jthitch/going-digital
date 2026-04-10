@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}{{ course.title }} - Photography Courses{% endblock %}
+{% block title %}{{ meta_title }}{% endblock %}
 {% block meta_description %}{{ meta_description }}{% endblock %}
 {% block meta_keywords %}{{ meta_keywords }}{% endblock %}
 
@@ -12,7 +12,7 @@
     </script>
     
     <!-- Open Graph / Social Media -->
-    <meta property="og:title" content="{{ course.title }}">
+    <meta property="og:title" content="{{ meta_title }}">
     <meta property="og:description" content="{{ course.short_description }}">
     {% if course.image %}
     <meta property="og:image" content="{{ request.build_absolute_uri }}{{ course.image.url }}">
@@ -25,9 +25,21 @@
     <!-- H1: Course Name -->
     <h1>{{ course.title }}</h1>
     
-    <!-- Course Image -->
-    {% if course.image %}
-    <img src="{{ course.image.url }}" alt="{{ course.title }}" class="course-image">
+    <!-- Course Header Images (gd_image + CourseMedia) - slider when multiple -->
+    {% if header_images %}
+    {% if header_images|length > 1 %}
+    <div class="course-header-slider">
+        {% for img in header_images %}
+        <div class="course-header-slide {% if forloop.first %}active{% endif %}">
+            <img src="{{ img.url }}" alt="{{ img.alt }}" class="course-image">
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="course-header-single">
+        <img src="{{ header_images.0.url }}" alt="{{ header_images.0.alt }}" class="course-image">
+    </div>
+    {% endif %}
     {% endif %}
     
     <!-- Key Facts -->
@@ -41,21 +53,82 @@
         <div class="fact-item">
             <strong>Category:</strong> {{ course.get_category_display }}
         </div>
-        {% if featured_instance %}
+        {% if min_price %}
         <div class="fact-item">
-            <strong>Price:</strong> £{{ featured_instance.price }}
-        </div>
-        <div class="fact-item">
-            <strong>Location:</strong> {{ featured_instance.location.city }}
+            <strong>Price:</strong> {% if has_multiple_prices %}From {% endif %}£{{ min_price }}
         </div>
         {% endif %}
+        {% if all_locations %}
+        <div class="fact-item fact-item-locations">
+            <strong>Location{{ all_locations|length|pluralize }}:</strong>
+            <div class="location-tags" role="list">
+                {% for loc in all_locations %}
+                <span class="location-tag" role="listitem">{{ loc.name }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        <div class="fact-item fact-item-see-courses">
+            {% if is_location_specific and featured_instance and featured_instance.enrollment_open and not featured_instance.is_full %}
+            <a href="{% url 'bookings:create' featured_instance.id %}" class="btn-see-courses btn-book-now-desktop">Book Now - £{{ featured_instance.price }}</a>
+            {% else %}
+            <a href="#available-dates-locations" class="btn-see-courses btn-see-courses-overview">See courses</a>
+            {% endif %}
+        </div>
     </section>
     
     <!-- Course Description -->
     <section class="course-description">
         <h2>About This Course</h2>
-        <div>{{ course.description|linebreaks }}</div>
+        <div class="course-main-content">
+            {% if course.content and course.content.main_content %}
+                {{ course.content.main_content|safe }}
+            {% else %}
+                {{ course.description|linebreaks }}
+            {% endif %}
+        </div>
     </section>
+    
+    <!-- Course Images & Videos (uploaded media) -->
+    {% if course.media.exists %}
+    <section class="course-media">
+        <h2>Gallery</h2>
+        <div class="course-media-grid" id="gallery-grid">
+            {% for item in course.media.all %}
+            {% if item.media_type == 'image' and item.image %}
+            <figure class="course-media-item course-media-image gallery-image" data-image-url="{{ item.image.url }}" data-caption="{{ item.caption|default:'' }}" tabindex="0" role="button">
+                <img src="{{ item.image.url }}" alt="{{ item.caption|default:course.title }}">
+                {% if item.caption %}<figcaption>{{ item.caption }}</figcaption>{% endif %}
+            </figure>
+            {% elif item.media_type == 'video' %}
+            <figure class="course-media-item course-media-video">
+                {% if item.video_url and item.video_embed_url %}
+                <div class="video-wrapper">
+                    <iframe src="{{ item.video_embed_url }}" allowfullscreen></iframe>
+                </div>
+                {% elif item.video_file %}
+                <video controls>
+                    <source src="{{ item.video_file.url }}">
+                    Your browser does not support the video tag.
+                </video>
+                {% endif %}
+                {% if item.caption %}<figcaption>{{ item.caption }}</figcaption>{% endif %}
+            </figure>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+    <!-- Gallery image modal -->
+    <div id="gallery-modal" class="gallery-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Image gallery">
+        <button type="button" class="gallery-modal-close" aria-label="Close">&times;</button>
+        <button type="button" class="gallery-modal-prev" aria-label="Previous image">&lsaquo;</button>
+        <button type="button" class="gallery-modal-next" aria-label="Next image">&rsaquo;</button>
+        <div class="gallery-modal-content">
+            <img src="" alt="" id="gallery-modal-img">
+            <p class="gallery-modal-caption" id="gallery-modal-caption"></p>
+        </div>
+    </div>
+    {% endif %}
     
     <!-- What You'll Learn -->
     {% if course.what_youll_learn %}
@@ -68,12 +141,6 @@
         </ul>
     </section>
     {% endif %}
-    
-    <!-- Audience -->
-    <section class="audience">
-        <h2>Who This Course Is For</h2>
-        <p>{{ course.audience }}</p>
-    </section>
     
     <!-- Prerequisites -->
     {% if course.prerequisites %}
@@ -104,8 +171,8 @@
     </section>
     {% endif %}
     
-    <!-- Available Course Instances (Dates & Locations) -->
-    <section class="course-instances">
+    <!-- Available Workshops (Dates & Locations) -->
+    <section class="course-instances" id="available-dates-locations">
         <h2>Available Dates & Locations</h2>
         {% if instances_by_city %}
             {% for city, instances in instances_by_city.items %}
@@ -116,16 +183,16 @@
                     <li class="instance-item">
                         <a href="{{ instance.get_absolute_url }}" class="instance-link" aria-label="View {{ course.title }} at {{ instance.location.city }}">
                             <div class="instance-date">
-                                <strong>{{ instance.start_date|date:"F j, Y" }}</strong>
+                                <strong>{{ instance.start_date|date:"d F Y" }}</strong>
                                 <span>{{ instance.start_date|date:"g:i A" }} - {{ instance.end_date|date:"g:i A" }}</span>
                             </div>
                             <div class="instance-location">
-                                <address>
-                                    {{ instance.location.name }}<br>
-                                    {{ instance.location.address_line_1 }}<br>
-                                    {% if instance.location.address_line_2 %}{{ instance.location.address_line_2 }}<br>{% endif %}
-                                    {{ instance.location.city }}, {{ instance.location.state }} {{ instance.location.postal_code }}
-                                </address>
+                                <span class="location-tag location-tag-venue">{{ instance.location.name }}</span>
+                                {% with v=instance.location %}
+                                {% if v.venue_address or v.location %}
+                                <address class="instance-address-inline">{% if v.venue_address %}{{ v.venue_address|cut:"\r"|cut:"\n"|truncatechars:140 }}{% endif %}{% if v.location %}{% if v.venue_address %} · {% endif %}{{ v.location }}{% endif %}</address>
+                                {% endif %}
+                                {% endwith %}
                             </div>
                             <div class="instance-info">
                                 <span class="price">£{{ instance.price }}</span>
@@ -171,9 +238,111 @@
 
 <!-- React component for booking (progressive enhancement) -->
 <div id="booking-widget" data-course-instance-id="{% if featured_instance %}{{ featured_instance.id }}{% endif %}"></div>
+
+{% if is_location_specific and featured_instance and featured_instance.enrollment_open and not featured_instance.is_full %}
+<!-- Floating Book Now bar - mobile only, hides when user scrolls to booking section -->
+<div id="floating-book-bar" class="floating-book-bar">
+    <a href="{% url 'bookings:create' featured_instance.id %}" class="floating-book-btn">Book Now - £{{ featured_instance.price }}</a>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <!-- Load React booking component (if needed) -->
 <script src="{% static 'js/booking-widget.js' %}" defer></script>
+{% if is_location_specific and featured_instance %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var floatingBar = document.getElementById('floating-book-bar');
+    var bookingSection = document.getElementById('available-dates-locations');
+    if (!floatingBar || !bookingSection) return;
+    function updateFloatingBar() {
+        if (window.innerWidth >= 768) return;
+        var rect = bookingSection.getBoundingClientRect();
+        var isInView = rect.top < window.innerHeight - 100;
+        floatingBar.classList.toggle('scrolled-to-bottom', isInView);
+    }
+    window.addEventListener('scroll', updateFloatingBar, { passive: true });
+    window.addEventListener('resize', updateFloatingBar);
+    updateFloatingBar();
+});
+</script>
+{% endif %}
+{% if course.media.exists %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var galleryImages = document.querySelectorAll('.gallery-image');
+    var modal = document.getElementById('gallery-modal');
+    if (!galleryImages.length || !modal) return;
+    var modalImg = document.getElementById('gallery-modal-img');
+    var modalCaption = document.getElementById('gallery-modal-caption');
+    var closeBtn = modal.querySelector('.gallery-modal-close');
+    var prevBtn = modal.querySelector('.gallery-modal-prev');
+    var nextBtn = modal.querySelector('.gallery-modal-next');
+    var currentIndex = 0;
+    var images = Array.from(galleryImages).map(function(el) {
+        return { url: el.dataset.imageUrl, caption: el.dataset.caption || '' };
+    });
+    function showImage(i) {
+        currentIndex = ((i % images.length) + images.length) % images.length;
+        var img = images[currentIndex];
+        modalImg.src = img.url;
+        modalImg.alt = img.caption;
+        modalCaption.textContent = img.caption;
+        modalCaption.style.display = img.caption ? 'block' : 'none';
+    }
+    function openModal(index) {
+        currentIndex = index;
+        showImage(currentIndex);
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeModal() {
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    }
+    galleryImages.forEach(function(el, i) {
+        el.addEventListener('click', function() { openModal(i); });
+        el.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(i); }
+        });
+    });
+    closeBtn.addEventListener('click', closeModal);
+    prevBtn.addEventListener('click', function() { showImage(currentIndex - 1); });
+    nextBtn.addEventListener('click', function() { showImage(currentIndex + 1); });
+    if (images.length <= 1) {
+        prevBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+    }
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (!modal.classList.contains('open')) return;
+        if (e.key === 'Escape') closeModal();
+        else if (e.key === 'ArrowLeft') showImage(currentIndex - 1);
+        else if (e.key === 'ArrowRight') showImage(currentIndex + 1);
+    });
+});
+</script>
+{% endif %}
+{% if header_images|length > 1 %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var slides = document.querySelectorAll('.course-header-slide');
+    if (slides.length < 2) return;
+    var current = 0;
+    function showSlide(i) {
+        slides.forEach(function(s, idx) {
+            s.classList.toggle('active', idx === i);
+        });
+        current = i;
+    }
+    function next() { showSlide((current + 1) % slides.length); }
+    setInterval(next, 3000);
+});
+</script>
+{% endif %}
 {% endblock %}

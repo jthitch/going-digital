@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Site map | Going Digital{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">{{ site_map_json_ld_json|safe }}</script>
+{% endblock %}
+
+{% block content %}
+<article class="site-map-page">
+    <header class="site-map-header">
+        <h1>Site map</h1>
+        <p class="site-map-lead">Quick links to our main pages. Individual courses, workshops, and venue pages are listed in the <a href="{{ xml_sitemap_url }}">XML sitemap</a> for search engines.</p>
+    </header>
+
+    {% for section in sections %}
+    <section class="site-map-section" aria-labelledby="site-map-section-{{ forloop.counter }}">
+        <h2 id="site-map-section-{{ forloop.counter }}">{{ section.heading }}</h2>
+        <ul class="site-map-list">
+            {% for item in section.items %}
+            <li><a href="{{ item.path }}">{{ item.name }}</a></li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endfor %}
+
+    <section class="site-map-section site-map-xml" aria-labelledby="site-map-xml-heading">
+        <h2 id="site-map-xml-heading">Machine-readable sitemap</h2>
+        <p>For crawlers and SEO tools, the full index (courses, workshops, venues) is published as <a href="{{ xml_sitemap_url }}" rel="alternate" type="application/xml">sitemap.xml</a>. It is also referenced from <a href="{% url 'robots_txt' %}">robots.txt</a>.</p>
+    </section>
+</article>
+{% endblock %}

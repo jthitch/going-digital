@@ -3,28 +3,45 @@
 .course-list-page {
     position: relative;
     min-height: 100vh;
+    box-sizing: border-box;
 }
 
-/* Page Header Row - Flex Container */
-.page-header-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+/* Top area: title + list/map + filters (grid — mobile puts list/map + filters on one row) */
+.course-list-top {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 1rem;
+    align-items: start;
     margin-bottom: 1rem;
-    gap: 1.5rem;
-    flex-wrap: wrap;
     position: relative;
     z-index: 101;
     transition: all 0.3s ease;
 }
 
-/* When map is visible, overlay header - no background */
-body.map-view-active .page-header-row {
+.course-list-top .page-header {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.course-list-top .view-toggle-container {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+}
+
+.course-list-top .filters-section-collapsed {
+    grid-column: 1 / -1;
+    grid-row: 2;
+}
+
+/* When map is visible, overlay list/map + filters - no background */
+body.map-view-active .course-list-top {
     position: fixed;
     top: 80px; /* Below header */
     left: auto;
     right: 2rem;
-    padding: 0;
+    padding: 0.75rem 0 0;
     background: transparent;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -33,12 +50,35 @@ body.map-view-active .page-header-row {
     margin-bottom: 0;
     border: none;
     width: auto;
-    justify-content: flex-end;
+    max-width: min(360px, calc(100vw - 2rem));
+    justify-items: end;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
 }
 
-/* Hide title/subtitle in map view, keep only view toggle */
-body.map-view-active .page-header {
+body.map-view-active .course-list-top .page-header {
     display: none;
+}
+
+body.map-view-active .course-list-top .view-toggle-container {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: end;
+    width: 100%;
+}
+
+body.map-view-active .course-list-top .filters-section-collapsed {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    /* Stack inside fixed .course-list-top — do not use separate fixed positioning */
+    position: static;
+    top: auto;
+    right: auto;
+    left: auto;
+    min-width: 0;
+    max-width: none;
+    margin-bottom: 0;
 }
 
 /* Page Header - Compact */
@@ -138,6 +178,93 @@ body.map-view-active .view-toggle-group {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
+/* Category filter buttons - inside filters panel, flow left-to-right and wrap onto multiple rows */
+.category-filter-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.category-filter-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.5rem;
+}
+
+.category-filter-buttons-inline {
+    margin-top: 0.25rem;
+}
+
+button.category-filter-more {
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+    line-height: inherit;
+}
+
+.category-filter-more.expanded {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.category-filter-extra[hidden] {
+    display: none !important;
+}
+
+/* Category / level filter groups span full width so buttons have room to flow in rows */
+.filter-group-category,
+.filter-group-level {
+    grid-column: 1 / -1;
+}
+
+.category-filter-buttons .category-filter-btn {
+    justify-self: stretch;
+}
+
+.category-filter-btn {
+    display: inline-block;
+    flex-shrink: 0;
+    white-space: normal;
+    text-align: center;
+    padding: 0.5rem 1rem;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    text-decoration: none;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.category-filter-btn:hover {
+    background-color: var(--bg-primary);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.category-filter-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.category-filter-btn.active:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+    color: white;
+}
+
+[data-theme="dark"] .category-filter-btn {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .category-filter-btn.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
 /* Collapsible Filters Section */
 .filters-section-collapsed {
     margin-bottom: 1rem;
@@ -154,17 +281,51 @@ body.map-view-active .filters-section-collapsed {
     left: auto;
     z-index: 102;
     margin-bottom: 0;
-    width: 240px; /* Match view toggle group width exactly */
+    width: 320px;
+    min-width: 280px;
 }
 
 /* Make filter button same size as view toggle in map view */
 body.map-view-active .filter-toggle-modern {
     width: 100%;
-    min-width: 240px;
-    max-width: 240px;
+    min-width: 0;
+    max-width: none;
     justify-content: center;
     padding: 0.875rem 1.75rem; /* Match view toggle button padding */
     box-sizing: border-box;
+}
+
+/* Filters content in map view - ensure full width and allow category names to wrap */
+body.map-view-active .filters-content {
+    min-width: 280px;
+    width: 100%;
+}
+
+body.map-view-active .filters-content.active {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+body.map-view-active .category-filter-buttons {
+    grid-template-columns: 1fr;
+    min-width: 0;
+}
+
+body.map-view-active .category-filter-btn {
+    white-space: normal;
+    word-break: break-word;
+    text-align: left;
+    min-height: 2.5rem;
+}
+
+body.map-view-active .filter-label,
+body.map-view-active .filter-input,
+body.map-view-active .filter-select {
+    min-width: 0;
+}
+
+body.map-view-active .filter-group {
+    min-width: 0;
 }
 
 .filter-toggle-modern {
@@ -450,6 +611,269 @@ body.map-view-active .filter-toggle-modern {
     background-color: var(--bg-primary);
     z-index: 100;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Mobile: pull-up sheet lives inside .map-container; children cannot stack above .course-list-top (z-index ~101)
+   without raising this layer — must be below site header (z-index 1200). */
+@media (max-width: 1023px) {
+    body.map-view-active.map-mobile-sheet-open .map-container {
+        z-index: 900;
+    }
+}
+
+/* Map layout: sidebar (left) + map (right) on desktop */
+@media (min-width: 1024px) {
+    .map-container {
+        flex-direction: row;
+    }
+
+    .map-sidebar {
+        display: flex;
+        flex-direction: column;
+        width: 360px;
+        min-width: 320px;
+        max-width: 420px;
+        height: 100%;
+        background: var(--bg-primary);
+        border-right: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+    .map-sidebar-header {
+        padding: 1.25rem 1.25rem 0.75rem;
+        border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+        flex-shrink: 0;
+    }
+
+    .map-sidebar-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin: 0 0 0.25rem;
+        color: var(--text-primary);
+    }
+
+    .map-sidebar-count {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        margin: 0;
+    }
+
+    .map-sidebar-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.65rem 0.75rem 1rem;
+    }
+
+    /* Map sidebar / mobile sheet: same course-card pattern as list view */
+    .map-sidebar-list .map-sidebar-card.course-card {
+        margin-bottom: 0.85rem;
+    }
+
+    .map-sidebar-list .map-sidebar-card.course-card:last-child {
+        margin-bottom: 0;
+    }
+
+    .map-sidebar-list .map-sidebar-card .course-image-wrapper {
+        height: 160px;
+    }
+
+    .map-sidebar-list .map-sidebar-card .course-title {
+        font-size: 1rem;
+        line-height: 1.3;
+    }
+
+    .map-sidebar-list .map-sidebar-card .course-short-desc {
+        font-size: 0.82rem;
+        line-height: 1.35;
+    }
+
+    .map-sidebar-list .map-sidebar-card .meta-item.map-sidebar-date {
+        white-space: normal;
+        line-height: 1.3;
+    }
+
+    .map-sidebar-card-actions {
+        padding: 0 1rem 1rem;
+        border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+        margin-top: 0;
+    }
+
+    .map-sidebar-card-actions .map-sidebar-book-btn {
+        display: block;
+        width: 100%;
+        text-align: center;
+        box-sizing: border-box;
+        padding: 0.55rem 1rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        background: var(--primary-color);
+        color: white;
+        text-decoration: none;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .map-sidebar-card-actions .map-sidebar-book-btn:hover {
+        opacity: 0.92;
+        transform: translateY(-1px);
+    }
+
+    .map-sidebar-card-actions .map-sidebar-book-btn.map-sidebar-book-disabled {
+        background: #e5e7eb;
+        color: #6b7280;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .map-sidebar-card-actions .map-sidebar-book-btn.map-sidebar-book-disabled:hover {
+        opacity: 1;
+        transform: none;
+    }
+
+    .map-main {
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+        position: relative;
+    }
+}
+
+/* Mobile: full-width map + pull-up sheet (reuses .map-sidebar) */
+@media (max-width: 1023px) {
+    .map-sheet-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1005;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: rgba(0, 0, 0, 0.4);
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
+    .map-sheet-backdrop[hidden] {
+        display: none !important;
+    }
+
+    /* Hit area is tall; grey pill is only ::after (padding + bg on one element painted a big grey block) */
+    .map-sheet-handle {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin: 0;
+        padding: 10px 0 8px;
+        min-height: 28px;
+        cursor: grab;
+        touch-action: none;
+        box-sizing: border-box;
+        background: transparent;
+    }
+
+    .map-sheet-handle::after {
+        content: '';
+        width: 40px;
+        height: 5px;
+        border-radius: 3px;
+        background: var(--border-color, rgba(0, 0, 0, 0.2));
+        flex-shrink: 0;
+    }
+
+    .map-sheet-handle:active {
+        cursor: grabbing;
+    }
+
+    .map-sidebar {
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: auto;
+        /* Stay below sticky header; leave room so the sheet top does not sit under list/map + filters */
+        max-height: min(82vh, calc(100dvh - 120px), calc(100vh - 120px));
+        min-height: 0;
+        z-index: 1010;
+        border-right: none;
+        border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+        border-radius: 16px 16px 0 0;
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.18);
+        transform: translateY(100%);
+        transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+        background: var(--bg-primary);
+        pointer-events: none;
+    }
+
+    .map-sidebar.map-sheet--open {
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+
+    .map-sheet-backdrop:not([hidden]) {
+        display: block;
+    }
+
+    .map-sidebar-header {
+        flex-shrink: 0;
+        padding: 0.35rem 1rem 0.75rem;
+    }
+
+    .map-sidebar-list {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 0.5rem 1rem 1.25rem;
+    }
+
+    .map-sidebar-list .map-sidebar-card.course-card {
+        margin-bottom: 0.65rem;
+    }
+
+    .map-sidebar-list .map-sidebar-card .course-image-wrapper {
+        height: 118px;
+    }
+
+    .map-main {
+        width: 100%;
+        height: 100%;
+    }
+}
+
+@media (min-width: 1024px) {
+    .map-sheet-backdrop {
+        display: none !important;
+    }
+
+    .map-sheet-handle {
+        display: none !important;
+    }
+}
+
+[data-theme="dark"] .map-sidebar {
+    background: var(--bg-primary);
+    border-right-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .map-sidebar-header {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .map-sidebar-card-actions {
+    border-top-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Ensure filters content has proper background when overlaid */
@@ -503,6 +927,37 @@ body.map-view-active .filters-content {
     pointer-events: none;
 }
 
+/* Marker pulse animation when selected */
+.leaflet-marker-icon.marker-pulse {
+    position: relative;
+    overflow: visible !important;
+}
+
+.leaflet-marker-icon.marker-pulse::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 3px solid var(--primary-color, #0066cc);
+    transform: translate(-50%, -50%) scale(1);
+    animation: markerPulse 1.5s ease-out infinite;
+    pointer-events: none;
+}
+
+@keyframes markerPulse {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.8;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(2.5);
+        opacity: 0;
+    }
+}
+
 /* Course Grid */
 .course-grid-container {
     display: block;
@@ -526,10 +981,94 @@ body.map-view-active .filters-content {
 }
 
 .course-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1.25rem;
+    display: block;
     margin-bottom: 1.5rem;
+    width: 100%;
+}
+
+.course-grid .category-section {
+    width: 100%;
+}
+
+/* Category sections - subheader + cards layout */
+.category-section {
+    margin-bottom: 2.5rem;
+    display: block;
+}
+
+.category-section:last-child {
+    margin-bottom: 0;
+}
+
+.category-section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 1rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+/* Mobile: horizontal scroll within each category (negative margin matches .course-list-page padding) */
+.category-courses {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 1rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.5rem;
+    margin: 0 -1.25rem;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE / legacy Edge */
+}
+
+.category-courses::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+    width: 0;
+    height: 0;
+}
+
+.category-section .course-card {
+    flex: 0 0 280px;
+    min-width: 280px;
+    max-width: 280px;
+    scroll-snap-align: start;
+}
+
+/* Desktop: category subheader + grid of cards below */
+@media (min-width: 768px) {
+    .category-section {
+        margin-bottom: 3rem;
+    }
+
+    .category-section-title {
+        font-size: 1.5rem;
+        margin: 0 0 1.25rem 0;
+        padding-bottom: 0.75rem;
+    }
+
+    .category-courses {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.25rem;
+        overflow-x: visible;
+        overflow-y: visible;
+        scroll-snap-type: none;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+    }
+
+    .category-section .course-card {
+        flex: none;
+        min-width: 0;
+        max-width: none;
+        scroll-snap-align: none;
+    }
 }
 
 /* Course Cards */
@@ -605,7 +1144,7 @@ body.map-view-active .filters-content {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Level-specific colors matching homepage */
+/* Level-specific colors matching homepage (level-box-1, -2, -3, etc.) */
 .course-level-badge[data-level="beginner"] {
     background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
     color: white;
@@ -618,6 +1157,16 @@ body.map-view-active .filters-content {
 
 .course-level-badge[data-level="advanced"] {
     background: linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%);
+    color: white;
+}
+
+.course-level-badge[data-level="masterclass"] {
+    background: linear-gradient(135deg, #2196f3 0%, #64b5f6 100%);
+    color: white;
+}
+
+.course-level-badge[data-level="various"] {
+    background: linear-gradient(135deg, #009688 0%, #4db6ac 100%);
     color: white;
 }
 
@@ -671,10 +1220,14 @@ body.map-view-active .filters-content {
     font-weight: 500;
 }
 
-/* Course Locations */
+/* Course Locations: flex column so "more" stays below chips (never overlaps rows) */
 .course-locations {
-    margin-top: 0.5rem;
+    margin-top: 0;
     position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.4rem;
 }
 
 .course-locations-list {
@@ -684,7 +1237,9 @@ body.map-view-active .filters-content {
     font-size: 0.875rem;
     color: var(--text-secondary);
     line-height: 1.5;
-    max-height: 3em; /* Approximately 2 lines (1.5em line-height * 2) */
+    min-height: 0;
+    /* Enough height for two full rows of chips + gap (flex-wrap; 3em clipped the second row) */
+    max-height: 5.75em;
     overflow: hidden;
     position: relative;
     transition: max-height 0.3s ease;
@@ -699,8 +1254,8 @@ body.map-view-active .filters-content {
     position: absolute;
     bottom: 0;
     right: 0;
-    width: 60px;
-    height: 1.5em;
+    width: 72px;
+    height: 2em;
     background: linear-gradient(to right, transparent, var(--bg-primary));
     pointer-events: none;
     opacity: 1;
@@ -721,9 +1276,9 @@ body.map-view-active .filters-content {
 }
 
 .locations-more-btn {
-    margin-top: 0.5rem;
+    margin-top: 0;
     padding: 0.25rem 0.75rem;
-    background: transparent;
+    background: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: 4px;
     color: var(--primary-color);
@@ -733,7 +1288,9 @@ body.map-view-active .filters-content {
     transition: all 0.2s ease;
     font-family: inherit;
     position: relative;
-    z-index: 10;
+    z-index: 2;
+    align-self: flex-start;
+    flex-shrink: 0;
 }
 
 .locations-more-btn:hover {
@@ -783,9 +1340,42 @@ body.map-view-active .filters-content {
     pointer-events: none;
 }
 
+/* Infinite scroll */
+.infinite-scroll-sentinel {
+    height: 1px;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.infinite-scroll-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 2rem;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.infinite-scroll-loading.hidden {
+    display: none;
+}
+
+.loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 /* No Results */
 .no-results {
-    grid-column: 1 / -1;
     text-align: center;
     padding: 4rem 2rem;
     background-color: var(--bg-secondary);
@@ -822,19 +1412,89 @@ body.map-view-active .filters-content {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .page-header-row {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 1rem;
+    .course-list-page {
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
     }
-    
-    body.map-view-active .page-header-row {
-        padding: 0;
-        right: 1rem;
+
+    .course-list-top {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-rows: auto auto;
+        gap: 0.5rem 0.65rem;
+        margin-bottom: 0.75rem;
+        align-items: center;
+    }
+
+    .course-list-top .page-header {
+        grid-column: 1 / -1;
+        grid-row: 1;
+    }
+
+    .course-list-top .view-toggle-container {
+        grid-column: 1;
+        grid-row: 2;
+        justify-self: start;
+        justify-content: flex-start;
+        width: auto;
+        max-width: 148px;
+    }
+
+    .course-list-top .filters-section-collapsed {
+        grid-column: 2;
+        grid-row: 2;
+        justify-self: stretch;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .view-toggle-group {
+        padding: 0.2rem;
+        border-radius: 9px;
+        width: 100%;
+        max-width: 148px;
+        justify-content: center;
+    }
+
+    .view-toggle-btn {
+        padding: 0.35rem 0.45rem;
+        font-size: 0.72rem;
+        border-radius: 6px;
+        flex: 1;
+        text-align: center;
+        min-width: 0;
+    }
+
+    /* Map view: same compact List/Map + Filters on one row as list view (title hidden) */
+    body.map-view-active .course-list-top {
+        padding: 0.65rem 0 0;
         top: 70px;
-        justify-content: flex-end;
+        left: 1.25rem;
+        right: 1.25rem;
+        width: auto;
+        max-width: none;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-rows: auto;
+        justify-items: stretch;
+        align-items: center;
+        gap: 0.5rem 0.65rem;
     }
-    
+
+    body.map-view-active .course-list-top .view-toggle-container {
+        grid-column: 1;
+        grid-row: 1;
+        max-width: 148px;
+        justify-self: start;
+        justify-content: flex-start;
+        width: auto;
+    }
+
+    body.map-view-active .course-list-top .filters-section-collapsed {
+        grid-column: 2;
+        grid-row: 1;
+        width: 100%;
+        min-width: 0;
+    }
+
     .page-header {
         width: 100%;
     }
@@ -855,51 +1515,82 @@ body.map-view-active .filters-content {
         font-size: 0.85rem;
     }
     
-    .view-toggle-container {
+    body.map-view-active .course-list-top .filters-section-collapsed {
+        position: static;
+        left: auto;
+        right: auto;
+        top: auto;
         width: 100%;
-        justify-content: center;
-    }
-    
-    body.map-view-active .filters-section-collapsed {
-        left: auto;
-        right: 1rem;
-        width: calc(100% - 2rem);
-        max-width: 240px;
-        top: 135px;
+        max-width: none;
+        min-width: 0;
     }
     
     body.map-view-active .view-toggle-group {
-        width: calc(100% - 2rem);
-        max-width: 240px;
+        width: 100%;
+        max-width: 148px;
+        padding: 0.2rem;
+        border-radius: 9px;
     }
-    
+
     body.map-view-active .view-toggle-btn {
-        padding: 0.875rem 1.25rem;
-        font-size: 0.85rem;
+        padding: 0.35rem 0.45rem;
+        font-size: 0.72rem;
+        border-radius: 6px;
     }
-    
-    body.map-view-active .page-header-row {
-        justify-content: flex-end;
+
+    body.map-view-active .filter-toggle-modern {
+        padding: 0.4rem 0.65rem;
+        font-size: 0.8rem;
     }
-    
-    body.map-view-active .filters-section-collapsed {
-        left: auto;
-        right: 1rem;
-        width: calc(100% - 2rem);
-        max-width: 240px;
-        top: 135px;
+
+    /* Mobile: expanded filters — narrow grid column + min-width:280px (map) clips panel; full-width overlay */
+    .course-list-top {
+        overflow: visible;
     }
-    
-    body.map-view-active .view-toggle-group {
-        width: calc(100% - 2rem);
-        max-width: 240px;
+
+    .course-list-top .filters-section-collapsed {
+        min-width: 0;
+        max-width: 100%;
     }
-    
-    body.map-view-active .view-toggle-btn {
-        padding: 0.875rem 1.25rem;
-        font-size: 0.85rem;
+
+    .filters-content {
+        min-width: 0 !important;
+        max-width: 100%;
+        width: 100%;
+        box-sizing: border-box;
     }
-    
+
+    .course-list-top .filters-content.active {
+        position: fixed;
+        left: 1.25rem;
+        right: 1.25rem;
+        width: auto;
+        min-width: 0 !important;
+        max-width: none;
+        margin-top: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        z-index: 200;
+        border-radius: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    /* Map: toolbar only (no title row) */
+    body.map-view-active .course-list-top .filters-content.active {
+        top: calc(70px + 0.65rem + 2.75rem);
+        max-height: min(70vh, calc(100dvh - 9rem));
+    }
+
+    /* List: title + subtitle + list/map + filter button rows */
+    body:not(.map-view-active) .course-list-top .filters-content.active {
+        top: calc(70px + 9rem);
+        max-height: min(62vh, calc(100dvh - 11rem));
+    }
+
+    [data-theme="dark"] .course-list-top .filters-content.active {
+        border-top-color: rgba(255, 255, 255, 0.15);
+    }
+
     .filters-section {
         padding: 1.5rem;
     }
@@ -908,15 +1599,17 @@ body.map-view-active .filters-content {
         grid-template-columns: 1fr;
         gap: 1rem;
     }
-    
-    .view-toggle-group {
+
+    .filter-toggle-modern {
+        padding: 0.4rem 0.65rem;
+        font-size: 0.8rem;
         width: 100%;
         justify-content: center;
     }
-    
-    .view-toggle-btn {
-        flex: 1;
-        text-align: center;
+
+    .filter-icon-modern {
+        width: 16px;
+        height: 16px;
     }
     
     .filters-header {
@@ -925,9 +1618,9 @@ body.map-view-active .filters-content {
         gap: 1rem;
     }
     
-    .course-grid {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
+    .category-section-title {
+        font-size: 1.1rem;
+        margin: 0 0 0.75rem 0;
     }
     
     .course-footer {
@@ -943,5 +1636,154 @@ body.map-view-active .filters-content {
     
     .course-card-link {
         cursor: pointer;
+    }
+}
+
+/* Mobile list view: denser course cards (horizontal scroll < 768px) */
+@media (max-width: 767px) {
+    .course-list-page .page-header h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.15rem;
+    }
+
+    .course-list-page .page-subtitle {
+        font-size: 0.85rem;
+        line-height: 1.35;
+    }
+
+    .category-section {
+        margin-bottom: 1.35rem;
+    }
+
+    .category-section-title {
+        font-size: 1rem;
+        margin: 0 0 0.5rem 0;
+        padding-bottom: 0.35rem;
+    }
+
+    .category-courses {
+        gap: 0.65rem;
+        margin: 0 -1.25rem;
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+    }
+
+    .category-section .course-card {
+        flex: 0 0 228px;
+        min-width: 228px;
+        max-width: 228px;
+    }
+
+    .course-card {
+        border-radius: 12px;
+    }
+
+    .course-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .course-image-wrapper {
+        height: 118px;
+    }
+
+    .course-placeholder {
+        font-size: 2.25rem;
+    }
+
+    .course-level-badge {
+        top: 0.45rem;
+        right: 0.45rem;
+        padding: 0.2rem 0.45rem;
+        font-size: 0.62rem;
+        letter-spacing: 0.3px;
+    }
+
+    .course-card-content {
+        padding: 0.65rem 0.75rem;
+        gap: 0.4rem;
+    }
+
+    .course-header {
+        margin-bottom: 0;
+    }
+
+    .course-title {
+        font-size: 0.98rem;
+        line-height: 1.25;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .course-short-desc {
+        font-size: 0.78rem;
+        line-height: 1.35;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .course-meta {
+        gap: 0.35rem;
+        padding-top: 0.35rem;
+        flex-wrap: nowrap;
+    }
+
+    .meta-item {
+        font-size: 0.72rem;
+        padding: 0.2rem 0.45rem;
+        flex: 1 1 0;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .course-locations {
+        margin-top: 0;
+        gap: 0.3rem;
+    }
+
+    .course-locations-list {
+        font-size: 0.72rem;
+        gap: 0.3rem;
+        max-height: 5.5em;
+    }
+
+    .location-item {
+        font-size: 0.72rem;
+        padding: 0.15rem 0.35rem;
+    }
+
+    .locations-more-btn {
+        margin-top: 0;
+        padding: 0.15rem 0.5rem;
+        font-size: 0.72rem;
+    }
+
+    .course-footer {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.4rem;
+        padding-top: 0.5rem;
+        margin-top: 0.25rem;
+    }
+
+    .course-price {
+        font-size: 1rem;
+        line-height: 1.2;
+    }
+
+    .btn-view {
+        width: auto;
+        max-width: 52%;
+        justify-content: center;
+        padding: 0.4rem 0.55rem;
+        font-size: 0.72rem;
+        border-radius: 8px;
+        white-space: nowrap;
     }
 }

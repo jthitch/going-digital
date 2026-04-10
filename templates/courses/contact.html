@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Contact Going Digital - Photography Courses{% endblock %}
+{% block meta_description %}{{ meta_description|default:"Contact Going Digital for photography course bookings, workshop enquiries, gift voucher or payment queries. Get in touch with your regional team." }}{% endblock %}
+{% block meta_keywords %}{{ meta_keywords|default:"contact Going Digital, photography course enquiry, workshop booking, gift voucher" }}{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/booking.css' %}">
+<style>
+.contact-container {
+    max-width: 700px;
+    margin: 2rem auto;
+    padding: 2rem;
+}
+.contact-container h1 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+.contact-intro {
+    margin-bottom: 2rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+.contact-intro p {
+    margin-bottom: 0.75rem;
+}
+.contact-note {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    border-left: 4px solid var(--primary-color, #4a9eff);
+}
+.form-group select {
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 1rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    width: 100%;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="contact-container">
+    <h1>Contact by Phone or Send a Message</h1>
+
+    <div class="contact-intro">
+        <p>For booking and workshop enquiries please select your Region from the list below.</p>
+        <p>For gift voucher or payment queries please select Customer Services.</p>
+    </div>
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="{% if message.tags %}message-{{ message.tags }}{% endif %}" style="background: #d1fae5; color: #065f46; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <form method="post" class="booking-form">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label for="{{ form.region.id_for_label }}">{{ form.region.label }} *</label>
+            {{ form.region }}
+            {% if form.region.errors %}
+            <span class="error">{{ form.region.errors }}</span>
+            {% endif %}
+            <small>Select who you would like to contact so we can direct your enquiry to the right person</small>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.name.id_for_label }}">Name *</label>
+            {{ form.name }}
+            {% if form.name.errors %}
+            <span class="error">{{ form.name.errors }}</span>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.email.id_for_label }}">Email address *</label>
+            {{ form.email }}
+            {% if form.email.errors %}
+            <span class="error">{{ form.email.errors }}</span>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.phone.id_for_label }}">Phone *</label>
+            {{ form.phone }}
+            {% if form.phone.errors %}
+            <span class="error">{{ form.phone.errors }}</span>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.message.id_for_label }}">Message *</label>
+            {{ form.message }}
+            {% if form.message.errors %}
+            <span class="error">{{ form.message.errors }}</span>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.security_answer.id_for_label }}">{{ form.security_answer.label }} *</label>
+            {{ form.security_answer }}
+            {% if form.security_answer.errors %}
+            <span class="error">{{ form.security_answer.errors }}</span>
+            {% endif %}
+        </div>
+
+        <div class="contact-note">
+            Please note: Information entered on this form is not stored in our database. This information is emailed directly to your Going Digital contact for the purpose of this enquiry only.
+        </div>
+
+        <div class="form-actions" style="margin-top: 1.5rem;">
+            <button type="submit" class="btn-primary">Send Message</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

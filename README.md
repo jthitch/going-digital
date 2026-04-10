@@ -39,25 +39,30 @@ going-digital/
    pip install -r requirements.txt
    ```
 
-2. **Environment variables** (create `.env` file):
+2. **Environment variables** (create `.env`; database is **MySQL/MariaDB** only):
    ```env
    SECRET_KEY=your-secret-key
    DEBUG=True
-   DB_NAME=photocourses
-   DB_USER=postgres
-   DB_PASSWORD=your-password
+   ALLOWED_HOSTS=localhost,127.0.0.1
+
+   DB_NAME=goingdigital
+   DB_USER=root
+   DB_PASSWORD=your-mysql-password
    DB_HOST=localhost
-   DB_PORT=5432
+   DB_PORT=3306
+
    STRIPE_PUBLIC_KEY=pk_test_...
    STRIPE_SECRET_KEY=sk_test_...
    STRIPE_WEBHOOK_SECRET=whsec_...
-   EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
-   DEFAULT_FROM_EMAIL=noreply@photocourses.com
-   ```
 
-3. **Run migrations:**
+   EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+   DEFAULT_FROM_EMAIL=noreply@example.com
+   CONTACT_EMAIL=info@goingdigital.co.uk
+   ```
+   For production: `DEBUG=False`, real `SECRET_KEY`, set `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` (HTTPS origins), and use a transactional email backend. Behind a reverse proxy, set `USE_PROXY_SSL=True`. See `photocourses/settings.py` (secure cookies and HSTS apply when `DEBUG=False`).
+
+3. **Database:** create the MySQL database, then migrate. Details: [MYSQL_SETUP.md](MYSQL_SETUP.md).
    ```bash
-   python manage.py makemigrations
    python manage.py migrate
    ```
 
@@ -70,6 +75,9 @@ going-digital/
    ```bash
    python manage.py runserver
    ```
+   Use **`http://127.0.0.1:8000/`** (HTTP only; `runserver` does not speak TLS). If you see HTTPS errors in the log, open `http://` explicitly or clear HSTS for `localhost`. With `DEBUG=False` locally, disable `SECURE_SSL_REDIRECT` or you may be redirected to `https://` and the dev server will fail.
+
+6. **Legacy data:** import a MySQL dump with the `mysql` client if needed (see [MYSQL_SETUP.md](MYSQL_SETUP.md)).
 
 ## Models
 
@@ -111,9 +119,12 @@ Every course detail page includes:
 
 ## URL Structure
 
-- Course list: `/`
-- Course detail (with city): `/photography-courses/<city>/<course-slug>/`
-- Course detail (fallback): `/photography-courses/<course-slug>/`
+- Course list: `/photography-courses/`
+- Course overview: `/photography-courses/<course-slug>/`
+- Course at venue: `/photography-courses/<course-slug>/<location-slug>/` (e.g. `/photography-courses/get-off-auto/cardiff-docks/`)
+- Venue page: `/photography-courses/venues/<location-slug>/` (e.g. `/photography-courses/venues/cardiff-docks`)
+- Redirects: `/photography-workshops/` and `/photography-workshops/<slug>/` 301 to the photography-courses URLs. Other redirects are managed in the **Redirect** table (Django admin → Website → Redirects).
+- Legacy: `/courses/`, `/courses/<slug>/`, and old venue URL format redirect to the above
 
 ## Permissions
 

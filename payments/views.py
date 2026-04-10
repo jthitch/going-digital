@@ -9,7 +9,9 @@ except ImportError:
     stripe = None
 
 from django.conf import settings
+from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.views.generic import TemplateView
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
@@ -17,6 +19,7 @@ from django.utils import timezone
 from django.http import HttpResponse, JsonResponse
 from django.views import View
 from bookings.models import Booking
+from bookings.gift_voucher_basket import get_basket
 from .models import Payment
 from .tasks import send_booking_confirmation_email, send_payment_success_email
 
@@ -51,8 +54,8 @@ class CreateCheckoutSessionView(View):
                     'price_data': {
                         'currency': 'gbp',
                         'product_data': {
-                            'name': f"{booking.course_instance.course.title} - {booking.course_instance.location.city}",
-                            'description': f"Course on {booking.course_instance.start_date.strftime('%B %d, %Y')}",
+                            'name': f"{booking.workshop.course.title if booking.workshop.course else 'Workshop'} - {booking.workshop.venue.name if booking.workshop.venue else 'TBC'}",
+                            'description': f"Course on {booking.workshop.start_date.strftime('%d %B %Y')}",
                         },
                         'unit_amount': int(booking.price_paid * 100),  # Convert to cents
                     },
@@ -84,6 +87,84 @@ class CreateCheckoutSessionView(View):
             
             return redirect(checkout_session.url)
             
+        except stripe.error.StripeError as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+
+class CreateGiftVoucherCheckoutView(View):
+    """Create Stripe Checkout Session for gift voucher purchase (uses gd_basket)."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.method == 'GET':
+            return self.post(request, *args, **kwargs)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, basket_id):
+        if not STRIPE_AVAILABLE:
+            return JsonResponse({'error': 'Stripe is not configured.'}, status=503)
+
+        basket = get_basket(basket_id)
+        if not basket or basket.get('basket_data', {}).get('type') != 'gift_voucher':
+            from django.http import Http404
+            raise Http404('Basket not found')
+
+        data = basket['basket_data']
+        user_id = data.get('user_id')
+        if request.user.is_authenticated and user_id is not None and user_id != request.user.id:
+            from django.http import Http404
+            raise Http404('Basket not found')
+
+        from core.models import User
+        user = User.objects.get(id=user_id) if user_id else None
+
+        amount = data['amount']
+        quantity = data['quantity']
+        total = data['total']
+        purchaser_email = data.get('purchaser_email', '')
+
+        try:
+            product_name = f"Gift Voucher - £{int(amount)} x {quantity}"
+            if quantity > 1:
+                product_name = f"Gift Vouchers - £{int(amount)} each x {quantity}"
+
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[{
+                    'price_data': {
+                        'currency': 'gbp',
+                        'product_data': {
+                            'name': product_name,
+                            'description': 'Going Digital photography course gift voucher. Valid for 9 months.',
+                        },
+                        'unit_amount': int(total * 100),  # Convert to pence
+                    },
+                    'quantity': 1,
+                }],
+                mode='payment',
+                success_url=request.build_absolute_uri(
+                    f'/payments/success/?session_id={{CHECKOUT_SESSION_ID}}&type=gift_voucher'
+                ),
+                cancel_url=request.build_absolute_uri(reverse('courses:gift_vouchers')),
+                metadata={
+                    'gift_voucher_basket_id': str(basket_id),
+                },
+                customer_email=purchaser_email,
+            )
+
+            Payment.objects.create(
+                user=user,
+                intent_type='checkout_session',
+                stripe_id=checkout_session.id,
+                amount=total,
+                currency='gbp',
+                description=f"Gift Voucher Basket #{basket_id}",
+                metadata={
+                    'gift_voucher_basket_id': str(basket_id),
+                }
+            )
+
+            return redirect(checkout_session.url)
+
         except stripe.error.StripeError as e:
             return JsonResponse({'error': str(e)}, status=400)
 
@@ -130,23 +211,37 @@ class StripeWebhookView(View):
             payment.webhook_processed = True
             payment.last_webhook_event = 'checkout.session.completed'
             payment.save()
-            
-            # Update booking
-            if payment.metadata and 'booking_id' in payment.metadata:
-                booking = Booking.objects.get(id=payment.metadata['booking_id'])
+
+            metadata = payment.metadata or {}
+
+            # Gift voucher basket (legacy gd_basket)
+            if 'gift_voucher_basket_id' in metadata:
+                from bookings.gift_voucher_basket import (
+                    create_vouchers_from_basket,
+                    update_basket_gateway_transaction,
+                )
+                from .tasks import send_gift_voucher_confirmation_email
+                basket_id = int(metadata['gift_voucher_basket_id'])
+                update_basket_gateway_transaction(basket_id, session.id)
+                voucher_codes = create_vouchers_from_basket(basket_id, session.id)
+                send_gift_voucher_confirmation_email(basket_id, voucher_codes)
+                return
+
+            # Booking
+            if 'booking_id' in metadata:
+                booking = Booking.objects.get(id=metadata['booking_id'])
                 booking.status = 'confirmed'
                 booking.save()
-                
-            # Update course instance student count
-            booking.course_instance.current_students += 1
-            booking.course_instance.save()
-            
-            # Send confirmation emails (call directly, not with .delay())
-            send_booking_confirmation_email(booking.id)
-            send_payment_success_email(booking.id)
-                
+
+                from courses.models import Workshop
+                Workshop.objects.filter(pk=booking.workshop_id).update(
+                    places_booked=F('places_booked') + 1
+                )
+
+                send_booking_confirmation_email(booking.id)
+                send_payment_success_email(booking.id)
+
         except (Payment.DoesNotExist, Booking.DoesNotExist, KeyError) as e:
-            # Log error
             print(f"Error handling checkout session: {e}")
     
     def handle_payment_intent_succeeded(self, payment_intent):
@@ -162,18 +257,30 @@ class StripeWebhookView(View):
 class PaymentSuccessView(TemplateView):
     """Payment success page."""
     template_name = 'payments/success.html'
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         session_id = self.request.GET.get('session_id')
+        context['is_gift_voucher'] = self.request.GET.get('type') == 'gift_voucher'
+
         if session_id and STRIPE_AVAILABLE:
             try:
                 session = stripe.checkout.Session.retrieve(session_id)
-                if session.metadata and 'booking_id' in session.metadata:
-                    from bookings.models import Booking
+                metadata = session.metadata or {}
+
+                if 'gift_voucher_basket_id' in metadata:
                     try:
-                        booking = Booking.objects.get(id=session.metadata['booking_id'])
-                        context['booking'] = booking
+                        from bookings.gift_voucher_basket import get_vouchers_for_basket
+                        basket_id = int(metadata['gift_voucher_basket_id'])
+                        basket = get_basket(basket_id)
+                        if basket and basket.get('basket_data', {}).get('type') == 'gift_voucher':
+                            context['gift_voucher_basket'] = basket
+                            context['gift_voucher_codes'] = get_vouchers_for_basket(basket_id)
+                    except (ValueError, TypeError):
+                        pass
+                elif 'booking_id' in metadata:
+                    try:
+                        context['booking'] = Booking.objects.get(id=metadata['booking_id'])
                     except Booking.DoesNotExist:
                         pass
             except stripe.error.StripeError:

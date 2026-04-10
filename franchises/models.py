@@ -15,7 +15,7 @@ class Franchise(models.Model):
         User,
         on_delete=models.PROTECT,
         related_name='owned_franchises',
-        limit_choices_to={'role': 'franchise_owner'}
+        limit_choices_to={'user_type_id': 3}
     )
     email = models.EmailField()
     phone_regex = RegexValidator(

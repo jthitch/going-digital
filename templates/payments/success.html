@@ -11,28 +11,50 @@
 <div class="payment-success-container">
     <div class="success-icon">✓</div>
     <h1>Payment Successful!</h1>
+
+    {% if is_gift_voucher and gift_voucher_basket %}
+    <p class="success-message">Thank you for your gift voucher purchase. Your payment has been processed successfully.</p>
+    <div class="booking-info">
+        <h2>Gift Voucher Order</h2>
+        {% with data=gift_voucher_basket.basket_data %}
+        <p><strong>Amount:</strong> £{{ data.amount }} x {{ data.quantity }} = £{{ data.total }}</p>
+        {% endwith %}
+        {% if gift_voucher_codes %}
+        <p><strong>Your voucher code(s):</strong></p>
+        <ul>
+        {% for code in gift_voucher_codes %}
+        <li>{{ code.0 }} (£{{ code.1 }})</li>
+        {% endfor %}
+        </ul>
+        {% endif %}
+        <p>You will receive a confirmation email with your voucher details shortly.</p>
+    </div>
+    {% elif booking %}
     <p class="success-message">Thank you for your booking. Your payment has been processed successfully.</p>
-    
-    {% if booking %}
     <div class="booking-info">
         <h2>Booking Details</h2>
         <p><strong>Booking Reference:</strong> {{ booking.booking_reference }}</p>
-        <p><strong>Course:</strong> {{ booking.course_instance.course.title }}</p>
-        <p><strong>Date:</strong> {{ booking.course_instance.start_date|date:"F j, Y" }} at {{ booking.course_instance.start_date|date:"g:i A" }}</p>
-        <p><strong>Location:</strong> {{ booking.course_instance.location.name }}, {{ booking.course_instance.location.city }}</p>
+        <p><strong>Course:</strong> {{ booking.workshop.course.title|default:"Workshop" }}</p>
+        <p><strong>Date:</strong> {{ booking.workshop.start_date|date:"d F Y" }} at {{ booking.workshop.start_date|date:"g:i A" }}</p>
+        <p><strong>Location:</strong> {{ booking.workshop.venue.name|default:"TBC" }}, {{ booking.workshop.venue.city|default:"" }}</p>
         <p><strong>Amount Paid:</strong> £{{ booking.price_paid }}</p>
         <p>You will receive a confirmation email shortly.</p>
     </div>
     {% elif request.GET.session_id %}
+    <p class="success-message">Thank you. Your payment has been processed successfully.</p>
     <div class="booking-info">
-        <p>Your booking is being confirmed. You will receive a confirmation email shortly.</p>
-        <p><strong>Session ID:</strong> {{ request.GET.session_id }}</p>
+        <p>You will receive a confirmation email shortly.</p>
     </div>
+    {% else %}
+    <p class="success-message">Thank you. Your payment has been processed successfully.</p>
     {% endif %}
-    
+
     <div class="actions">
-        <a href="{% url 'courses:course_list' %}" class="btn-primary">Browse More Courses</a>
-        <a href="/" class="btn-secondary">Return to Home</a>
+        {% if is_gift_voucher %}
+        <a href="{% url 'courses:gift_vouchers' %}" class="btn-primary">Buy Another Voucher</a>
+        {% endif %}
+        <a href="{% url 'courses:course_list' %}" class="btn-primary">Browse Courses</a>
+        <a href="{% url 'courses:homepage' %}" class="btn-secondary">Return to Home</a>
     </div>
 </div>
 {% endblock %}

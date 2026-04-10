@@ -1,8 +1,11 @@
 """
 URL configuration for courses app.
-SEO-friendly URL structure: /photography-courses/<location>/<location-slug>/<postcode>/<course-slug>/
+/photography-courses/ (list), /photography-courses/<slug>/ (overview),
+/photography-courses/<course-slug>/<location-slug>/ (course at venue).
+Redirects: /photography-workshops/ and /photography-workshops/<slug>/ via table + view.
 """
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views
 
 app_name = 'courses'
@@ -11,20 +14,38 @@ urlpatterns = [
     # Homepage
     path('', views.HomePageView.as_view(), name='homepage'),
     
+    # Contact page
+    path('contact/', views.ContactView.as_view(), name='contact'),
+
+    # Gift vouchers page
+    path('gift-vouchers/', views.GiftVoucherView.as_view(), name='gift_vouchers'),
+
+    # HTML site map (users + AEO); XML remains at /sitemap.xml
+    path('site-map/', views.SiteMapPageView.as_view(), name='site_map'),
+
+    # FAQ page (frequently-asked-questions matches original site URL for SEO)
+    path('frequently-asked-questions/', views.FAQView.as_view(), name='faq'),
+    path('faq/', RedirectView.as_view(pattern_name='courses:faq', permanent=False)),
+
     # Editing courses page
     path('photography-editing-courses/', views.EditingCoursePageView.as_view(), name='editing_course_page'),
     
-    # Course listing
-    path('courses/', views.CourseListView.as_view(), name='course_list'),
-    
-    # Convenience route: /courses/<slug>/ redirects to /photography-courses/<slug>/
-    path('courses/<slug:slug>/', views.CourseDetailView.as_view(), name='course_detail_short'),
-    
-    # SEO-friendly course detail by location, location slug, and postcode
-    path('photography-courses/<str:location>/<slug:location_slug>/<str:postcode>/<slug:slug>/', views.CourseDetailView.as_view(), name='course_detail_by_location'),
-    
-    # Fallback course detail (without location/postcode)
+    # Course listing and overview (canonical URLs)
+    path('photography-courses/', views.CourseListView.as_view(), name='course_list'),
+    # Venue pages: /venues (list), /photography-courses/venues/<location_slug>/ (detail)
+    path('venues/', views.VenueListView.as_view(), name='venue_list'),
+    path('photography-courses/venues/<slug:location_slug>/', views.VenueDetailView.as_view(), name='venue_detail'),
+    # Course at venue (two segments: must be before single-slug route)
+    path('photography-courses/<slug:slug>/<slug:location_slug>/', views.CourseDetailView.as_view(), name='course_detail_by_location'),
     path('photography-courses/<slug:slug>/', views.CourseDetailView.as_view(), name='course_detail'),
+    # Legacy redirects
+    path('courses/', RedirectView.as_view(pattern_name='courses:course_list', permanent=True)),
+    path('courses/<slug:slug>/', RedirectView.as_view(pattern_name='courses:course_detail', permanent=True)),
+    # Legacy redirect: old venue URL format to new
+    path('photography-courses/<str:location>/<slug:location_slug>/<slug:slug>/', views.redirect_old_course_location_url),
+    
+    # 301 redirects from old workshop URLs (list handled by Redirect table; slug by view)
+    path('photography-workshops/<slug:slug>/', views.redirect_photography_workshops_slug),
     
     # API endpoints for React components
     path('api/search/', views.CourseSearchAPIView.as_view(), name='course_search_api'),

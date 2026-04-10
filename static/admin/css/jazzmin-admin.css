@@ -1,0 +1,29 @@
+/* Fix sidebar logo being cut off - allow full display of wide logos */
+#jazzy-logo.brand-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 4rem;
+    padding: 0.5rem 1rem;
+    overflow: visible;
+    background: #ffffff !important;
+    box-shadow: none !important;
+}
+#jazzy-logo .brand-image {
+    max-height: 2.5rem;
+    width: auto;
+    object-fit: contain;
+    box-shadow: none !important;
+    background: none !important;
+}
+
+#jazzy-logo .brand-text {
+    display: none;
+}
+
+/* Override #3f474e with #747a80 */
+[style*="3f474e"],
+[style*="3F474E"] {
+    background-color: #747a80 !important;
+    color: #747a80 !important;
+}

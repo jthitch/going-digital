@@ -27,6 +27,7 @@ except ImportError:
 # Application definition
 INSTALLED_APPS = [
     'jazzmin',  # Modern admin theme - must be before django.contrib.admin
+    'ckeditor',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -35,10 +36,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.sitemaps',
     
-    # Third party (make optional)
+    # Third party
     'rest_framework',
-    # 'corsheaders',  # Optional - uncomment if installed
-    
+    'django_recaptcha',
+
     # Local apps
     'core',
     'courses',
@@ -50,9 +51,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # 'corsheaders.middleware.CorsMiddleware',  # Optional - uncomment if corsheaders installed
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'website.middleware.RedirectMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -61,47 +62,67 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'photocourses.urls'
 
+_template_context_processors = [
+    'django.template.context_processors.request',
+    'django.contrib.auth.context_processors.auth',
+    'django.contrib.messages.context_processors.messages',
+]
+if DEBUG:
+    _template_context_processors.insert(0, 'django.template.context_processors.debug')
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
+            'context_processors': _template_context_processors,
         },
     },
 ]
 
 WSGI_APPLICATION = 'photocourses.wsgi.application'
 
-# Database
-# Use SQLite for development, PostgreSQL for production
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
 
-# Uncomment for PostgreSQL in production:
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': env('DB_NAME', default='photocourses'),
-#         'USER': env('DB_USER', default='postgres'),
-#         'PASSWORD': env('DB_PASSWORD', default=''),
-#         'HOST': env('DB_HOST', default='localhost'),
-#         'PORT': env('DB_PORT', default='5432'),
-#     }
-# }
+def _mysql_database_config():
+    """Single MySQL/MariaDB config (django-environ or plain os.environ)."""
+    try:
+        return {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': env('DB_NAME', default='photocourses'),
+            'USER': env('DB_USER', default='root'),
+            'PASSWORD': env('DB_PASSWORD', default=''),
+            'HOST': env('DB_HOST', default='localhost'),
+            'PORT': env('DB_PORT', default='3306'),
+            'OPTIONS': {'charset': 'utf8mb4'},
+        }
+    except NameError:
+        return {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.environ.get('DB_NAME', 'photocourses'),
+            'USER': os.environ.get('DB_USER', 'root'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', 'localhost'),
+            'PORT': os.environ.get('DB_PORT', '3306'),
+            'OPTIONS': {'charset': 'utf8mb4'},
+        }
 
-# Custom User Model
+
+DATABASES = {'default': _mysql_database_config()}
+
+# Custom User Model (maps to gd_user table)
 AUTH_USER_MODEL = 'core.User'
+
+# Auth backend: login by email
+AUTHENTICATION_BACKENDS = ['core.backends.EmailBackend']
+
+# Password hashers: PBKDF2 for new passwords (createsuperuser, set_password),
+# bcrypt for verifying legacy gd_user passwords
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'core.hashers.BcryptPasswordHasher',
+]
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -134,8 +155,34 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# reCAPTCHA (get keys at https://www.google.com/recaptcha/admin)
+try:
+    RECAPTCHA_PUBLIC_KEY = env('RECAPTCHA_PUBLIC_KEY', default='')
+    RECAPTCHA_PRIVATE_KEY = env('RECAPTCHA_PRIVATE_KEY', default='')
+except NameError:
+    RECAPTCHA_PUBLIC_KEY = os.environ.get('RECAPTCHA_PUBLIC_KEY', '')
+    RECAPTCHA_PRIVATE_KEY = os.environ.get('RECAPTCHA_PRIVATE_KEY', '')
+
+# Silence reCAPTCHA test-key warning when using Google's test keys for local development
+SILENCED_SYSTEM_CHECKS = ['django_recaptcha.recaptcha_test_key_error']
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# CKEditor - rich text for admin content fields (bold, font size, etc. without writing HTML)
+CKEDITOR_CONFIGS = {
+    'default': {
+        'toolbar': [
+            ['Styles', 'Format', 'Font', 'FontSize'],
+            ['Bold', 'Italic', 'Underline', 'Strike'],
+            ['NumberedList', 'BulletedList', '-', 'Outdent', 'Indent'],
+            ['Link', 'Unlink'],
+            ['RemoveFormat'],
+        ],
+        'height': 300,
+        'width': '100%',
+    },
+}
 
 # REST Framework
 REST_FRAMEWORK = {
@@ -168,6 +215,7 @@ try:
     EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
     EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
     DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@photocourses.com')
+    CONTACT_EMAIL = env('CONTACT_EMAIL', default='info@goingdigital.co.uk')
 except NameError:
     EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
     EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
@@ -176,14 +224,7 @@ except NameError:
     EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
     EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
     DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@photocourses.com')
-
-# CORS settings (for React components)
-try:
-    CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=['http://localhost:3000'])
-except NameError:
-    cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000')
-    CORS_ALLOWED_ORIGINS = cors_origins.split(',') if cors_origins else ['http://localhost:3000']
-CORS_ALLOW_CREDENTIALS = True
+    CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', 'info@goingdigital.co.uk')
 
 # Jazzmin Admin Theme Configuration
 JAZZMIN_SETTINGS = {
@@ -197,19 +238,19 @@ JAZZMIN_SETTINGS = {
     "site_brand": "Going Digital",
     
     # Logo to use for your site, must be present in static files
-    "site_logo": None,  # You can add a logo later
+    "site_logo": "img/logo/logo-dark.png",
     
     # Logo to use for login form
-    "login_logo": None,
+    "login_logo": "img/logo/logo-dark.png",
     
     # Logo to use for login form in dark themes
-    "login_logo_dark": None,
+    "login_logo_dark": "img/logo/logo-dark.png",
     
-    # CSS classes that are applied to the logo above
-    "site_logo_classes": "img-circle",
+    # img-fluid lets wide logos scale properly; img-circle can distort non-square logos
+    "site_logo_classes": "img-fluid",
     
-    # Relative path to a favicon for your site
-    "site_icon": None,
+    # Favicon for browser tab (ideally 32x32px)
+    "site_icon": "img/favicon/favicon.png",
     
     # Welcome text on the login screen
     "welcome_sign": "Welcome to Going Digital Admin",
@@ -265,17 +306,32 @@ JAZZMIN_SETTINGS = {
     # Hide these apps when generating side menu
     "hide_apps": [],
     
-    # Hide these models when generating side menu
-    "hide_models": [],
+    # Hide these models when generating side menu (Content editable under Courses)
+    "hide_models": ["courses.Content"],
     
     # List of apps (and/or models) to base side menu ordering off of
-    "order_with_respect_to": ["courses", "website", "bookings", "franchises", "payments"],
+    # Course first, then Category & Skill Level grouped under Courses for cleaner dashboard
+    "order_with_respect_to": [
+        "courses",
+        "courses.Course",
+        "courses.CourseCategory",
+        "courses.CourseSkillLevel",
+        "courses.Workshop",
+        "courses.Instructor",
+        "courses.Image",
+        "website",
+        "website.HeroImage",
+        "website.GiftVoucherPageImage",
+        "bookings",
+        "franchises",
+        "payments",
+    ],
     
     # Custom links to append to app groups, keyed on app name
     "custom_links": {
         "courses": [{
             "name": "View Courses",
-            "url": "/courses/",
+            "url": "/photography-courses/",
             "icon": "fas fa-camera",
             "new_window": True,
         }]
@@ -287,14 +343,16 @@ JAZZMIN_SETTINGS = {
         "core.user": "fas fa-user",
         "auth.Group": "fas fa-users",
         "courses.Course": "fas fa-book",
-        "courses.CourseInstance": "fas fa-calendar-alt",
+        "courses.Workshop": "fas fa-calendar-alt",
         "courses.Instructor": "fas fa-chalkboard-teacher",
         "website": "fas fa-globe",
         "website.HeroImage": "fas fa-image",
+        "website.GiftVoucherPageImage": "fas fa-gift",
         "website.Testimonial": "fas fa-quote-left",
         "website.BeforeAfterImage": "fas fa-images",
         "website.FAQ": "fas fa-question-circle",
         "bookings.Booking": "fas fa-ticket-alt",
+        "bookings.Voucher": "fas fa-gift",
         "franchises.Franchise": "fas fa-building",
         "franchises.Location": "fas fa-map-marker-alt",
         "payments.Payment": "fas fa-credit-card",
@@ -315,7 +373,7 @@ JAZZMIN_SETTINGS = {
     # UI Tweaks #
     #############
     # Relative paths to custom CSS/JS scripts (must be present in static files)
-    "custom_css": None,
+    "custom_css": "admin/css/jazzmin-admin.css",
     "custom_js": None,
     
     # Whether to link font from fonts.googleapis.com
@@ -377,3 +435,31 @@ JAZZMIN_UI_TWEAKS = {
         "success": "btn-success"
     }
 }
+
+# Production: HTTPS, secure cookies, HSTS (only when DEBUG is False)
+if not DEBUG:
+    try:
+        SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=True)
+        SECURE_HSTS_SECONDS = env.int('SECURE_HSTS_SECONDS', default=31536000)
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=True)
+        SECURE_HSTS_PRELOAD = env.bool('SECURE_HSTS_PRELOAD', default=False)
+        CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+        USE_PROXY_SSL = env.bool('USE_PROXY_SSL', default=False)
+    except NameError:
+        SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True').lower() in ('1', 'true', 'yes')
+        SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '31536000'))
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get(
+            'SECURE_HSTS_INCLUDE_SUBDOMAINS', 'True'
+        ).lower() in ('1', 'true', 'yes')
+        SECURE_HSTS_PRELOAD = os.environ.get('SECURE_HSTS_PRELOAD', 'False').lower() in ('1', 'true', 'yes')
+        _csrf = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+        CSRF_TRUSTED_ORIGINS = [x.strip() for x in _csrf.split(',') if x.strip()]
+        USE_PROXY_SSL = os.environ.get('USE_PROXY_SSL', 'False').lower() in ('1', 'true', 'yes')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    if USE_PROXY_SSL:
+        SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+else:
+    SECURE_SSL_REDIRECT = False

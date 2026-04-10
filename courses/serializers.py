@@ -2,24 +2,16 @@
 Serializers for course API endpoints (React components).
 """
 from rest_framework import serializers
-from .models import Course, CourseInstance, Location, Instructor
+from .models import Course, Workshop, Venue
 
 
-class LocationSerializer(serializers.ModelSerializer):
+class VenueSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='venue_name', read_only=True)
+    city = serializers.CharField(source='location', read_only=True)
+
     class Meta:
-        model = Location
-        fields = ['id', 'name', 'city', 'state', 'address_line_1', 'postal_code']
-
-
-class InstructorSerializer(serializers.ModelSerializer):
-    name = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Instructor
-        fields = ['id', 'name', 'bio', 'specialties', 'years_experience']
-    
-    def get_name(self, obj):
-        return obj.user.get_full_name() or obj.user.username
+        model = Venue
+        fields = ['id', 'name', 'venue_name', 'slug', 'location', 'city', 'venue_address']
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -31,17 +23,17 @@ class CourseSerializer(serializers.ModelSerializer):
         ]
 
 
-class CourseInstanceSerializer(serializers.ModelSerializer):
+class WorkshopSerializer(serializers.ModelSerializer):
     course = CourseSerializer(read_only=True)
-    location = LocationSerializer(read_only=True)
-    instructor = InstructorSerializer(read_only=True)
+    venue = VenueSerializer(read_only=True)
+    location = VenueSerializer(source='venue', read_only=True)  # compatibility
     price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     spaces_available = serializers.IntegerField(read_only=True)
     is_full = serializers.BooleanField(read_only=True)
-    
+
     class Meta:
-        model = CourseInstance
+        model = Workshop
         fields = [
-            'id', 'course', 'location', 'instructor', 'start_date', 'end_date',
+            'id', 'course', 'venue', 'location', 'start_date', 'end_date',
             'price', 'spaces_available', 'is_full', 'enrollment_open'
         ]

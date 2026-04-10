@@ -1,6 +1,51 @@
 from django.contrib import admin
-from .models import HeroImage, Testimonial, BeforeAfterImage, FAQ
+from .models import GiftVoucherPageImage, HeroImage, Testimonial, BeforeAfterImage, FAQ, Redirect
 from core.permissions import PlatformAdminMixin
+
+
+@admin.register(GiftVoucherPageImage)
+class GiftVoucherPageImageAdmin(PlatformAdminMixin, admin.ModelAdmin):
+    """Gift vouchers page image — same audience as Hero Images; only one row allowed."""
+    list_display = ['id', 'image_preview', 'updated_at']
+    fieldsets = [
+        (
+            'Gift vouchers page',
+            {
+                'fields': ('image',),
+                'description': (
+                    'Image shown on /gift-vouchers/ below the heading. '
+                    'Use the same kind of asset as homepage hero images (platform-managed).'
+                ),
+            },
+        ),
+        (
+            'Timestamps',
+            {'fields': ('updated_at',), 'classes': ('collapse',)},
+        ),
+    ]
+    readonly_fields = ['updated_at']
+
+    def image_preview(self, obj):
+        if obj.image:
+            from django.utils.html import format_html
+
+            return format_html(
+                '<img src="{}" style="max-height: 80px; width: auto;" />', obj.image.url
+            )
+        return 'No image'
+
+    image_preview.short_description = 'Preview'
+
+    def has_add_permission(self, request):
+        if GiftVoucherPageImage.objects.exists():
+            return False
+        return request.user.is_platform_admin
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_platform_admin
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_platform_admin
 
 
 @admin.register(HeroImage)
@@ -160,3 +205,13 @@ class TestimonialAdmin(PlatformAdminMixin, admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         """Only platform admins can delete testimonials."""
         return request.user.is_platform_admin
+
+
+@admin.register(Redirect)
+class RedirectAdmin(admin.ModelAdmin):
+    """Manage URL redirects (301/302) for path changes."""
+    list_display = ['old_path', 'new_path', 'permanent', 'is_active', 'updated_at']
+    list_filter = ['permanent', 'is_active']
+    list_editable = ['is_active']
+    search_fields = ['old_path', 'new_path']
+    ordering = ['old_path']

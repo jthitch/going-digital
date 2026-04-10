@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block title %}Photography Courses - Start Your Photography Journey{% endblock %}
-{% block meta_description %}Master photography from beginner to professional. Learn from expert instructors in hands-on courses designed for every skill level.{% endblock %}
+{% block meta_description %}Master photography from beginner to aspiring professional. {% if course_count %}{{ course_count }}+ courses across the UK. {% endif %}Learn from expert instructors in hands-on photography courses.{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/homepage.css' %}">
@@ -20,7 +20,7 @@
       "description": "Professional photography courses and workshops for all skill levels. Learn photography from beginner to professional with Going Digital.",
       "potentialAction": {
         "@type": "SearchAction",
-        "target": "https://goingdigital.co.uk/courses/?q={search_term_string}",
+        "target": "https://goingdigital.co.uk/photography-courses/?q={search_term_string}",
         "query-input": "required name=search_term_string"
       }
     },
@@ -38,7 +38,7 @@
       },
       "geo": {},
       "sameAs": [],
-      "description": "Going Digital offers professional photography courses and workshops across the UK. From beginner to advanced, learn photography skills through hands-on training.",
+      "description": "Going Digital offers {% if course_count %}{{ course_count }}+ {% endif %}photography courses and workshops across the UK, from beginner to aspiring professional. Learn photography skills through hands-on training.",
       "serviceArea": {
         "@type": "Country",
         "name": "United Kingdom"
@@ -57,7 +57,7 @@
           "name": "What photography courses are available near me?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Going Digital offers photography courses and workshops across the UK for all skill levels. Our courses include beginner photography courses, intermediate skills training, and advanced photography workshops. We cover various genres including portrait, landscape, wildlife, and sports photography. Visit goingdigital.co.uk to find photography courses in your area."
+            "text": "Going Digital offers photography courses and workshops across the UK for all skill levels, from beginner to aspiring professional. Our courses include beginner photography courses, intermediate skills training, and advanced photography workshops. We cover various genres including portrait, landscape, wildlife, and sports photography. Visit goingdigital.co.uk to find photography courses in your area."
           }
         },
         {
@@ -128,7 +128,7 @@
                 <div class="hero-overlay"></div>
                 <div class="hero-content">
                     <h1 class="hero-title">Start Your Photography Journey</h1>
-                    <p class="hero-subtitle">From beginner to professional, we'll guide you every step of the way</p>
+                    <p class="hero-subtitle">{% if course_count %}{{ course_count }}+ photography courses across the UK{% if location_count %}, at {{ location_count }}+ venues{% endif %}{% else %}Photography courses across the UK{% endif %} — from beginner to aspiring professional</p>
                     <a href="{% url 'courses:course_list' %}" class="btn-hero">Explore Courses</a>
                     <p class="hero-tagline">Inspiring photographers since 2005</p>
                 </div>
@@ -140,7 +140,7 @@
                 <div class="hero-overlay"></div>
                 <div class="hero-content">
                     <h1 class="hero-title">Start Your Photography Journey</h1>
-                    <p class="hero-subtitle">From beginner to professional, we'll guide you every step of the way</p>
+                    <p class="hero-subtitle">{% if course_count %}{{ course_count }}+ photography courses across the UK{% if location_count %}, at {{ location_count }}+ venues{% endif %}{% else %}Photography courses across the UK{% endif %} — from beginner to aspiring professional</p>
                     <a href="{% url 'courses:course_list' %}" class="btn-hero">Explore Courses</a>
                     <p class="hero-tagline">Inspiring photographers since 2005</p>
                 </div>
@@ -183,7 +183,7 @@
                         <span class="testimonial-venue">📍 {{ testimonial.venue }}</span>
                         {% endif %}
                         {% if testimonial.course_date %}
-                        <span class="testimonial-date">{{ testimonial.course_date|date:"F Y" }}</span>
+                        <span class="testimonial-date">{{ testimonial.course_date|date:"d F Y" }}</span>
                         {% endif %}
                     </div>
                     {% endif %}
@@ -213,7 +213,7 @@
                         <span class="testimonial-venue">📍 {{ testimonial.venue }}</span>
                         {% endif %}
                         {% if testimonial.course_date %}
-                        <span class="testimonial-date">{{ testimonial.course_date|date:"F Y" }}</span>
+                        <span class="testimonial-date">{{ testimonial.course_date|date:"d F Y" }}</span>
                         {% endif %}
                     </div>
                     {% endif %}
@@ -230,114 +230,146 @@
     <div class="container">
         <h2 class="section-title">Your Photography Journey</h2>
         <p class="section-subtitle">Follow your personalized path from first click to mastering your craft</p>
-        
+        {% if course_count or location_count %}
+        <p class="section-stats">{% if course_count %}{{ course_count }}+ photography courses across the UK{% if location_count %} at {{ location_count }}+ venues{% endif %}{% endif %} — from beginner to aspiring professional</p>
+        {% endif %}
         <div class="journey-levels-grid">
             <!-- Level 1 -->
             <div class="journey-level-box level-box-1">
-                <h3 class="level-box-title">Level 1</h3>
-                <p class="level-box-description">Beginner courses to get you started</p>
-                {% if level_1_courses %}
-                <div class="level-box-courses">
-                    {% for course in level_1_courses %}
-                    <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
-                        <span class="course-title">{{ course.title }}</span>
-                        <span class="course-price">£{{ course.price }}</span>
-                    </a>
-                    {% endfor %}
+                <a href="{% url 'courses:course_list' %}?level=beginner" class="level-box-link">
+                    <h3 class="level-box-title">Level 1</h3>
+                    <p class="level-box-description">Beginner courses to get you started</p>
+                </a>
+                <button type="button" class="level-expand-btn" aria-expanded="false" aria-controls="level-1-courses">Expand</button>
+                <div id="level-1-courses" class="level-box-courses-wrap collapsed">
+                    {% if level_1_courses %}
+                    <div class="level-box-courses">
+                        {% for course in level_1_courses %}
+                        <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                            <span class="course-title">{{ course.title }}</span>
+                            <span class="course-price">£{{ course.min_price }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="level-box-empty">No courses available</p>
+                    {% endif %}
                 </div>
-                {% else %}
-                <p class="level-box-empty">No courses available</p>
-                {% endif %}
             </div>
             
             <!-- Level 2 -->
             <div class="journey-level-box level-box-2">
-                <h3 class="level-box-title">Level 2</h3>
-                <p class="level-box-description">Intermediate courses to expand your skills</p>
-                {% if level_2_courses %}
-                <div class="level-box-courses">
-                    {% for course in level_2_courses %}
-                    <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
-                        <span class="course-title">{{ course.title }}</span>
-                        <span class="course-price">£{{ course.price }}</span>
-                    </a>
-                    {% endfor %}
+                <a href="{% url 'courses:course_list' %}?level=intermediate" class="level-box-link">
+                    <h3 class="level-box-title">Level 2</h3>
+                    <p class="level-box-description">Intermediate courses to expand your skills</p>
+                </a>
+                <button type="button" class="level-expand-btn" aria-expanded="false" aria-controls="level-2-courses">Expand</button>
+                <div id="level-2-courses" class="level-box-courses-wrap collapsed">
+                    {% if level_2_courses %}
+                    <div class="level-box-courses">
+                        {% for course in level_2_courses %}
+                        <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                            <span class="course-title">{{ course.title }}</span>
+                            <span class="course-price">£{{ course.min_price }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="level-box-empty">No courses available</p>
+                    {% endif %}
                 </div>
-                {% else %}
-                <p class="level-box-empty">No courses available</p>
-                {% endif %}
             </div>
             
             <!-- Level 3 -->
             <div class="journey-level-box level-box-3">
-                <h3 class="level-box-title">Level 3</h3>
-                <p class="level-box-description">Advanced courses for experienced photographers</p>
-                {% if level_3_courses %}
-                <div class="level-box-courses">
-                    {% for course in level_3_courses %}
-                    <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
-                        <span class="course-title">{{ course.title }}</span>
-                        <span class="course-price">£{{ course.price }}</span>
-                    </a>
-                    {% endfor %}
+                <a href="{% url 'courses:course_list' %}?level=advanced" class="level-box-link">
+                    <h3 class="level-box-title">Level 3</h3>
+                    <p class="level-box-description">Advanced courses for experienced photographers</p>
+                </a>
+                <button type="button" class="level-expand-btn" aria-expanded="false" aria-controls="level-3-courses">Expand</button>
+                <div id="level-3-courses" class="level-box-courses-wrap collapsed">
+                    {% if level_3_courses %}
+                    <div class="level-box-courses">
+                        {% for course in level_3_courses %}
+                        <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                            <span class="course-title">{{ course.title }}</span>
+                            <span class="course-price">£{{ course.min_price }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="level-box-empty">No courses available</p>
+                    {% endif %}
                 </div>
-                {% else %}
-                <p class="level-box-empty">No courses available</p>
-                {% endif %}
             </div>
             
             <!-- Editing -->
             <div class="journey-level-box level-box-editing">
-                <h3 class="level-box-title"><a href="{% url 'courses:editing_course_page' %}" class="level-title-link">Editing</a></h3>
-                <p class="level-box-description">Master post-processing and image editing</p>
-                {% if editing_courses %}
-                <div class="level-box-courses">
-                    {% for course in editing_courses %}
-                    <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
-                        <span class="course-title">{{ course.title }}</span>
-                        <span class="course-price">£{{ course.price }}</span>
-                    </a>
-                    {% endfor %}
+                <a href="{% url 'courses:course_list' %}?q=editing" class="level-box-link">
+                    <h3 class="level-box-title">Editing</h3>
+                    <p class="level-box-description">Master post-processing and image editing</p>
+                </a>
+                <button type="button" class="level-expand-btn" aria-expanded="false" aria-controls="level-editing-courses">Expand</button>
+                <div id="level-editing-courses" class="level-box-courses-wrap collapsed">
+                    {% if editing_courses %}
+                    <div class="level-box-courses">
+                        {% for course in editing_courses %}
+                        <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                            <span class="course-title">{{ course.title }}</span>
+                            <span class="course-price">£{{ course.min_price }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="level-box-empty">No courses available</p>
+                    {% endif %}
                 </div>
-                {% else %}
-                <p class="level-box-empty">No courses available</p>
-                {% endif %}
             </div>
             
             <!-- Residentials -->
             <div class="journey-level-box level-box-residentials">
-                <h3 class="level-box-title">Residentials</h3>
-                <p class="level-box-description">Intensive residential photography courses</p>
-                {% if residentials_courses %}
-                <div class="level-box-courses">
-                    {% for course in residentials_courses %}
-                    <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
-                        <span class="course-title">{{ course.title }}</span>
-                        <span class="course-price">£{{ course.price }}</span>
-                    </a>
-                    {% endfor %}
+                <a href="{% url 'courses:course_list' %}?q=residential" class="level-box-link">
+                    <h3 class="level-box-title">Residentials</h3>
+                    <p class="level-box-description">Intensive residential photography courses</p>
+                </a>
+                <button type="button" class="level-expand-btn" aria-expanded="false" aria-controls="level-residentials-courses">Expand</button>
+                <div id="level-residentials-courses" class="level-box-courses-wrap collapsed">
+                    {% if residentials_courses %}
+                    <div class="level-box-courses">
+                        {% for course in residentials_courses %}
+                        <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                            <span class="course-title">{{ course.title }}</span>
+                            <span class="course-price">£{{ course.min_price }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="level-box-empty">No courses available</p>
+                    {% endif %}
                 </div>
-                {% else %}
-                <p class="level-box-empty">No courses available</p>
-                {% endif %}
             </div>
             
             <!-- Bespoke -->
             <div class="journey-level-box level-box-bespoke">
-                <h3 class="level-box-title">Bespoke</h3>
-                <p class="level-box-description">Custom tailored courses for your specific needs</p>
-                {% if bespoke_courses %}
-                <div class="level-box-courses">
-                    {% for course in bespoke_courses %}
-                    <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
-                        <span class="course-title">{{ course.title }}</span>
-                        <span class="course-price">£{{ course.price }}</span>
-                    </a>
-                    {% endfor %}
+                <a href="{% url 'courses:course_list' %}?q=bespoke" class="level-box-link">
+                    <h3 class="level-box-title">Bespoke</h3>
+                    <p class="level-box-description">Custom tailored courses for your specific needs</p>
+                </a>
+                <button type="button" class="level-expand-btn" aria-expanded="false" aria-controls="level-bespoke-courses">Expand</button>
+                <div id="level-bespoke-courses" class="level-box-courses-wrap collapsed">
+                    {% if bespoke_courses %}
+                    <div class="level-box-courses">
+                        {% for course in bespoke_courses %}
+                        <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                            <span class="course-title">{{ course.title }}</span>
+                            <span class="course-price">£{{ course.min_price }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="level-box-empty">No courses available</p>
+                    {% endif %}
                 </div>
-                {% else %}
-                <p class="level-box-empty">No courses available</p>
-                {% endif %}
             </div>
         </div>
     </div>
@@ -353,13 +385,17 @@
             <article class="course-card-featured">
                 {% if course.image %}
                 <img src="{{ course.image.url }}" alt="{{ course.title }}" class="course-image">
+                {% elif course.first_uploaded_image %}
+                <img src="{{ course.first_uploaded_image.image.url }}" alt="{{ course.title }}" class="course-image">
                 {% endif %}
                 <div class="course-content">
                     <span class="course-level">{{ course.get_level_display }}</span>
                     <h3><a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}">{{ course.title }}</a></h3>
-                    <p class="course-short">{{ course.short_description|truncatewords:15 }}</p>
+                    {% if course.get_card_short_description %}
+                    <p class="course-short">{{ course.get_card_short_description|truncatewords:15 }}</p>
+                    {% endif %}
                     <div class="course-footer">
-                        <span class="course-price">From £{{ course.price }}</span>
+                        <span class="course-price">From £{{ course.min_price }}</span>
                         <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="btn-course">Learn More</a>
                     </div>
                 </div>
@@ -427,6 +463,21 @@ document.addEventListener('DOMContentLoaded', function() {
         handleScroll();
     }
 });
+
+// Level section expand/collapse
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.level-expand-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var targetId = this.getAttribute('aria-controls');
+            var target = document.getElementById(targetId);
+            if (!target) return;
+            var expanded = this.getAttribute('aria-expanded') === 'true';
+            target.classList.toggle('collapsed', expanded);
+            this.setAttribute('aria-expanded', !expanded);
+            this.textContent = expanded ? 'Expand' : 'Collapse';
+        });
+    });
+});
 </script>
 
 {% if hero_images|length > 1 %}
@@ -453,9 +504,9 @@ document.addEventListener('DOMContentLoaded', function() {
         showSlide(next);
     }
     
-    // Auto-advance slides every 5 seconds
+    // Auto-advance slides every 3 seconds with fade transition
     function startSlider() {
-        slideInterval = setInterval(nextSlide, 5000);
+        slideInterval = setInterval(nextSlide, 3000);
     }
     
     function stopSlider() {

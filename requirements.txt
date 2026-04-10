@@ -1,8 +1,10 @@
 Django>=4.2,<5.0
 djangorestframework>=3.14.0
-psycopg2-binary>=2.9.9
+mysqlclient>=2.2.0
 stripe>=7.0.0
 django-environ>=0.11.2
 Pillow>=10.0.0
-django-cors-headers>=4.3.0
 django-jazzmin>=3.0.0
+django-ckeditor>=6.7.0
+bcrypt>=4.0.0
+django-recaptcha>=4.0.0

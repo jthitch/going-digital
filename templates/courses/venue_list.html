@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Photography Course Venues Across the UK{% endblock %}
+{% block meta_description %}Browse {{ venue_count|default:"our" }} photography course venues across the UK. Find workshops near you.{% endblock %}
+
+{% block content %}
+<main class="venue-list-page">
+    <header class="venue-list-header">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+            <a href="{% url 'courses:course_list' %}">Photography courses</a>
+            <span aria-hidden="true"> / </span>
+            <span>Venues</span>
+        </nav>
+        <h1>Venues</h1>
+        <p class="venue-list-subtitle">{% if venue_count %}{{ venue_count }} photography course venues across the UK{% else %}Discover our venues{% endif %}</p>
+    </header>
+
+    <section class="venue-grid" aria-label="Venue list">
+        {% if venues %}
+            <div class="venue-grid-inner">
+                {% for venue in venues %}
+                <article class="venue-card">
+                    <a href="{% url 'courses:venue_detail' location_slug=venue.slug %}" class="venue-card-link">
+                        {% with first_media=venue.media.first %}
+                        {% if first_media and first_media.image %}
+                        <div class="venue-card-image">
+                            <img src="{{ first_media.image.url }}" alt="{{ venue.name }}" loading="lazy">
+                        </div>
+                        {% else %}
+                        <div class="venue-card-placeholder">📍</div>
+                        {% endif %}
+                        {% endwith %}
+                        <div class="venue-card-content">
+                            <h2 class="venue-card-title">{{ venue.name }}</h2>
+                            {% if venue.location %}
+                            <p class="venue-card-location">{{ venue.location }}</p>
+                            {% endif %}
+                            {% if venue.venue_address %}
+                            <p class="venue-card-address">{{ venue.venue_address|truncatewords:12 }}</p>
+                            {% endif %}
+                            <span class="venue-card-cta">View venue →</span>
+                        </div>
+                    </a>
+                </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-results">
+                <h3>No venues found</h3>
+                <p>Check back soon or <a href="{% url 'courses:contact' %}">contact us</a> for more information.</p>
+            </div>
+        {% endif %}
+    </section>
+</main>
+{% endblock %}

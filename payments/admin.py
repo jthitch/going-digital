@@ -15,7 +15,7 @@ class PaymentAdmin(admin.ModelAdmin):
         'succeeded_at'
     ]
     list_filter = ['status', 'intent_type', 'currency', 'created_at']
-    search_fields = ['stripe_id', 'user__username', 'user__email', 'description']
+    search_fields = ['stripe_id', 'user__email', 'description']
     readonly_fields = [
         'stripe_id',
         'created_at',

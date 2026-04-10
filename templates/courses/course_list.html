@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Browse Photography Courses{% endblock %}
-{% block meta_description %}Browse our selection of photography courses by location, date, level, and category.{% endblock %}
+{% block title %}Browse Photography Courses Across the UK{% endblock %}
+{% block meta_description %}Browse {{ total_course_count|default:"our" }} photography courses across the UK, from beginner to aspiring professional. Filter by location, date, level and category.{% endblock %}
 
 {% block extra_head %}
 <!-- Leaflet CSS for map -->
@@ -12,10 +12,10 @@
 
 {% block content %}
 <main class="course-list-page">
-    <div class="page-header-row">
+    <div class="course-list-top">
         <div class="page-header">
             <h1>Photography Courses</h1>
-            <p class="page-subtitle">Discover photography courses tailored to your skill level and interests</p>
+            <p class="page-subtitle">{% if total_course_count %}{{ total_course_count }}+ courses across the UK{% else %}Discover photography courses{% endif %} — from beginner to aspiring professional</p>
         </div>
         
         <!-- View Toggle Buttons -->
@@ -29,7 +29,6 @@
                 </button>
             </div>
         </div>
-    </div>
     
     <!-- Collapsible Filters -->
     <section class="filters-section-collapsed" aria-label="Filter Courses">
@@ -60,29 +59,55 @@
                 {% endif %}
             </div>
             <form method="get" action="{% url 'courses:course_list' %}" class="filters-form">
+            <input type="hidden" name="category" value="{{ current_category }}">
+            <input type="hidden" name="level" value="{{ current_level }}">
             <div class="filter-group">
                 <label for="search" class="filter-label">Search</label>
                 <input type="text" id="search" name="q" value="{{ current_search }}" placeholder="Search courses..." class="filter-input">
             </div>
             
-            <div class="filter-group">
-                <label for="category" class="filter-label">Category</label>
-                <select id="category" name="category" class="filter-select">
-                    <option value="">All Categories</option>
-                    {% for value, label in categories %}
-                    <option value="{{ value }}" {% if current_category == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
+            <div class="filter-group filter-group-category">
+                <span class="filter-label">Category</span>
+                <div class="category-filter-wrap" aria-label="Filter by category">
+                    <div class="category-filter-buttons category-filter-buttons-inline" id="category-filter-buttons-main">
+                        <a href="{% url 'courses:course_list' %}{% if other_params_query %}?{{ other_params_query }}{% endif %}" 
+                           class="category-filter-btn {% if not current_category %}active{% endif %}">All</a>
+                        {% for value, label in categories %}
+                        {% if forloop.counter <= 9 %}
+                        <a href="{% url 'courses:course_list' %}?category={{ value }}{% if other_params_query %}&amp;{{ other_params_query }}{% endif %}" 
+                           class="category-filter-btn {% if current_category == value %}active{% endif %}">{{ label }}</a>
+                        {% endif %}
+                        {% endfor %}
+                        {% if categories|length > 9 %}
+                        <button type="button" class="category-filter-btn category-filter-more" id="category-filter-more"
+                                aria-expanded="false" aria-controls="category-filter-extra" aria-label="Show more categories">...</button>
+                        {% endif %}
+                    </div>
+                    {% if categories|length > 9 %}
+                    <div class="category-filter-buttons category-filter-buttons-inline category-filter-extra" id="category-filter-extra" hidden>
+                        {% for value, label in categories %}
+                        {% if forloop.counter > 9 %}
+                        <a href="{% url 'courses:course_list' %}?category={{ value }}{% if other_params_query %}&amp;{{ other_params_query }}{% endif %}" 
+                           class="category-filter-btn {% if current_category == value %}active{% endif %}">{{ label }}</a>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
             </div>
             
-            <div class="filter-group">
-                <label for="level" class="filter-label">Level</label>
-                <select id="level" name="level" class="filter-select">
-                    <option value="">All Levels</option>
-                    {% for value, label in levels %}
-                    <option value="{{ value }}" {% if current_level == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
+            <div class="filter-group filter-group-level">
+                <span class="filter-label">Level</span>
+                <div class="category-filter-wrap" aria-label="Filter by skill level">
+                    <div class="category-filter-buttons category-filter-buttons-inline">
+                        <a href="{% url 'courses:course_list' %}{% if other_params_for_level_query %}?{{ other_params_for_level_query }}{% endif %}"
+                           class="category-filter-btn {% if not current_level %}active{% endif %}">All</a>
+                        {% for value, label in levels %}
+                        <a href="{% url 'courses:course_list' %}?level={{ value }}{% if other_params_for_level_query %}&amp;{{ other_params_for_level_query }}{% endif %}"
+                           class="category-filter-btn {% if current_level == value %}active{% endif %}">{{ label }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
             
             <div class="filter-group">
@@ -104,21 +129,43 @@
             </form>
         </div>
     </section>
+    </div>
     
     <!-- Map View -->
     <div class="map-container hidden" id="map-container">
-        <div id="course-map"></div>
+        <button type="button" class="map-sheet-backdrop" id="map-sheet-backdrop" hidden aria-label="Close course list"></button>
+        <aside class="map-sidebar" id="map-sidebar" aria-label="Course list">
+            <div class="map-sheet-handle" id="map-sheet-handle" role="presentation" aria-hidden="true"></div>
+            <div class="map-sidebar-header">
+                <h2 class="map-sidebar-title">Courses on Map</h2>
+                <p class="map-sidebar-count" id="map-sidebar-count"></p>
+            </div>
+            <div class="map-sidebar-list" id="map-sidebar-list"></div>
+        </aside>
+        <div class="map-main" id="map-main">
+            <div id="course-map"></div>
+        </div>
     </div>
     
     <!-- Course listings -->
-    <section class="course-grid course-grid-container" id="course-grid" aria-label="Course Listings">
+    <section class="course-grid course-grid-container" id="course-grid" aria-label="Course Listings"
+             data-infinite-url="{{ infinite_scroll_url }}"
+             data-next-page="{% if is_paginated and page_obj.has_next %}{{ page_obj.next_page_number }}{% else %}0{% endif %}"
+             data-has-next="{% if is_paginated and page_obj.has_next %}true{% else %}false{% endif %}">
         {% if courses %}
-            {% for course in courses %}
+            {% regroup courses by get_category_display as category_groups %}
+            {% for category in category_groups %}
+            <div class="category-section">
+                <h2 class="category-section-title">{{ category.grouper }}</h2>
+                <div class="category-courses">
+                    {% for course in category.list %}
             <article class="course-card">
                 <a href="{% url 'courses:course_detail' slug=course.slug %}" class="course-card-link">
                     <div class="course-image-wrapper">
                         {% if course.image %}
                         <img src="{{ course.image.url }}" alt="{{ course.title }}" class="course-thumbnail">
+                        {% elif course.first_uploaded_image %}
+                        <img src="{{ course.first_uploaded_image.image.url }}" alt="{{ course.title }}" class="course-thumbnail">
                         {% else %}
                         <div class="course-placeholder">📷</div>
                         {% endif %}
@@ -130,22 +177,26 @@
                                 {{ course.title }}
                             </h2>
                         </div>
-                        <p class="course-short-desc">{{ course.short_description|truncatewords:20 }}</p>
+                        {% if course.get_card_short_description %}
+                        <p class="course-short-desc">{{ course.get_card_short_description|truncatewords:20 }}</p>
+                        {% endif %}
                         <div class="course-meta">
+                            {% if course.get_card_category_display %}
                             <span class="meta-item category">
-                                {{ course.get_category_display }}
+                                {{ course.get_card_category_display }}
                             </span>
+                            {% endif %}
                             <span class="meta-item duration">
                                 {{ course.duration_hours }}h
                             </span>
                         </div>
-                        {% if course.instances.all %}
-                        {% regroup course.instances.all by location as location_groups %}
+                        {% if course.workshops.all %}
+                        {% regroup course.workshops.all by venue as location_groups %}
                         {% if location_groups %}
                         <div class="course-locations" data-course-id="{{ course.id }}" onclick="event.stopPropagation();">
                             <div class="course-locations-list" id="locations-{{ course.id }}">
                                 {% for location_group in location_groups %}
-                                <span class="location-item">{{ location_group.grouper.name }}</span>
+                                <span class="location-item">{{ location_group.grouper.name|default:"TBC" }}</span>
                                 {% endfor %}
                             </div>
                             <button type="button" class="locations-more-btn" onclick="event.stopPropagation(); toggleLocations({{ course.id }});" aria-label="Show more locations" style="display: none;">
@@ -156,12 +207,15 @@
                         {% endif %}
                         {% endif %}
                         <div class="course-footer">
-                            <div class="course-price">From £{{ course.price }}</div>
+                            <div class="course-price">From £{{ course.min_price }}</div>
                             <span class="btn-view">View Details →</span>
                         </div>
                     </div>
                 </a>
             </article>
+                    {% endfor %}
+                </div>
+            </div>
             {% endfor %}
         {% else %}
             <div class="no-results">
@@ -170,24 +224,15 @@
                 <a href="{% url 'courses:course_list' %}" class="btn-clear-search">Clear all filters</a>
             </div>
         {% endif %}
+        <!-- Infinite scroll sentinel - triggers load when visible -->
+        <div id="infinite-scroll-sentinel" class="infinite-scroll-sentinel" aria-hidden="true"></div>
     </section>
     
-    <!-- Pagination -->
-    {% if is_paginated %}
-    <nav aria-label="Course pagination">
-        <ul class="pagination">
-            {% if page_obj.has_previous %}
-            <li><a href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
-            {% endif %}
-            
-            <li>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</li>
-            
-            {% if page_obj.has_next %}
-            <li><a href="?page={{ page_obj.next_page_number }}">Next</a></li>
-            {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
+    <!-- Infinite scroll loading indicator -->
+    <div id="infinite-scroll-loading" class="infinite-scroll-loading hidden" aria-live="polite">
+        <span class="loading-spinner"></span>
+        <span>Loading more courses...</span>
+    </div>
 </main>
 
 <!-- React component for enhanced filtering (progressive enhancement) -->
@@ -219,6 +264,8 @@ function showGridView() {
     const mapContainer = document.getElementById('map-container');
     const gridBtn = document.getElementById('grid-view-btn');
     const mapBtn = document.getElementById('map-view-btn');
+    
+    clearMapSidebarFilter();
     
     // Remove map view class first
     document.body.classList.remove('map-view-active');
@@ -275,29 +322,195 @@ function toggleLocations(courseId) {
     }
 }
 
-// Check if locations list needs "more" button on page load
+// Category filters: show first 9 + "..."; expand to show the rest (toggle)
+function setupCategoryFilterExpand() {
+    var moreBtn = document.getElementById('category-filter-more');
+    var extra = document.getElementById('category-filter-extra');
+    if (!moreBtn || !extra) return;
+    function setExpanded(expanded) {
+        moreBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        if (expanded) {
+            extra.removeAttribute('hidden');
+            moreBtn.classList.add('expanded');
+        } else {
+            extra.setAttribute('hidden', '');
+            moreBtn.classList.remove('expanded');
+        }
+    }
+    moreBtn.addEventListener('click', function() {
+        var isOpen = !extra.hasAttribute('hidden');
+        setExpanded(!isOpen);
+    });
+    if (extra.querySelector('.category-filter-btn.active')) {
+        setExpanded(true);
+    }
+}
+
+// Check if locations list needs "more" button on page load (compare full content vs CSS max-height, not hardcoded 3em)
 document.addEventListener('DOMContentLoaded', function() {
+    setupCategoryFilterExpand();
     const locationLists = document.querySelectorAll('.course-locations-list');
     locationLists.forEach(function(list) {
-        // Temporarily remove max-height to measure full height
-        const originalMaxHeight = list.style.maxHeight;
         list.style.maxHeight = 'none';
-        const fullHeight = list.scrollHeight;
-        list.style.maxHeight = originalMaxHeight || '3em';
-        
-        // Check if content exceeds 2 lines (approximately 3em)
-        if (fullHeight > 3 * parseFloat(getComputedStyle(list).lineHeight)) {
-            const btn = list.nextElementSibling;
-            if (btn && btn.classList.contains('locations-more-btn')) {
-                btn.style.display = 'inline-block';
-            }
-        }
+        var fullHeight = list.scrollHeight;
+        list.style.removeProperty('max-height');
+
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                var collapsedH = list.clientHeight;
+                if (fullHeight > collapsedH + 2) {
+                    var btn = list.nextElementSibling;
+                    if (btn && btn.classList.contains('locations-more-btn')) {
+                        btn.style.display = 'inline-block';
+                    }
+                }
+            });
+        });
     });
 });
 
 // Map initialization
 let map;
 let markers = [];
+let selectedMarker = null;
+let mapSidebarFilterActive = false;
+
+function escapeHtmlMap(s) {
+    if (s == null || s === '') return '';
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function filterMapSidebar(instanceIds) {
+    var list = document.getElementById('map-sidebar-list');
+    var countEl = document.getElementById('map-sidebar-count');
+    if (!list || !instanceIds || instanceIds.length === 0) return;
+    var idSet = {};
+    instanceIds.forEach(function(id) { idSet[id] = true; });
+    var items = list.querySelectorAll('.map-sidebar-item');
+    var visible = 0;
+    items.forEach(function(item) {
+        var instId = item.getAttribute('data-instance-id');
+        var show = idSet[instId];
+        item.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    mapSidebarFilterActive = true;
+    if (countEl) countEl.textContent = visible + (visible === 1 ? ' workshop' : ' workshops') + ' at this location';
+}
+
+function isMapMobileSheet() {
+    return window.matchMedia('(max-width: 1023px)').matches;
+}
+
+function openMapMobileSheet() {
+    if (!isMapMobileSheet()) return;
+    document.body.classList.add('map-mobile-sheet-open');
+    var sidebar = document.getElementById('map-sidebar');
+    var backdrop = document.getElementById('map-sheet-backdrop');
+    if (sidebar) {
+        sidebar.classList.add('map-sheet--open');
+        sidebar.style.transform = '';
+        sidebar.style.transition = '';
+    }
+    if (backdrop) {
+        backdrop.hidden = false;
+        backdrop.classList.add('is-visible');
+    }
+    var list = document.getElementById('map-sidebar-list');
+    if (list) list.scrollTop = 0;
+}
+
+function closeMapMobileSheet() {
+    document.body.classList.remove('map-mobile-sheet-open');
+    var sidebar = document.getElementById('map-sidebar');
+    var backdrop = document.getElementById('map-sheet-backdrop');
+    if (sidebar) {
+        sidebar.classList.remove('map-sheet--open');
+        sidebar.style.transform = '';
+        sidebar.style.transition = '';
+    }
+    if (backdrop) {
+        backdrop.hidden = true;
+        backdrop.classList.remove('is-visible');
+    }
+}
+
+function setupMapMobileSheet() {
+    var backdrop = document.getElementById('map-sheet-backdrop');
+    var handle = document.getElementById('map-sheet-handle');
+    var sheet = document.getElementById('map-sidebar');
+    if (!sheet) return;
+    if (backdrop) {
+        backdrop.addEventListener('click', function() {
+            clearMapSidebarFilter();
+        });
+    }
+    if (!handle) return;
+    var startY = 0;
+    var dragging = false;
+    var pointerId = null;
+    function onPointerMove(e) {
+        if (!dragging || pointerId !== e.pointerId) return;
+        var dy = e.clientY - startY;
+        if (dy > 0) {
+            sheet.style.transition = 'none';
+            sheet.style.transform = 'translateY(' + dy + 'px)';
+        }
+    }
+    function endDrag(e, forceClose) {
+        if (!dragging || pointerId !== e.pointerId) return;
+        var dy = e.clientY - startY;
+        dragging = false;
+        pointerId = null;
+        sheet.style.transition = '';
+        sheet.style.transform = '';
+        try {
+            handle.releasePointerCapture(e.pointerId);
+        } catch (err) { /* ignore */ }
+        if (forceClose || dy > 72) {
+            clearMapSidebarFilter();
+        }
+    }
+    handle.addEventListener('pointerdown', function(e) {
+        if (!isMapMobileSheet() || !sheet.classList.contains('map-sheet--open')) return;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        dragging = true;
+        pointerId = e.pointerId;
+        startY = e.clientY;
+        try {
+            handle.setPointerCapture(e.pointerId);
+        } catch (err) { /* ignore */ }
+    });
+    handle.addEventListener('pointermove', onPointerMove);
+    handle.addEventListener('pointerup', function(e) { endDrag(e, false); });
+    handle.addEventListener('pointercancel', function(e) { endDrag(e, false); });
+}
+
+function onMapViewportResize() {
+    if (isMapMobileSheet()) return;
+    closeMapMobileSheet();
+}
+
+window.addEventListener('resize', onMapViewportResize);
+
+function clearMapSidebarFilter() {
+    var list = document.getElementById('map-sidebar-list');
+    var countEl = document.getElementById('map-sidebar-count');
+    var items = list ? list.querySelectorAll('.map-sidebar-item') : [];
+    items.forEach(function(item) { item.style.display = ''; });
+    mapSidebarFilterActive = false;
+    if (selectedMarker && selectedMarker._icon) selectedMarker._icon.classList.remove('marker-pulse');
+    selectedMarker = null;
+    if (countEl) {
+        var total = items.length;
+        countEl.textContent = total + (total === 1 ? ' workshop' : ' workshops') + ' on map';
+    }
+    closeMapMobileSheet();
+}
 
 function initializeMap() {
     // Only initialize if map doesn't exist yet
@@ -308,8 +521,75 @@ function initializeMap() {
     // Instance data from Django - all bookable instances
     const instances = {{ instances_data|safe }};
     
+    // Populate sidebar list (desktop sidebar + mobile pull-up sheet)
+    const sidebarList = document.getElementById('map-sidebar-list');
+    const sidebarCount = document.getElementById('map-sidebar-count');
+    if (sidebarList && sidebarCount) {
+        const count = instances.length;
+        sidebarCount.textContent = count === 0 ? 'No workshops' : count + (count === 1 ? ' workshop' : ' workshops') + ' on map';
+        if (count === 0) {
+            sidebarList.innerHTML = '<p style="padding: 1rem; color: var(--text-secondary); font-size: 0.95rem;">No bookable workshops match your filters.</p>';
+        } else {
+            sidebarList.innerHTML = instances.map(function(inst) {
+                const level = ((inst.course_level || 'various').toString().replace(/[^a-z0-9_-]/gi, '') || 'various');
+                const levelDisplay = escapeHtmlMap(inst.level_display || 'Various');
+                const title = escapeHtmlMap(inst.course_title || '');
+                const price = inst.price != null ? inst.price.toFixed(2) : '0.00';
+                const category = inst.category ? escapeHtmlMap(inst.category) : '';
+                const shortDesc = inst.short_description ? escapeHtmlMap(inst.short_description) : '';
+                var durationHours = '';
+                if (inst.duration_hours !== undefined && inst.duration_hours !== null) {
+                    durationHours = String(inst.duration_hours);
+                }
+                const imgUrl = (inst.image_url || '').trim();
+                const href = (inst.course_url || '#').replace(/"/g, '&quot;');
+                const locationLine = escapeHtmlMap(
+                    [inst.location_name || 'TBC', inst.city || ''].filter(Boolean).join(', ')
+                );
+                const dateLine = inst.date_display ? escapeHtmlMap(inst.date_display) : '';
+                var bookBtn = '';
+                if (inst.is_full) {
+                    bookBtn = '<span class="map-sidebar-book-btn map-sidebar-book-disabled">Fully Booked</span>';
+                } else if (!inst.enrollment_open) {
+                    bookBtn = '<span class="map-sidebar-book-btn map-sidebar-book-disabled">Enrollment Closed</span>';
+                } else {
+                    bookBtn = '<a href="/bookings/create/' + (inst.instance_id || '') + '/" class="map-sidebar-book-btn">Book – £' + price + '</a>';
+                }
+                var imgBlock = imgUrl
+                    ? '<img src="' + imgUrl.replace(/"/g, '&quot;') + '" alt="' + title + '" class="course-thumbnail" loading="lazy">'
+                    : '<div class="course-placeholder" aria-hidden="true">📷</div>';
+                var metaInner = '';
+                if (category) {
+                    metaInner += '<span class="meta-item category">' + category + '</span>';
+                }
+                if (durationHours) {
+                    metaInner += '<span class="meta-item duration">' + escapeHtmlMap(durationHours) + 'h</span>';
+                }
+                if (dateLine) {
+                    metaInner += '<span class="meta-item map-sidebar-date">' + dateLine + '</span>';
+                }
+                var metaBlock = metaInner ? '<div class="course-meta">' + metaInner + '</div>' : '';
+                var descBlock = shortDesc ? '<p class="course-short-desc">' + shortDesc + '</p>' : '';
+                return '<article class="course-card map-sidebar-card map-sidebar-item" data-instance-id="' + (inst.instance_id || '') + '">' +
+                    '<a href="' + href + '" class="course-card-link">' +
+                    '<div class="course-image-wrapper">' + imgBlock +
+                    '<div class="course-level-badge" data-level="' + level + '">' + levelDisplay + '</div></div>' +
+                    '<div class="course-card-content">' +
+                    '<div class="course-header"><h2 class="course-title">' + title + '</h2></div>' +
+                    descBlock +
+                    metaBlock +
+                    '<div class="course-locations"><div class="course-locations-list map-sidebar-locations-list">' +
+                    '<span class="location-item">' + locationLine + '</span></div></div>' +
+                    '<div class="course-footer">' +
+                    '<div class="course-price">£' + price + '</div>' +
+                    '<span class="btn-view">View details →</span></div></div></a>' +
+                    '<div class="map-sidebar-card-actions">' + bookBtn + '</div></article>';
+            }).join('');
+        }
+    }
+    
     if (instances.length === 0) {
-        document.getElementById('course-map').innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">No bookable course instances available to display on the map.</div>';
+        document.getElementById('course-map').innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">No bookable workshops available to display on the map.</div>';
         return;
     }
     
@@ -335,22 +615,6 @@ function initializeMap() {
         }
         locationGroups[key].push(instance);
     });
-    
-    // Add markers for each instance
-    function getThemeColors() {
-        const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark' ||
-            (!document.documentElement.getAttribute('data-theme') && 
-             window.matchMedia('(prefers-color-scheme: dark)').matches);
-        return {
-            primary: isDarkMode ? '#4a9eff' : '#0066cc',
-            text: isDarkMode ? '#ffffff' : '#1a1a1a',
-            textSecondary: isDarkMode ? '#b0b0b0' : '#666',
-            bg: isDarkMode ? '#1a1a1a' : '#ffffff',
-            border: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)'
-        };
-    }
-    
-    const colors = getThemeColors();
     
     // Level colors matching homepage
     const levelColors = {
@@ -409,85 +673,33 @@ function initializeMap() {
         // Determine marker color based on course level (use first instance's level)
         const markerLevel = firstInstance.course_level || 'beginner';
         
-        // If multiple instances at same location, show count and list them
-        let popupContent = '';
-        if (groupInstances.length === 1) {
-            // Single instance - show full details
-            const inst = groupInstances[0];
-            popupContent = `
-                <div style="min-width: 250px; color: ${colors.text}; background: ${colors.bg}; padding: 0;">
-                    <div style="padding: 1rem; border-bottom: 1px solid ${colors.border};">
-                        <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; color: ${colors.text};">
-                            <a href="${inst.course_url}" style="color: ${colors.primary}; text-decoration: none; font-weight: 600;">${inst.course_title}</a>
-                        </h3>
-                        <p style="margin: 0.25rem 0; color: ${colors.textSecondary}; font-size: 0.9rem;"><strong>${inst.location_name}</strong></p>
-                        <p style="margin: 0.25rem 0; color: ${colors.textSecondary}; font-size: 0.85rem;">${inst.address}</p>
-                    </div>
-                    <div style="padding: 1rem;">
-                        <p style="margin: 0.5rem 0; color: ${colors.text}; font-size: 0.9rem;"><strong>Date:</strong> ${inst.date_display}</p>
-                        <p style="margin: 0.5rem 0; color: ${colors.text}; font-size: 0.9rem;"><strong>Price:</strong> £${inst.price.toFixed(2)}</p>
-                        ${inst.spaces_available !== null ? `<p style="margin: 0.5rem 0; color: ${colors.text}; font-size: 0.9rem;"><strong>Spaces:</strong> ${inst.spaces_available} available</p>` : ''}
-                        ${inst.instructor_name ? `<p style="margin: 0.5rem 0; color: ${colors.textSecondary}; font-size: 0.85rem;"><strong>Instructor:</strong> ${inst.instructor_name}</p>` : ''}
-                        <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap;">
-                            ${inst.is_full ? 
-                                `<span style="display: inline-block; padding: 0.625rem 1.25rem; background: #fee2e2; color: #dc2626; border-radius: 6px; font-size: 0.9rem; font-weight: 600; flex: 1; text-align: center;">Fully Booked</span>` :
-                                inst.enrollment_open ?
-                                `<a href="/bookings/create/${inst.instance_id}/" style="display: inline-block; padding: 0.625rem 1.25rem; background: ${colors.primary}; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9rem; font-weight: 600; transition: opacity 0.2s; flex: 1; text-align: center;">Book Now - £${inst.price.toFixed(2)}</a>` :
-                                `<span style="display: inline-block; padding: 0.625rem 1.25rem; background: #f3f4f6; color: #6b7280; border-radius: 6px; font-size: 0.9rem; font-weight: 600; flex: 1; text-align: center;">Enrollment Closed</span>`
-                            }
-                            <a href="${inst.course_url}" style="display: inline-block; padding: 0.625rem 1rem; background: transparent; color: ${colors.primary}; text-decoration: none; border: 1px solid ${colors.primary}; border-radius: 6px; font-size: 0.9rem; font-weight: 600; transition: opacity 0.2s;">View Details</a>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else {
-            // Multiple instances - show list
-            popupContent = `
-                <div style="min-width: 280px; max-width: 350px; color: ${colors.text}; background: ${colors.bg}; padding: 0;">
-                    <div style="padding: 1rem; border-bottom: 1px solid ${colors.border};">
-                        <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; color: ${colors.text};">${groupInstances.length} Course Instances</h3>
-                        <p style="margin: 0.25rem 0; color: ${colors.textSecondary}; font-size: 0.9rem;"><strong>${firstInstance.location_name}</strong></p>
-                        <p style="margin: 0.25rem 0; color: ${colors.textSecondary}; font-size: 0.85rem;">${firstInstance.address}</p>
-                    </div>
-                    <div style="padding: 1rem; max-height: 400px; overflow-y: auto;">
-                        ${groupInstances.map(function(inst) {
-                            let bookingButton = '';
-                            if (inst.is_full) {
-                                bookingButton = `<span style="display: inline-block; margin-top: 0.5rem; padding: 0.5rem 1rem; background: #fee2e2; color: #dc2626; border-radius: 6px; font-size: 0.85rem; font-weight: 600;">Fully Booked</span>`;
-                            } else if (inst.enrollment_open) {
-                                bookingButton = `<a href="/bookings/create/${inst.instance_id}/" style="display: inline-block; margin-top: 0.5rem; padding: 0.5rem 1rem; background: ${colors.primary}; color: white; text-decoration: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600;">Book Now - £${inst.price.toFixed(2)}</a>`;
-                            } else {
-                                bookingButton = `<span style="display: inline-block; margin-top: 0.5rem; padding: 0.5rem 1rem; background: #f3f4f6; color: #6b7280; border-radius: 6px; font-size: 0.85rem; font-weight: 600;">Enrollment Closed</span>`;
-                            }
-                            return `
-                                <div style="padding: 0.75rem 0; border-bottom: 1px solid ${colors.border};">
-                                    <a href="${inst.course_url}" style="color: ${colors.primary}; text-decoration: none; font-weight: 600; font-size: 0.95rem; display: block; margin-bottom: 0.25rem;">${inst.course_title}</a>
-                                    <p style="margin: 0.25rem 0; color: ${colors.textSecondary}; font-size: 0.85rem;">${inst.date_display}</p>
-                                    <p style="margin: 0.25rem 0; color: ${colors.text}; font-size: 0.9rem;"><strong>£${inst.price.toFixed(2)}</strong>${inst.spaces_available !== null ? ` • ${inst.spaces_available} spaces` : ''}</p>
-                                    ${bookingButton}
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                </div>
-            `;
-        }
-        
         // Create custom marker with logo and colored circle
         const customIcon = createCustomIcon(markerLevel, logoUrl);
         
         const marker = L.marker([firstInstance.latitude, firstInstance.longitude], {
             icon: customIcon
-        })
-            .addTo(map)
-            .bindPopup(popupContent, {
-                maxWidth: 400,
-                className: 'course-instance-popup'
-            });
+        }).addTo(map);
+        
+        // Store instance IDs for this marker (for sidebar filtering)
+        const markerInstanceIds = groupInstances.map(function(i) { return String(i.instance_id); });
+        
+        // Filter sidebar (desktop) or pull-up sheet (mobile) on marker click — no Leaflet popup
+        marker.on('click', function(e) {
+            if (e && e.originalEvent) {
+                e.originalEvent.stopPropagation();
+            }
+            if (selectedMarker && selectedMarker._icon) selectedMarker._icon.classList.remove('marker-pulse');
+            if (marker._icon) marker._icon.classList.add('marker-pulse');
+            selectedMarker = marker;
+            filterMapSidebar(markerInstanceIds);
+            if (isMapMobileSheet()) {
+                openMapMobileSheet();
+            }
+        });
         
         // Add badge if multiple instances
         if (groupInstances.length > 1) {
-            marker.bindTooltip(`${groupInstances.length} instances`, {
+            marker.bindTooltip(`${groupInstances.length} workshops`, {
                 permanent: false,
                 direction: 'top',
                 offset: [0, -10]
@@ -502,6 +714,101 @@ function initializeMap() {
         const group = new L.featureGroup(markers);
         map.fitBounds(group.getBounds().pad(0.1));
     }
+    
+    map.on('click', function() {
+        if (isMapMobileSheet()) {
+            clearMapSidebarFilter();
+        }
+    });
+    setupMapMobileSheet();
 }
+
+// Infinite scroll - load more courses when scrolling near bottom
+(function() {
+    var grid = document.getElementById('course-grid');
+    var sentinel = document.getElementById('infinite-scroll-sentinel');
+    var loadingEl = document.getElementById('infinite-scroll-loading');
+    if (!grid || !sentinel) return;
+    
+    var baseUrl = grid.dataset.infiniteUrl || '/photography-courses/';
+    var nextPage = parseInt(grid.dataset.nextPage || '0', 10);
+    var hasNext = grid.dataset.hasNext === 'true';
+    var loading = false;
+    
+    function buildCard(c) {
+        var imgHtml = c.image_url
+            ? '<img src="' + c.image_url + '" alt="' + (c.title || '').replace(/"/g, '&quot;') + '" class="course-thumbnail">'
+            : '<div class="course-placeholder">📷</div>';
+        var locs = (c.locations || []).slice(0, 5).map(function(l) {
+            return '<span class="location-item">' + (l || 'TBC') + '</span>';
+        }).join('');
+        var locsHtml = locs ? '<div class="course-locations"><div class="course-locations-list">' + locs + '</div></div>' : '';
+        return '<article class="course-card">' +
+            '<a href="' + (c.detail_url || '/photography-courses/' + c.slug + '/') + '" class="course-card-link">' +
+            '<div class="course-image-wrapper">' + imgHtml +
+            '<div class="course-level-badge" data-level="' + (c.level || 'beginner') + '">' + (c.level_display || '') + '</div></div>' +
+            '<div class="course-card-content">' +
+            '<div class="course-header"><h2 class="course-title">' + (c.title || '').replace(/</g, '&lt;') + '</h2></div>' +
+            (c.short_description ? '<p class="course-short-desc">' + (c.short_description || '').replace(/</g, '&lt;').substring(0, 100) + (c.short_description.length > 100 ? '...' : '') + '</p>' : '') +
+            '<div class="course-meta">' +
+            (c.category ? '<span class="meta-item category">' + (c.category || '').replace(/</g, '&lt;') + '</span>' : '') +
+            '<span class="meta-item duration">' + (c.duration_hours || 0) + 'h</span></div>' +
+            locsHtml +
+            '<div class="course-footer">' +
+            '<div class="course-price">From £' + (c.min_price || '0') + '</div>' +
+            '<span class="btn-view">View Details →</span></div></div></a></article>';
+    }
+    
+    function getOrCreateCategorySection(categoryName) {
+        var sections = grid.querySelectorAll('.category-section');
+        for (var i = 0; i < sections.length; i++) {
+            var title = sections[i].querySelector('.category-section-title');
+            if (title && title.textContent.trim() === categoryName) {
+                return sections[i].querySelector('.category-courses');
+            }
+        }
+        var newSection = document.createElement('div');
+        newSection.className = 'category-section';
+        newSection.innerHTML = '<h2 class="category-section-title">' + (categoryName || 'General Photography').replace(/</g, '&lt;') + '</h2>' +
+            '<div class="category-courses"></div>';
+        grid.insertBefore(newSection, sentinel);
+        return newSection.querySelector('.category-courses');
+    }
+    
+    function loadMore() {
+        if (loading || !hasNext || nextPage < 1) return;
+        loading = true;
+        loadingEl.classList.remove('hidden');
+        var sep = baseUrl.indexOf('?') >= 0 ? '&' : '?';
+        var url = baseUrl + sep + 'format=json&page=' + nextPage;
+        fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.courses && data.courses.length) {
+                    data.courses.forEach(function(c) {
+                        var container = getOrCreateCategorySection(c.category);
+                        if (container) {
+                            var div = document.createElement('div');
+                            div.innerHTML = buildCard(c);
+                            container.appendChild(div.firstElementChild);
+                        }
+                    });
+                }
+                hasNext = data.has_next || false;
+                nextPage = data.next_page || 0;
+            })
+            .catch(function() { hasNext = false; })
+            .finally(function() {
+                loading = false;
+                loadingEl.classList.add('hidden');
+            });
+    }
+    
+    var observer = new IntersectionObserver(function(entries) {
+        if (entries[0].isIntersecting && hasNext) loadMore();
+    }, { rootMargin: '200px', threshold: 0 });
+    
+    observer.observe(sentinel);
+})();
 </script>
 {% endblock %}

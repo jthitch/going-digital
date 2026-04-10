@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ meta_title|default:venue.name }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block content %}
+<article class="venue-detail">
+    <header class="venue-header">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+            <a href="{% url 'courses:course_list' %}">Photography courses</a>
+            <span aria-hidden="true"> / </span>
+            <a href="{% url 'courses:venue_list' %}">Venues</a>
+            <span aria-hidden="true"> / </span>
+            <span>{{ venue.name }}</span>
+        </nav>
+        <h1>{{ venue.name }}</h1>
+        <p class="venue-location">{{ venue.location|default:venue.venue_name }}</p>
+    </header>
+
+    {% if venue_images %}
+    <section class="venue-gallery" aria-label="Venue images">
+        <div class="venue-gallery-grid">
+            {% for media in venue_images %}
+            <figure class="venue-gallery-item">
+                <img src="{{ media.image.url }}" alt="{{ media.caption|default:venue.name }}" loading="lazy">
+                {% if media.caption %}
+                <figcaption>{{ media.caption }}</figcaption>
+                {% endif %}
+            </figure>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if venue_content and venue_content.description %}
+    <section class="venue-description" aria-label="About this venue">
+        <div class="venue-description-content">
+            {{ venue_content.description|linebreaks }}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if venue.venue_address %}
+    <section class="venue-address" aria-label="Address">
+        <h2>Address</h2>
+        <address>
+            {{ venue.venue_address }}{% if venue.venue_telephone %}<br>Tel: {{ venue.venue_telephone }}{% endif %}
+        </address>
+    </section>
+    {% endif %}
+
+    <section class="venue-courses">
+        <h2>Upcoming courses at this venue</h2>
+        {% if instances %}
+            <ul class="venue-instance-list">
+                {% for instance in instances %}
+                <li class="venue-instance-item">
+                    <a href="{{ instance.get_absolute_url }}" class="venue-instance-link">
+                        <strong>{{ instance.course.title }}</strong>
+                        <span class="instance-meta">
+                            {{ instance.start_date|date:"d F Y" }}
+                            {% if instance.start_date|date:"g:i A" != instance.end_date|date:"g:i A" %}
+                                · {{ instance.start_date|date:"g:i A" }} – {{ instance.end_date|date:"g:i A" }}
+                            {% endif %}
+                        </span>
+                        <span class="instance-price">£{{ instance.price }}</span>
+                    </a>
+                    <div class="instance-actions">
+                        {% if instance.is_full %}
+                            <span class="status-badge full">Fully booked</span>
+                        {% elif instance.enrollment_open %}
+                            <a href="{% url 'bookings:create' instance_id=instance.id %}" class="btn-book btn-primary">Book now – £{{ instance.price }}</a>
+                        {% else %}
+                            <span class="status-badge closed">Enrollment closed</span>
+                        {% endif %}
+                        <a href="{{ instance.get_absolute_url }}" class="btn-view-details">View details</a>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No upcoming courses at this venue at the moment. Check back soon or <a href="{% url 'courses:contact' %}">contact us</a> for more information.</p>
+        {% endif %}
+    </section>
+</article>
+{% endblock %}

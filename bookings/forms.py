@@ -3,7 +3,7 @@ Booking forms.
 """
 from django import forms
 from .models import Booking
-from courses.models import CourseInstance
+from courses.models import Workshop
 
 
 class BookingForm(forms.ModelForm):
@@ -23,7 +23,7 @@ class BookingForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
-        self.course_instance = kwargs.pop('course_instance', None)
+        self.workshop = kwargs.pop('workshop', None)
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         
@@ -37,11 +37,11 @@ class BookingForm(forms.ModelForm):
         cleaned_data = super().clean()
         
         # Check if course instance is full
-        if self.course_instance and self.course_instance.is_full:
+        if self.workshop and self.workshop.is_full:
             raise forms.ValidationError("This course is fully booked.")
         
         # Check if course instance enrollment is open
-        if self.course_instance and not self.course_instance.enrollment_open:
+        if self.workshop and not self.workshop.enrollment_open:
             raise forms.ValidationError("Enrollment is not currently open for this course.")
         
         return cleaned_data

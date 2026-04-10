@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin/
+Disallow: /bookings/
+Disallow: /payments/
+Disallow: /api/
+
+Sitemap: {{ sitemap_url }}

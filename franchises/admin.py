@@ -6,7 +6,7 @@ class FranchiseAdmin(admin.ModelAdmin):
     """Custom admin with franchise owner restrictions."""
     list_display = ['name', 'owner', 'is_active', 'created_at']
     list_filter = ['is_active', 'created_at']
-    search_fields = ['name', 'owner__username', 'owner__email']
+    search_fields = ['name', 'owner__email', 'owner__firstname', 'owner__lastname']
     prepopulated_fields = {'slug': ('name',)}
     readonly_fields = ['created_at', 'updated_at']
     

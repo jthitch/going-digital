@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" role="img" aria-labelledby="title desc">
+  <title id="title">Going Digital gift vouchers</title>
+  <desc id="desc">Decorative banner with gift icon and voucher styling</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3d5a80"/>
+      <stop offset="100%" style="stop-color:#1d3557"/>
+    </linearGradient>
+    <linearGradient id="ribbon" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#e63946"/>
+      <stop offset="100%" style="stop-color:#c1121f"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="320" rx="16" fill="url(#bg)"/>
+  <rect x="120" y="60" width="560" height="200" rx="12" fill="#f8f9fa" opacity="0.95"/>
+  <rect x="140" y="80" width="520" height="160" rx="8" fill="none" stroke="#dee2e6" stroke-width="2" stroke-dasharray="8 6"/>
+  <g transform="translate(360 100)">
+    <rect x="-48" y="-8" width="96" height="96" rx="8" fill="#ffd166"/>
+    <path d="M0 -8 L0 88 M-48 40 L48 40" stroke="#e09f3e" stroke-width="4" fill="none"/>
+    <circle cx="0" cy="32" r="14" fill="url(#ribbon)"/>
+    <path d="M-14 18 C-14 8 -4 0 0 8 C4 0 14 8 14 18" fill="none" stroke="url(#ribbon)" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <text x="400" y="248" text-anchor="middle" font-family="system-ui,Segoe UI,sans-serif" font-size="28" font-weight="700" fill="#1d3557">Photography gift vouchers</text>
+  <text x="400" y="278" text-anchor="middle" font-family="system-ui,Segoe UI,sans-serif" font-size="15" fill="#457b9d">The perfect present for photographers</text>
+</svg>
