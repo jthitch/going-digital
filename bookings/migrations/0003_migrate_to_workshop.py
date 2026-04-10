@@ -14,7 +14,8 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('bookings', '0002_initial'),
-        ('courses', '0017_workshop_venue_remove_courseinstance'),
+        # gd_workshop / gd_venue are unmanaged — 0017 does not CREATE TABLE; 0024 does.
+        ('courses', '0024_create_gd_workshop_gd_venue_if_missing'),
     ]
 
     operations = [
