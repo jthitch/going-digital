@@ -83,6 +83,39 @@ going-digital/
 
 6. **Legacy data:** import a MySQL dump with the `mysql` client if needed (see [MYSQL_SETUP.md](MYSQL_SETUP.md)).
 
+## Staging Domain (Nginx + Gunicorn)
+
+To serve `staging.goingdigital.co.uk` on default ports (`80/443`), run Django behind Gunicorn and Nginx.
+
+1. **Run Gunicorn on localhost:**
+   ```bash
+   gunicorn photocourses.wsgi:application --bind 127.0.0.1:8000 --workers 3
+   ```
+
+2. **Use the provided Nginx vhost template:**
+   - Source in repo: `deploy/nginx/staging.goingdigital.co.uk.conf`
+   - Copy to server: `/etc/nginx/sites-available/staging.goingdigital.co.uk`
+   - Enable it (symlink to `/etc/nginx/sites-enabled/`), then:
+   ```bash
+   sudo nginx -t && sudo systemctl reload nginx
+   ```
+
+3. **Set production env values (example):**
+   ```env
+   DEBUG=False
+   ALLOWED_HOSTS=staging.goingdigital.co.uk,goingdigital.co.uk,www.goingdigital.co.uk
+   CSRF_TRUSTED_ORIGINS=https://staging.goingdigital.co.uk,https://goingdigital.co.uk,https://www.goingdigital.co.uk
+   USE_PROXY_SSL=True
+   SECURE_SSL_REDIRECT=True
+   ```
+
+4. **Issue TLS certificate (Let's Encrypt):**
+   ```bash
+   sudo certbot --nginx -d staging.goingdigital.co.uk
+   ```
+
+If `curl -I http://staging.goingdigital.co.uk` returns the default Nginx page, your vhost is not selected yet (check `server_name`, enabled site symlink, and reload status).
+
 ## Models
 
 ### Core Models
