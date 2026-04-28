@@ -83,38 +83,58 @@ going-digital/
 
 6. **Legacy data:** import a MySQL dump with the `mysql` client if needed (see [MYSQL_SETUP.md](MYSQL_SETUP.md)).
 
-## Staging Domain (Nginx + Gunicorn)
+## Staging/Production Deployment (Nginx + Gunicorn)
 
-To serve `staging.goingdigital.co.uk` on default ports (`80/443`), run Django behind Gunicorn and Nginx.
+This repo includes deployment templates for running Django behind Gunicorn and Nginx on `80/443`.
 
-1. **Run Gunicorn on localhost:**
+### Deployment files in this repo
+- Nginx vhost template: `deploy/nginx/staging.goingdigital.co.uk.conf`
+- systemd service template: `deploy/systemd/goingdigital.service`
+- production env template: `deploy/env/.env.production.example`
+
+### Recommended deployment flow
+1. **Install dependencies and collect static:**
    ```bash
-   gunicorn photocourses.wsgi:application --bind 127.0.0.1:8000 --workers 3
+   pip install -r requirements.txt
+   python manage.py collectstatic --noinput
    ```
 
-2. **Use the provided Nginx vhost template:**
-   - Source in repo: `deploy/nginx/staging.goingdigital.co.uk.conf`
-   - Copy to server: `/etc/nginx/sites-available/staging.goingdigital.co.uk`
-   - Enable it (symlink to `/etc/nginx/sites-enabled/`), then:
+2. **Create `.env` from template** and fill real secrets/credentials:
+   - copy `deploy/env/.env.production.example` to project root as `.env`
+   - keep comma-separated lists with no extra spaces
+
+3. **Install Gunicorn as a service:**
+   - copy `deploy/systemd/goingdigital.service` to `/etc/systemd/system/goingdigital.service`
+   - update `WorkingDirectory`, `EnvironmentFile`, and `ExecStart` paths for your server
+   - then run:
    ```bash
-   sudo nginx -t && sudo systemctl reload nginx
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now goingdigital
+   sudo systemctl status goingdigital
    ```
 
-3. **Set production env values (example):**
-   ```env
-   DEBUG=False
-   ALLOWED_HOSTS=staging.goingdigital.co.uk,goingdigital.co.uk,www.goingdigital.co.uk
-   CSRF_TRUSTED_ORIGINS=https://staging.goingdigital.co.uk,https://goingdigital.co.uk,https://www.goingdigital.co.uk
-   USE_PROXY_SSL=True
-   SECURE_SSL_REDIRECT=True
+4. **Install Nginx vhost:**
+   - copy `deploy/nginx/staging.goingdigital.co.uk.conf` to `/etc/nginx/sites-available/staging.goingdigital.co.uk`
+   - enable it with a symlink in `/etc/nginx/sites-enabled/`
+   - disable the default vhost if it conflicts
+   - then run:
+   ```bash
+   sudo nginx -t
+   sudo systemctl reload nginx
    ```
 
-4. **Issue TLS certificate (Let's Encrypt):**
+5. **Issue TLS certificate (Let's Encrypt):**
    ```bash
    sudo certbot --nginx -d staging.goingdigital.co.uk
    ```
 
-If `curl -I http://staging.goingdigital.co.uk` returns the default Nginx page, your vhost is not selected yet (check `server_name`, enabled site symlink, and reload status).
+6. **Verify**
+   ```bash
+   curl -I http://staging.goingdigital.co.uk
+   curl -I https://staging.goingdigital.co.uk
+   ```
+
+If the Nginx welcome page appears, your staging vhost is not enabled or the default vhost is still taking precedence.
 
 ## Models
 

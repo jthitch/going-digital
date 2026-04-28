@@ -1,0 +1,17 @@
+[Unit]
+Description=Going Digital Gunicorn service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/going-digital
+EnvironmentFile=/var/www/going-digital/.env
+ExecStart=/var/www/going-digital/venv/bin/gunicorn photocourses.wsgi:application --bind 127.0.0.1:8000 --workers 3 --timeout 120
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
