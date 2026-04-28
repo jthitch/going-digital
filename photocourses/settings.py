@@ -27,8 +27,9 @@ try:
             'staging.goingdigital.co.uk',
         ],
     )
-    # When DEBUG is True and this is non-empty, DevSiteAccessMiddleware requires a passcode (see /dev-access/).
+    # Passcode gate for non-public environments (see website.middleware /dev-access/).
     DEV_SITE_PASSWORD = env('DEV_SITE_PASSWORD', default='')
+    DEV_SITE_ACCESS_ENABLED = env.bool('DEV_SITE_ACCESS_ENABLED', default=DEBUG)
 except ImportError:
     # Fallback if django-environ is not installed
     SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-me-in-production')
@@ -38,6 +39,10 @@ except ImportError:
         'localhost,127.0.0.1,goingdigital.co.uk,www.goingdigital.co.uk,staging.goingdigital.co.uk',
     ).split(',')
     DEV_SITE_PASSWORD = os.environ.get('DEV_SITE_PASSWORD', '')
+    DEV_SITE_ACCESS_ENABLED = os.environ.get(
+        'DEV_SITE_ACCESS_ENABLED',
+        'True' if DEBUG else 'False',
+    ).lower() in ('1', 'true', 'yes')
 
 # Application definition
 INSTALLED_APPS = [

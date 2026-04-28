@@ -26,7 +26,7 @@ class DevSiteAccessView(FormView):
     form_class = DevAccessForm
 
     def dispatch(self, request, *args, **kwargs):
-        if not settings.DEBUG:
+        if not getattr(settings, 'DEV_SITE_ACCESS_ENABLED', settings.DEBUG):
             raise Http404()
         if not (getattr(settings, 'DEV_SITE_PASSWORD', None) or '').strip():
             raise Http404()

@@ -21,11 +21,11 @@ DEV_SITE_SESSION_KEY = 'dev_site_access_granted'
 
 class DevSiteAccessMiddleware(MiddlewareMixin):
     """
-    When DEBUG is True and DEV_SITE_PASSWORD is set in the environment, require
+    When enabled and DEV_SITE_PASSWORD is set in the environment, require
     a one-time passcode (session) before serving any URL except static/media and /dev-access/.
     """
     def process_request(self, request):
-        if not settings.DEBUG:
+        if not getattr(settings, 'DEV_SITE_ACCESS_ENABLED', settings.DEBUG):
             return None
         password = (getattr(settings, 'DEV_SITE_PASSWORD', None) or '').strip()
         if not password:
