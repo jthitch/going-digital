@@ -191,13 +191,41 @@
 }
 
 .journey-level-box {
-    background: white;
+    --tile-image: none;
+    --tile-overlay: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+    background: var(--tile-overlay);
     border-radius: 16px;
     padding: 2rem;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     transition: all 0.3s ease;
     display: flex;
     flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+.journey-level-box::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: var(--tile-image);
+    background-size: cover;
+    background-position: center;
+    opacity: 0.5;
+    z-index: 0;
+}
+
+.journey-level-box::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--tile-overlay);
+    z-index: 1;
+}
+
+.journey-level-box > * {
+    position: relative;
+    z-index: 2;
 }
 
 .journey-level-box:hover {
@@ -207,37 +235,37 @@
 
 /* Level 1 - Green */
 .level-box-1 {
-    background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+    --tile-overlay: linear-gradient(135deg, rgba(76, 175, 80, 0.6) 0%, rgba(102, 187, 106, 0.6) 100%);
     color: white;
 }
 
 /* Level 2 - Orange */
 .level-box-2 {
-    background: linear-gradient(135deg, #ff9800 0%, #ffb74d 100%);
+    --tile-overlay: linear-gradient(135deg, rgba(255, 152, 0, 0.6) 0%, rgba(255, 183, 77, 0.6) 100%);
     color: white;
 }
 
 /* Level 3 - Purple */
 .level-box-3 {
-    background: linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%);
+    --tile-overlay: linear-gradient(135deg, rgba(156, 39, 176, 0.6) 0%, rgba(186, 104, 200, 0.6) 100%);
     color: white;
 }
 
 /* Editing - Blue */
 .level-box-editing {
-    background: linear-gradient(135deg, #2196f3 0%, #64b5f6 100%);
+    --tile-overlay: linear-gradient(135deg, rgba(33, 150, 243, 0.6) 0%, rgba(100, 181, 246, 0.6) 100%);
     color: white;
 }
 
 /* Residentials - Teal */
 .level-box-residentials {
-    background: linear-gradient(135deg, #009688 0%, #4db6ac 100%);
+    --tile-overlay: linear-gradient(135deg, rgba(0, 150, 136, 0.6) 0%, rgba(77, 182, 172, 0.6) 100%);
     color: white;
 }
 
 /* Bespoke - Deep Purple */
 .level-box-bespoke {
-    background: linear-gradient(135deg, #673ab7 0%, #9575cd 100%);
+    --tile-overlay: linear-gradient(135deg, rgba(103, 58, 183, 0.6) 0%, rgba(149, 117, 205, 0.6) 100%);
     color: white;
 }
 

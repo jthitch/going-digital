@@ -1166,7 +1166,7 @@ body.map-view-active .filters-content {
 }
 
 .course-level-badge[data-level="various"] {
-    background: linear-gradient(135deg, #009688 0%, #4db6ac 100%);
+    background: linear-gradient(135deg, #c2185b 0%, #ec407a 100%);
     color: white;
 }
 

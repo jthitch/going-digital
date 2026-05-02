@@ -235,9 +235,10 @@
         {% endif %}
         <div class="journey-levels-grid">
             <!-- Level 1 -->
-            <div class="journey-level-box level-box-1">
+            {% with course=level_1_courses.0 %}
+            <div class="journey-level-box level-box-1"{% if course.image %} style="--tile-image: url('{{ course.image.url }}');"{% elif course.first_uploaded_image %} style="--tile-image: url('{{ course.first_uploaded_image.image.url }}');"{% endif %}>
                 <a href="{% url 'courses:course_list' %}?level=beginner" class="level-box-link">
-                    <h3 class="level-box-title">Level 1</h3>
+                    <h3 class="level-box-title">Beginner</h3>
                     <p class="level-box-description">Beginner courses to get you started</p>
                 </a>
                 <button type="button" class="level-expand-btn" aria-expanded="false" aria-controls="level-1-courses">Expand</button>
@@ -256,11 +257,13 @@
                     {% endif %}
                 </div>
             </div>
+            {% endwith %}
             
             <!-- Level 2 -->
-            <div class="journey-level-box level-box-2">
+            {% with course=level_2_courses.0 %}
+            <div class="journey-level-box level-box-2"{% if course.image %} style="--tile-image: url('{{ course.image.url }}');"{% elif course.first_uploaded_image %} style="--tile-image: url('{{ course.first_uploaded_image.image.url }}');"{% endif %}>
                 <a href="{% url 'courses:course_list' %}?level=intermediate" class="level-box-link">
-                    <h3 class="level-box-title">Level 2</h3>
+                    <h3 class="level-box-title">Intermediate</h3>
                     <p class="level-box-description">Intermediate courses to expand your skills</p>
                 </a>
                 <button type="button" class="level-expand-btn" aria-expanded="false" aria-controls="level-2-courses">Expand</button>
@@ -279,11 +282,13 @@
                     {% endif %}
                 </div>
             </div>
+            {% endwith %}
             
             <!-- Level 3 -->
-            <div class="journey-level-box level-box-3">
+            {% with course=level_3_courses.0 %}
+            <div class="journey-level-box level-box-3"{% if course.image %} style="--tile-image: url('{{ course.image.url }}');"{% elif course.first_uploaded_image %} style="--tile-image: url('{{ course.first_uploaded_image.image.url }}');"{% endif %}>
                 <a href="{% url 'courses:course_list' %}?level=advanced" class="level-box-link">
-                    <h3 class="level-box-title">Level 3</h3>
+                    <h3 class="level-box-title">Advanced</h3>
                     <p class="level-box-description">Advanced courses for experienced photographers</p>
                 </a>
                 <button type="button" class="level-expand-btn" aria-expanded="false" aria-controls="level-3-courses">Expand</button>
@@ -302,9 +307,11 @@
                     {% endif %}
                 </div>
             </div>
+            {% endwith %}
             
             <!-- Editing -->
-            <div class="journey-level-box level-box-editing">
+            {% with course=editing_courses.0 %}
+            <div class="journey-level-box level-box-editing"{% if course.image %} style="--tile-image: url('{{ course.image.url }}');"{% elif course.first_uploaded_image %} style="--tile-image: url('{{ course.first_uploaded_image.image.url }}');"{% endif %}>
                 <a href="{% url 'courses:course_list' %}?q=editing" class="level-box-link">
                     <h3 class="level-box-title">Editing</h3>
                     <p class="level-box-description">Master post-processing and image editing</p>
@@ -325,9 +332,11 @@
                     {% endif %}
                 </div>
             </div>
+            {% endwith %}
             
             <!-- Residentials -->
-            <div class="journey-level-box level-box-residentials">
+            {% with course=residentials_courses.0 %}
+            <div class="journey-level-box level-box-residentials"{% if course.image %} style="--tile-image: url('{{ course.image.url }}');"{% elif course.first_uploaded_image %} style="--tile-image: url('{{ course.first_uploaded_image.image.url }}');"{% endif %}>
                 <a href="{% url 'courses:course_list' %}?q=residential" class="level-box-link">
                     <h3 class="level-box-title">Residentials</h3>
                     <p class="level-box-description">Intensive residential photography courses</p>
@@ -348,9 +357,11 @@
                     {% endif %}
                 </div>
             </div>
+            {% endwith %}
             
             <!-- Bespoke -->
-            <div class="journey-level-box level-box-bespoke">
+            {% with course=bespoke_courses.0 %}
+            <div class="journey-level-box level-box-bespoke"{% if course.image %} style="--tile-image: url('{{ course.image.url }}');"{% elif course.first_uploaded_image %} style="--tile-image: url('{{ course.first_uploaded_image.image.url }}');"{% endif %}>
                 <a href="{% url 'courses:course_list' %}?q=bespoke" class="level-box-link">
                     <h3 class="level-box-title">Bespoke</h3>
                     <p class="level-box-description">Custom tailored courses for your specific needs</p>
@@ -371,6 +382,7 @@
                     {% endif %}
                 </div>
             </div>
+            {% endwith %}
         </div>
     </div>
 </section>
