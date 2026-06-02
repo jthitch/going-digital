@@ -33,11 +33,19 @@
     </section>
     {% endif %}
 
-    {% if venue_content and venue_content.description %}
+    {% if venue_content and venue_content.main_content %}
     <section class="venue-description" aria-label="About this venue">
+        {% if venue_content.strapline %}
+        <p class="venue-strapline">{{ venue_content.strapline }}</p>
+        {% endif %}
         <div class="venue-description-content">
-            {{ venue_content.description|linebreaks }}
+            {{ venue_content.main_content|safe }}
         </div>
+        {% if venue_content.sub_content %}
+        <div class="venue-description-sub">
+            {{ venue_content.sub_content|safe }}
+        </div>
+        {% endif %}
     </section>
     {% endif %}
 

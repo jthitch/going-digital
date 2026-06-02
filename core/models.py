@@ -88,7 +88,12 @@ class User(AbstractBaseUser):
 
     @property
     def is_staff(self):
-        return self.user_type_id in (1, 2)  # Super User, Administrator
+        """Staff can access Django admin (super users, admins, franchisees)."""
+        if self.active != 1:
+            return False
+        if self.user_type_id in (1, 2, 3):
+            return True
+        return self.is_franchisee == 1
 
     @property
     def is_superuser(self):
@@ -138,17 +143,65 @@ class User(AbstractBaseUser):
             return hasattr(self, 'owned_franchises') and franchise in self.owned_franchises.all()
         return False
 
+    @property
+    def is_region_scoped(self):
+        """Franchisees (user_type_id=3) are limited to assigned gd_region rows."""
+        return self.user_type_id == 3 and not self.is_superuser
+
+    def get_region_ids(self):
+        """
+        Region ids this user may access (from gd_region_user).
+        Falls back to gd_user.region_id when no junction rows exist.
+        """
+        from courses.models import RegionUser
+
+        ids = list(
+            RegionUser.objects.filter(user_id=self.pk)
+            .values_list('region_id', flat=True)
+            .distinct()
+        )
+        ids = [i for i in ids if i is not None]
+        if not ids and self.region_id:
+            ids = [self.region_id]
+        return ids
+
     def get_full_name(self):
         return f"{self.firstname} {self.lastname}".strip() or self.email
 
     def get_short_name(self):
         return self.firstname or self.email
 
+    FRANCHISEE_PERMS = frozenset({
+        'courses.view_course',
+        'courses.view_workshop',
+        'courses.add_workshop',
+        'courses.change_workshop',
+        'courses.delete_workshop',
+        'courses.view_venue',
+        'courses.add_venue',
+        'courses.change_venue',
+        'courses.view_venuemedia',
+        'courses.add_venuemedia',
+        'courses.change_venuemedia',
+        'courses.delete_venuemedia',
+        'payments.view_payment',
+    })
+
     def has_perm(self, perm, obj=None):
-        return self.is_superuser
+        if self.is_superuser or self.user_type_id == 2:
+            return True
+        if self.is_region_scoped and perm in self.FRANCHISEE_PERMS:
+            return True
+        return False
 
     def has_module_perms(self, app_label):
-        return self.is_staff
+        if not self.is_staff:
+            return False
+        if self.is_superuser or self.user_type_id == 2:
+            return True
+        if self.is_region_scoped and app_label in ('courses', 'payments'):
+            return bool(self.get_region_ids())
+        return False
 
     def get_all_permissions(self, obj=None):
         """Required by Jazzmin/admin. Superusers get all permissions."""

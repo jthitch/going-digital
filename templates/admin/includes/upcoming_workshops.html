@@ -1,0 +1,101 @@
+{% load i18n %}
+{% if upcoming_show %}
+<div class="card gd-upcoming-workshops">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap">
+        <h5 class="m-0">{{ upcoming_panel_title }}</h5>
+        <a href="{% url 'admin:courses_workshop_changelist' %}" class="btn btn-sm btn-outline-primary">
+            {% trans 'All workshops' %}
+        </a>
+    </div>
+    <div class="card-body p-0">
+        {% if upcoming_workshops %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>{% trans 'Date' %}</th>
+                        <th>{% trans 'Course' %}</th>
+                        <th>{% trans 'Venue' %}</th>
+                        <th>{% trans 'Booked' %}</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for workshop in upcoming_workshops %}
+                    <tr>
+                        <td class="text-nowrap">
+                            {% if workshop.date %}
+                                {{ workshop.date|date:"D j M Y, H:i" }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if workshop.course %}
+                                {{ workshop.course.course_name }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if workshop.venue %}
+                                {{ workshop.venue.venue_name }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td class="text-nowrap">
+                            {% if workshop.max_places %}
+                                {{ workshop.places_booked|default:0 }}/{{ workshop.max_places }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td class="text-nowrap text-right">
+                            <a href="{% url 'admin:courses_workshop_change' workshop.pk %}" class="btn btn-xs btn-outline-secondary">
+                                {% trans 'Edit' %}
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0 p-3">{% trans 'No upcoming workshops.' %}</p>
+        {% endif %}
+    </div>
+    {% if upcoming_has_other_pages %}
+    <div class="card-footer d-flex align-items-center justify-content-between flex-wrap">
+        <span class="text-muted small">
+            {% blocktrans with start=upcoming_page.start_index end=upcoming_page.end_index total=upcoming_paginator.count %}
+                {{ start }}–{{ end }} of {{ total }}
+            {% endblocktrans %}
+        </span>
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item{% if not upcoming_page.has_previous %} disabled{% endif %}">
+                {% if upcoming_prev_url %}
+                <a class="page-link" href="{{ upcoming_prev_url }}">{% trans 'Previous' %}</a>
+                {% else %}
+                <span class="page-link">{% trans 'Previous' %}</span>
+                {% endif %}
+            </li>
+            <li class="page-item disabled">
+                <span class="page-link">
+                    {% blocktrans with num=upcoming_page.number pages=upcoming_paginator.num_pages %}
+                        Page {{ num }} of {{ pages }}
+                    {% endblocktrans %}
+                </span>
+            </li>
+            <li class="page-item{% if not upcoming_page.has_next %} disabled{% endif %}">
+                {% if upcoming_next_url %}
+                <a class="page-link" href="{{ upcoming_next_url }}">{% trans 'Next' %}</a>
+                {% else %}
+                <span class="page-link">{% trans 'Next' %}</span>
+                {% endif %}
+            </li>
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endif %}

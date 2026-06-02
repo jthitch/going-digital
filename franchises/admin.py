@@ -32,9 +32,14 @@ class FranchiseAdmin(admin.ModelAdmin):
         """Platform admins can change all, franchise owners can change their own."""
         if request.user.is_platform_admin:
             return True
-        if obj and request.user.is_franchise_owner:
+        if request.user.is_franchise_owner:
+            if obj is None:
+                return True
             return obj.owner == request.user
         return False
+
+    def has_view_permission(self, request, obj=None):
+        return self.has_change_permission(request, obj)
 
 
 class LocationAdmin(admin.ModelAdmin):
@@ -59,6 +64,18 @@ class LocationAdmin(admin.ModelAdmin):
         
         return qs.none()
     
+    def has_change_permission(self, request, obj=None):
+        if request.user.is_platform_admin:
+            return True
+        if request.user.is_franchise_owner:
+            if obj is None:
+                return True
+            return obj.franchise.owner == request.user
+        return False
+
+    def has_view_permission(self, request, obj=None):
+        return self.has_change_permission(request, obj)
+
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         """Restrict franchise selection for franchise owners."""
         if db_field.name == "franchise" and not request.user.is_platform_admin:

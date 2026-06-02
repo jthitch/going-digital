@@ -17,18 +17,35 @@ def fix_django_admin_log_user_fk(apps, schema_editor):
               AND REFERENCED_TABLE_NAME IS NOT NULL
         """)
         row = cursor.fetchone()
-        if not row:
+
+        cursor.execute("SHOW COLUMNS FROM gd_user WHERE Field = 'id'")
+        gd_user_id_col = cursor.fetchone()
+        if not gd_user_id_col:
             return
-        constraint_name, ref_table = row
-        if ref_table == 'gd_user':
-            return
+        gd_user_id_type = gd_user_id_col[1]
+
+        if row:
+            constraint_name, ref_table = row
+            if ref_table == 'gd_user':
+                return
+        else:
+            constraint_name = None
 
         cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
-        cursor.execute(f"ALTER TABLE django_admin_log DROP FOREIGN KEY `{constraint_name}`")
-        # Match gd_user.id (BIGINT) and payments.user_id; LogEntry.user is CASCADE.
+        if constraint_name:
+            cursor.execute(f"ALTER TABLE django_admin_log DROP FOREIGN KEY `{constraint_name}`")
         cursor.execute(
-            "ALTER TABLE django_admin_log MODIFY COLUMN user_id BIGINT NOT NULL"
+            f"ALTER TABLE django_admin_log MODIFY COLUMN user_id {gd_user_id_type} NOT NULL"
         )
+        cursor.execute(
+            "SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS "
+            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'django_admin_log' "
+            "AND CONSTRAINT_NAME = 'django_admin_log_user_gd_user_fk'"
+        )
+        if cursor.fetchone():
+            cursor.execute(
+                "ALTER TABLE django_admin_log DROP FOREIGN KEY django_admin_log_user_gd_user_fk"
+            )
         cursor.execute(
             "ALTER TABLE django_admin_log ADD CONSTRAINT django_admin_log_user_gd_user_fk "
             "FOREIGN KEY (user_id) REFERENCES gd_user(id) ON DELETE CASCADE"

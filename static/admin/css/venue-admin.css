@@ -1,0 +1,13 @@
+/* Venue admin: form layout (theme tokens live in jazzmin-admin.css) */
+body.app-courses.model-venue.change-form select.venue-admin-select {
+    width: 24em;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+body.app-courses.model-venue.change-form .field-active .custom-control.custom-switch {
+    display: inline-block;
+    min-height: 1.5rem;
+    padding-left: 2.25rem;
+    margin-bottom: 0;
+}

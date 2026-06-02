@@ -209,6 +209,12 @@ Stripe integration includes:
 - Automatic booking confirmation on successful payment
 - Email notifications (booking confirmation, payment success)
 
+**Admin light/dark mode:** Jazzmin uses your OS setting (`prefers-color-scheme`). Light mode uses the default theme; dark mode loads Bootswatch **darkly**. Custom dashboard styles are in `static/admin/css/jazzmin-admin.css`.
+
+**Local dev — payment stays `pending`:** Checkout creates a `pending` payment; it moves to `succeeded` when Stripe notifies `/payments/webhook/` or when the customer lands on `/payments/success/` (the success page confirms with Stripe automatically). For webhooks on localhost, use [Stripe CLI](https://stripe.com/docs/stripe-cli): `stripe listen --forward-to http://127.0.0.1:8000/payments/webhook/` and set `STRIPE_WEBHOOK_SECRET` from the CLI output. If Stripe CLI shows **302** responses, the dev passcode gate was blocking the webhook — `/payments/webhook/` is exempt; restart `runserver` after pulling. Ensure `STRIPE_WEBHOOK_SECRET` matches the `whsec_` from the running `stripe listen` session.
+
+**Stripe `Permission denied` / network error on Windows:** If checkout returns a Stripe connection error mentioning `Permission denied`, check whether `SSLKEYLOGFILE` is set (common when using Cursor or TLS-debugging tools). It may point at a path Python cannot write, which breaks all HTTPS. Unset it in your terminal (`Remove-Item Env:SSLKEYLOGFILE` in PowerShell) and restart `runserver`. This project also clears invalid `\\?\Volume{...}` keylog paths at startup in `photocourses/settings.py`.
+
 ## React Integration
 
 React is used only for **progressive enhancement**:

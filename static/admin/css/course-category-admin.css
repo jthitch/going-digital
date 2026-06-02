@@ -1,0 +1,13 @@
+/* Course category admin: boolean toggles for legacy 0/1 fields */
+body.app-courses.model-coursecategory .custom-control.custom-switch,
+.change-list .field-active .custom-control.custom-switch,
+.change-list .field-exclude_from_course_list .custom-control.custom-switch {
+    display: inline-block;
+    min-height: 1.5rem;
+    padding-left: 2.25rem;
+}
+
+.change-list .field-active .custom-control.custom-switch,
+.change-list .field-exclude_from_course_list .custom-control.custom-switch {
+    margin-bottom: 0;
+}

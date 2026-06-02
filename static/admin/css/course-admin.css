@@ -11,13 +11,45 @@
     max-width: none;
     min-width: 600px;
 }
-#content-main .change-form #id_main_content {
+#content-main .change-form #id_content_title,
+#content-main .change-form #id_strapline,
+#content-main .change-form #id_meta_title,
+#content-main .change-form #id_meta_description,
+#content-main .change-form #id_meta_keywords {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+#content-main .change-form #id_main_content,
+#content-main .change-form #id_sub_content {
     width: 100%;
 }
 /* CKEditor iframe - ensure editing area is wide */
 #content-main .change-form .cke_inner {
     width: 100% !important;
 }
-#content-main .change-form .cke_contents {
+#content-main .change-form .field-main_content .cke_contents {
     min-height: 400px;
+}
+#content-main .change-form .field-sub_content .cke_contents {
+    min-height: 250px;
+}
+
+/* Region field info icon (Font Awesome, injected on course change form) */
+label[for="id_region"] .course-admin-field-info,
+.field-region label .course-admin-field-info {
+    margin-left: 0.35em;
+    cursor: help;
+    font-size: 0.95em;
+    opacity: 0.75;
+    vertical-align: middle;
+}
+label[for="id_region"] .course-admin-field-info:hover,
+.field-region label .course-admin-field-info:hover {
+    opacity: 1;
+}
+
+/* Course URL preview (help-block only, below slug) */
+.field-course_url .course-url-preview {
+    word-break: break-all;
 }

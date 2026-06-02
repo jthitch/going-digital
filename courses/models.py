@@ -87,6 +87,9 @@ CATEGORY_IDS = {
     'portrait': 1, 'landscape': 2, 'wedding': 3, 'street': 4, 'product': 5,
     'wildlife': 6, 'macro': 7, 'astrophotography': 8, 'general': 9,
 }
+# Legacy gd_course.status_id (also used on gd_page, gd_venue, gd_region)
+COURSE_STATUS_DISPLAY_NAMES = {1: 'Published', 2: 'Unpublished'}
+COURSE_STATUS_CHOICES = tuple(COURSE_STATUS_DISPLAY_NAMES.items())
 
 
 class CourseCategory(models.Model):
@@ -139,13 +142,144 @@ class CourseSkillLevel(models.Model):
         verbose_name_plural = 'Course skill levels'
 
     def __str__(self):
-        return self.skill_level or ''
+        """Prefer legacy ID labels (Beginner, Intermediate, …) over numeric skill_level values."""
+        return LEVEL_DISPLAY_NAMES.get(self.pk) or self.skill_level or ''
+
+
+class Region(models.Model):
+    """
+    Franchise region - maps to legacy table gd_region.
+    Referenced by gd_course.region_id (integer FK, not a DB constraint).
+    """
+    id = models.AutoField(primary_key=True, db_column='id')
+    active = models.SmallIntegerField(default=1, db_column='active')
+    region_name = models.CharField(max_length=255, default='', db_column='region_name')
+    slug = models.CharField(max_length=255, default='', db_column='slug')
+
+    class Meta:
+        db_table = 'gd_region'
+        managed = False
+        ordering = ['region_name']
+        verbose_name = 'Region'
+        verbose_name_plural = 'Regions'
+
+    def __str__(self):
+        return self.region_name or ''
+
+
+class RegionUser(models.Model):
+    """
+    Legacy user–region assignments (gd_region_user).
+    Franchisees may be linked to multiple regions.
+    """
+    id = models.AutoField(primary_key=True, db_column='id')
+    region_id = models.IntegerField(db_column='region_id')
+    user_id = models.IntegerField(db_column='user_id')
+    createdby_id = models.IntegerField(null=True, blank=True, db_column='createdby_id')
+    updatedby_id = models.IntegerField(null=True, blank=True, db_column='updatedby_id')
+    created_at = models.DateTimeField(null=True, blank=True, db_column='created_at')
+    updated_at = models.DateTimeField(null=True, blank=True, db_column='updated_at')
+
+    class Meta:
+        db_table = 'gd_region_user'
+        managed = False
+        verbose_name = 'Region user'
+        verbose_name_plural = 'Region users'
+
+    def __str__(self):
+        return f'user_id={self.user_id} region_id={self.region_id}'
+
+
+class County(models.Model):
+    """
+    County - maps to legacy table gd_county.
+    Referenced by gd_venue.county_id (integer FK, not a DB constraint).
+    """
+    id = models.AutoField(primary_key=True, db_column='id')
+    active = models.SmallIntegerField(default=1, db_column='active')
+    county = models.CharField(max_length=255, db_column='county')
+
+    class Meta:
+        db_table = 'gd_county'
+        managed = False
+        ordering = ['county']
+        verbose_name = 'County'
+        verbose_name_plural = 'Counties'
+
+    def __str__(self):
+        return self.county or f'County #{self.id}'
+
+
+class Tutor(models.Model):
+    """
+    Workshop tutor - maps to legacy table gd_tutor.
+    Referenced by gd_workshop.tutor_id (integer FK, not a DB constraint).
+    """
+    id = models.AutoField(primary_key=True, db_column='id')
+    active = models.SmallIntegerField(default=1, db_column='active')
+    firstname = models.CharField(max_length=255, default='', db_column='firstname')
+    lastname = models.CharField(max_length=255, default='', db_column='lastname')
+    email = models.CharField(max_length=255, null=True, blank=True, db_column='email')
+
+    class Meta:
+        db_table = 'gd_tutor'
+        managed = False
+        ordering = ['lastname', 'firstname']
+        verbose_name = 'Tutor'
+        verbose_name_plural = 'Tutors'
+
+    def __str__(self):
+        name = f'{self.firstname} {self.lastname}'.strip()
+        return name or f'Tutor #{self.id}'
+
+
+class Assistant(models.Model):
+    """
+    Workshop assistant - maps to legacy table gd_assistant.
+    Referenced by gd_workshop.assistant_id (integer FK, not a DB constraint).
+    """
+    id = models.AutoField(primary_key=True, db_column='id')
+    active = models.SmallIntegerField(default=1, db_column='active')
+    firstname = models.CharField(max_length=255, default='', db_column='firstname')
+    lastname = models.CharField(max_length=255, default='', db_column='lastname')
+    email = models.CharField(max_length=255, null=True, blank=True, db_column='email')
+
+    class Meta:
+        db_table = 'gd_assistant'
+        managed = False
+        ordering = ['lastname', 'firstname']
+        verbose_name = 'Assistant'
+        verbose_name_plural = 'Assistants'
+
+    def __str__(self):
+        name = f'{self.firstname} {self.lastname}'.strip()
+        return name or f'Assistant #{self.id}'
+
+
+class WorkshopType(models.Model):
+    """
+    Workshop type - maps to legacy table gd_workshop_type.
+    Referenced by gd_workshop.workshop_type_id.
+    """
+    id = models.AutoField(primary_key=True, db_column='id')
+    workshop_type = models.CharField(max_length=255, db_column='workshop_type')
+    display_on_site = models.SmallIntegerField(default=1, db_column='display_on_site')
+
+    class Meta:
+        db_table = 'gd_workshop_type'
+        managed = False
+        ordering = ['workshop_type']
+        verbose_name = 'Workshop type'
+        verbose_name_plural = 'Workshop types'
+
+    def __str__(self):
+        return self.workshop_type or ''
 
 
 class Content(models.Model):
     """
     Page/content block - maps to legacy table gd_content.
-    Referenced by gd_course.content_id (course page content, meta, etc.).
+    Referenced by gd_course.content_id and gd_venue.content_id (page content, meta, etc.).
     """
     id = models.AutoField(primary_key=True, db_column='id')
     content_type_id = models.IntegerField(null=True, blank=True, db_column='content_type_id')
@@ -194,6 +328,46 @@ class Content(models.Model):
         return self.content_title or f'Content #{self.id}'
 
 
+class ImageCategory(models.Model):
+    """
+    Image category - maps to legacy table gd_image_category.
+    Referenced by gd_image.image_category_id (integer FK, not a DB constraint).
+    """
+    id = models.AutoField(primary_key=True, db_column='id')
+    image_type_id = models.IntegerField(null=True, blank=True, db_column='image_type_id')
+    category = models.CharField(max_length=255, db_column='category')
+
+    class Meta:
+        db_table = 'gd_image_category'
+        managed = False
+        ordering = ['category']
+        verbose_name = 'Image category'
+        verbose_name_plural = 'Image categories'
+
+    def __str__(self):
+        return self.category or f'Category #{self.id}'
+
+
+class ImageType(models.Model):
+    """
+    Image type - maps to legacy table gd_image_type.
+    Referenced by gd_image.image_type_id (integer FK, not a DB constraint).
+    """
+    id = models.AutoField(primary_key=True, db_column='id')
+    active = models.SmallIntegerField(default=1, db_column='active')
+    image_type = models.CharField(max_length=255, db_column='image_type')
+
+    class Meta:
+        db_table = 'gd_image_type'
+        managed = False
+        ordering = ['image_type']
+        verbose_name = 'Image type'
+        verbose_name_plural = 'Image types'
+
+    def __str__(self):
+        return self.image_type or ''
+
+
 class Image(models.Model):
     """
     Image record - maps to legacy table gd_image.
@@ -201,11 +375,15 @@ class Image(models.Model):
     Stores file metadata; file_name is the stored filename.
     """
     id = models.AutoField(primary_key=True, db_column='id')
-    image_type_id = models.IntegerField(null=True, blank=True, db_column='image_type_id')
+    image_type_id = models.IntegerField(
+        null=True, blank=True, db_column='image_type_id', verbose_name='Image type',
+    )
     link_to = models.CharField(max_length=200, null=True, blank=True, db_column='link_to')
-    image_category_id = models.IntegerField(null=True, blank=True, db_column='image_category_id')
+    image_category_id = models.IntegerField(
+        null=True, blank=True, db_column='image_category_id', verbose_name='Image category',
+    )
     active = models.SmallIntegerField(default=1, db_column='active')
-    user_id = models.IntegerField(null=True, blank=True, db_column='user_id')
+    user_id = models.IntegerField(null=True, blank=True, db_column='user_id', verbose_name='User')
     source_name = models.CharField(max_length=1000, null=True, blank=True, db_column='source_name')
     file_name = models.CharField(max_length=1000, db_column='file_name')
     description = models.CharField(max_length=1000, null=True, blank=True, db_column='description')
@@ -228,6 +406,43 @@ class Image(models.Model):
 
     def __str__(self):
         return self.file_name or self.source_name or f'Image #{self.id}'
+
+    def get_image_type_display(self):
+        """Return image type name from gd_image_type, or empty if unset."""
+        if not self.image_type_id:
+            return '—'
+        try:
+            return str(ImageType.objects.get(pk=self.image_type_id))
+        except ImageType.DoesNotExist:
+            return f'Type #{self.image_type_id}'
+
+    get_image_type_display.short_description = 'Image type'
+    get_image_type_display.admin_order_field = 'image_type_id'
+
+    def get_image_category_display(self):
+        """Return image category name from gd_image_category, or empty if unset."""
+        if not self.image_category_id:
+            return '—'
+        try:
+            return str(ImageCategory.objects.get(pk=self.image_category_id))
+        except ImageCategory.DoesNotExist:
+            return f'Category #{self.image_category_id}'
+
+    get_image_category_display.short_description = 'Image category'
+    get_image_category_display.admin_order_field = 'image_category_id'
+
+    def get_user_display(self):
+        """Return gd_user name for image.user_id."""
+        if not self.user_id:
+            return '—'
+        try:
+            user = User.objects.get(pk=self.user_id)
+            return user.get_full_name() or user.email or f'User #{self.user_id}'
+        except User.DoesNotExist:
+            return f'User #{self.user_id}'
+
+    get_user_display.short_description = 'User'
+    get_user_display.admin_order_field = 'user_id'
 
     @property
     def url(self):
@@ -265,11 +480,15 @@ class Venue(models.Model):
     """
     id = models.AutoField(primary_key=True, db_column='id')
     active = models.SmallIntegerField(default=1, db_column='active')
-    status_id = models.SmallIntegerField(default=2, db_column='status_id')
-    region_id = models.IntegerField(null=True, blank=True, db_column='region_id')
-    user_id = models.IntegerField(null=True, blank=True, db_column='user_id')
-    content_id = models.IntegerField(null=True, blank=True, db_column='content_id')
-    county_id = models.IntegerField(null=True, blank=True, db_column='county_id')
+    status_id = models.SmallIntegerField(default=2, db_column='status_id', verbose_name='Status')
+    region_id = models.IntegerField(null=True, blank=True, db_column='region_id', verbose_name='Region')
+    user_id = models.IntegerField(null=True, blank=True, db_column='user_id', verbose_name='User')
+    content_id = models.IntegerField(
+        null=True, blank=True, db_column='content_id',
+        verbose_name='Content',
+        help_text='Legacy FK to gd_content.id',
+    )
+    county_id = models.IntegerField(null=True, blank=True, db_column='county_id', verbose_name='County')
     venue_name = models.CharField(max_length=255, default='', db_column='venue_name')
     location = models.CharField(max_length=255, null=True, blank=True, db_column='location')
     slug = models.CharField(max_length=255, default='', db_column='slug')
@@ -279,6 +498,18 @@ class Venue(models.Model):
     latitude = models.FloatField(null=True, blank=True, db_column='latitude')
     longitude = models.FloatField(null=True, blank=True, db_column='longitude')
     show_workshops = models.SmallIntegerField(default=1, db_column='show_workshops')
+    approval_requested = models.SmallIntegerField(default=0, db_column='approval_requested')
+    approved = models.SmallIntegerField(default=0, db_column='approved')
+    rejected = models.SmallIntegerField(default=0, db_column='rejected')
+    reject_reason = models.TextField(null=True, blank=True, db_column='reject_reason')
+    approval_requested_by_id = models.IntegerField(
+        null=True, blank=True, db_column='approval_requested_by_id',
+    )
+    approval_requested_at = SafeDateTimeField(null=True, blank=True, db_column='approval_requested_at')
+    approvedby_id = models.IntegerField(null=True, blank=True, db_column='approvedby_id')
+    approved_at = SafeDateTimeField(null=True, blank=True, db_column='approved_at')
+    createdby_id = models.IntegerField(null=True, blank=True, db_column='createdby_id')
+    updatedby_id = models.IntegerField(null=True, blank=True, db_column='updatedby_id')
     created_at = SafeDateTimeField(null=True, blank=True, db_column='created_at')
     updated_at = SafeDateTimeField(null=True, blank=True, db_column='updated_at')
 
@@ -293,6 +524,25 @@ class Venue(models.Model):
         return self.venue_name or f'Venue #{self.id}'
 
     @property
+    def is_approved(self):
+        return self.approved == 1
+
+    @property
+    def is_pending_approval(self):
+        return self.approval_requested == 1 and self.approved != 1 and self.rejected != 1
+
+    def get_approval_display(self):
+        if self.approved == 1:
+            return 'Approved'
+        if self.rejected == 1:
+            return 'Rejected'
+        if self.approval_requested == 1:
+            return 'Pending approval'
+        return 'Not submitted'
+
+    get_approval_display.short_description = 'Approval'
+
+    @property
     def city(self):
         """City-like display from location or venue_address."""
         return self.location or (self.venue_address[:50] + '...' if self.venue_address and len(self.venue_address) > 50 else self.venue_address or '')
@@ -305,6 +555,55 @@ class Venue(models.Model):
     def is_active(self):
         """Compatibility: gd_venue uses 'active' (0/1), expose as is_active."""
         return self.active == 1
+
+    def get_region_display(self):
+        if not self.region_id:
+            return '—'
+        try:
+            return Region.objects.get(pk=self.region_id).region_name
+        except Region.DoesNotExist:
+            return f'Region #{self.region_id}'
+
+    get_region_display.short_description = 'Region'
+    get_region_display.admin_order_field = 'region_id'
+
+    def get_status_display(self):
+        return COURSE_STATUS_DISPLAY_NAMES.get(self.status_id, f'Status #{self.status_id}')
+
+    get_status_display.short_description = 'Status'
+    get_status_display.admin_order_field = 'status_id'
+
+    def get_user_display(self):
+        if not self.user_id:
+            return '—'
+        try:
+            user = User.objects.get(pk=self.user_id)
+            return user.get_full_name() or user.email or f'User #{self.user_id}'
+        except User.DoesNotExist:
+            return f'User #{self.user_id}'
+
+    get_user_display.short_description = 'User'
+    get_user_display.admin_order_field = 'user_id'
+
+    def get_county_display(self):
+        if not self.county_id:
+            return '—'
+        try:
+            return str(County.objects.get(pk=self.county_id))
+        except County.DoesNotExist:
+            return f'County #{self.county_id}'
+
+    get_county_display.short_description = 'County'
+    get_county_display.admin_order_field = 'county_id'
+
+    def get_content(self):
+        """Return linked gd_content row, or None."""
+        if not self.content_id:
+            return None
+        try:
+            return Content.objects.get(pk=self.content_id)
+        except Content.DoesNotExist:
+            return None
 
 
 class VenueContent(models.Model):
@@ -413,6 +712,58 @@ class Workshop(models.Model):
     def __str__(self):
         venue_name = self.venue.name if self.venue else 'Unknown'
         return f"{self.course.title if self.course else 'Workshop'} - {venue_name} ({self.date.strftime('%d %B %Y') if self.date else '?'})"
+
+    def get_region_display(self):
+        """Return region name from gd_region, or empty if unset."""
+        if not self.region_id:
+            return ''
+        try:
+            return Region.objects.get(pk=self.region_id).region_name
+        except Region.DoesNotExist:
+            return f'Region #{self.region_id}'
+
+    def get_tutor_display(self):
+        """Return tutor name from gd_tutor, or empty if unset."""
+        if not self.tutor_id:
+            return '—'
+        try:
+            return str(Tutor.objects.get(pk=self.tutor_id))
+        except Tutor.DoesNotExist:
+            return f'Tutor #{self.tutor_id}'
+
+    get_tutor_display.short_description = 'Tutor'
+    get_tutor_display.admin_order_field = 'tutor_id'
+
+    def get_assistant_display(self):
+        """Return assistant name from gd_assistant, or empty if unset."""
+        if not self.assistant_id:
+            return '—'
+        try:
+            return str(Assistant.objects.get(pk=self.assistant_id))
+        except Assistant.DoesNotExist:
+            return f'Assistant #{self.assistant_id}'
+
+    get_assistant_display.short_description = 'Assistant'
+    get_assistant_display.admin_order_field = 'assistant_id'
+
+    def _user_name(self, user_id):
+        if not user_id:
+            return '—'
+        try:
+            user = User.objects.get(pk=user_id)
+            return user.get_full_name() or user.email or f'User #{user_id}'
+        except User.DoesNotExist:
+            return f'User #{user_id}'
+
+    def get_user_display(self):
+        """Return gd_user name for workshop.user_id."""
+        return self._user_name(self.user_id)
+
+    def get_createdby_display(self):
+        return self._user_name(self.createdby_id)
+
+    def get_updatedby_display(self):
+        return self._user_name(self.updatedby_id)
 
     # Compatibility properties for code expecting CourseInstance-like API
     @property
@@ -566,6 +917,19 @@ class Course(models.Model):
     def get_level_display(self):
         """Return display name: Beginner, Intermediate, Advanced, Masterclass, Various."""
         return LEVEL_DISPLAY_NAMES.get(self.course_skill_level_id, 'Various')
+
+    def get_region_display(self):
+        """Return region name from gd_region, or empty if unset."""
+        if not self.region_id:
+            return ''
+        try:
+            return Region.objects.get(pk=self.region_id).region_name
+        except Region.DoesNotExist:
+            return f'Region #{self.region_id}'
+
+    def get_status_display(self):
+        """Return legacy status label for gd_course.status_id."""
+        return COURSE_STATUS_DISPLAY_NAMES.get(self.status_id, f'Status #{self.status_id}')
 
     @property
     def category(self):

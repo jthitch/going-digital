@@ -1,0 +1,7 @@
+/* Image admin: legacy 0/1 active flag as boolean toggle */
+body.app-courses.model-image.change-form .field-active .custom-control.custom-switch {
+    display: inline-block;
+    min-height: 1.5rem;
+    padding-left: 2.25rem;
+    margin-bottom: 0;
+}

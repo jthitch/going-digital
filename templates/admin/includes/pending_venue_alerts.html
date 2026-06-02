@@ -1,0 +1,25 @@
+{% if show %}
+<div class="alert alert-warning gd-pending-venue-alert" role="alert">
+    <h5 class="alert-heading mb-2">
+        {{ count }} venue{{ count|pluralize }} awaiting approval
+    </h5>
+    <p class="mb-2">
+        Franchisees have submitted venues that need review before workshops at those locations can be published.
+    </p>
+    {% if pending %}
+    <ul class="mb-2 pl-3">
+        {% for venue in pending %}
+        <li>
+            <a href="{% url 'admin:courses_venue_change' venue.pk %}">{{ venue.venue_name }}</a>
+            {% if venue.location %}<span class="text-muted"> — {{ venue.location }}</span>{% endif %}
+            <span class="text-muted">({{ venue.get_region_display }})</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% if count > pending|length %}
+    <p class="mb-2 text-muted small">Showing {{ pending|length }} of {{ count }}.</p>
+    {% endif %}
+    {% endif %}
+    <a href="{{ review_url }}" class="btn btn-sm btn-warning">Review pending venues</a>
+</div>
+{% endif %}

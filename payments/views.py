@@ -9,19 +9,17 @@ except ImportError:
     stripe = None
 
 from django.conf import settings
-from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.generic import TemplateView
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from django.utils import timezone
 from django.http import HttpResponse, JsonResponse
 from django.views import View
 from bookings.models import Booking
 from bookings.gift_voucher_basket import get_basket
+from .checkout_completion import complete_checkout_session
 from .models import Payment
-from .tasks import send_booking_confirmation_email, send_payment_success_email
 
 # Configure Stripe if available
 if STRIPE_AVAILABLE and hasattr(settings, 'STRIPE_SECRET_KEY'):
@@ -192,7 +190,7 @@ class StripeWebhookView(View):
         # Handle the event
         if event['type'] == 'checkout.session.completed':
             session = event['data']['object']
-            self.handle_checkout_session_completed(session)
+            complete_checkout_session(session, source='checkout.session.completed')
         elif event['type'] == 'payment_intent.succeeded':
             payment_intent = event['data']['object']
             self.handle_payment_intent_succeeded(payment_intent)
@@ -201,48 +199,6 @@ class StripeWebhookView(View):
             self.handle_payment_intent_failed(payment_intent)
         
         return HttpResponse(status=200)
-    
-    def handle_checkout_session_completed(self, session):
-        """Handle successful checkout session."""
-        try:
-            payment = Payment.objects.get(stripe_id=session.id)
-            payment.status = 'succeeded'
-            payment.succeeded_at = timezone.now()
-            payment.webhook_processed = True
-            payment.last_webhook_event = 'checkout.session.completed'
-            payment.save()
-
-            metadata = payment.metadata or {}
-
-            # Gift voucher basket (legacy gd_basket)
-            if 'gift_voucher_basket_id' in metadata:
-                from bookings.gift_voucher_basket import (
-                    create_vouchers_from_basket,
-                    update_basket_gateway_transaction,
-                )
-                from .tasks import send_gift_voucher_confirmation_email
-                basket_id = int(metadata['gift_voucher_basket_id'])
-                update_basket_gateway_transaction(basket_id, session.id)
-                voucher_codes = create_vouchers_from_basket(basket_id, session.id)
-                send_gift_voucher_confirmation_email(basket_id, voucher_codes)
-                return
-
-            # Booking
-            if 'booking_id' in metadata:
-                booking = Booking.objects.get(id=metadata['booking_id'])
-                booking.status = 'confirmed'
-                booking.save()
-
-                from courses.models import Workshop
-                Workshop.objects.filter(pk=booking.workshop_id).update(
-                    places_booked=F('places_booked') + 1
-                )
-
-                send_booking_confirmation_email(booking.id)
-                send_payment_success_email(booking.id)
-
-        except (Payment.DoesNotExist, Booking.DoesNotExist, KeyError) as e:
-            print(f"Error handling checkout session: {e}")
     
     def handle_payment_intent_succeeded(self, payment_intent):
         """Handle successful payment intent."""
@@ -266,6 +222,10 @@ class PaymentSuccessView(TemplateView):
         if session_id and STRIPE_AVAILABLE:
             try:
                 session = stripe.checkout.Session.retrieve(session_id)
+                complete_checkout_session(
+                    session,
+                    source='checkout.session.completed (success_page)',
+                )
                 metadata = session.metadata or {}
 
                 if 'gift_voucher_basket_id' in metadata:

@@ -1,0 +1,28 @@
+{% load i18n %}
+{% if payment_kpis_show %}
+<div class="gd-payment-kpis mb-3">
+    <div class="card gd-kpi-card">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap">
+            <h5 class="m-0">{{ payment_kpis_title }}</h5>
+            <span class="text-muted small">{{ payment_kpis_month_label }}</span>
+        </div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-sm-6 mb-3 mb-sm-0">
+                    <p class="gd-kpi-value mb-0">{{ payment_kpis_count }}</p>
+                    <p class="gd-kpi-label text-muted mb-0">{% trans 'Payments' %}</p>
+                </div>
+                <div class="col-sm-6">
+                    <p class="gd-kpi-value mb-0">£{{ payment_kpis_total|floatformat:2 }}</p>
+                    <p class="gd-kpi-label text-muted mb-0">{% trans 'Received' %}</p>
+                </div>
+            </div>
+            <div class="text-center mt-3">
+                <a href="{% url payment_kpis_changelist_url %}" class="btn btn-sm btn-outline-primary">
+                    {% trans 'All payments' %}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

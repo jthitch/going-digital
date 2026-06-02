@@ -1,0 +1,7 @@
+{% extends "admin/change_list.html" %}
+{% load venue_admin_tags %}
+
+{% block content %}
+    {% pending_venue_alerts %}
+    {{ block.super }}
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "admin/change_form.html" %}
+
+{% block admin_change_form_document_ready %}
+{{ block.super }}
+<script>
+(function () {
+    'use strict';
+    var REGION_HELP_TEXT = 'Regions is usually only entered for One-to-one courses';
+
+    function attachRegionInfoIcon() {
+        var select = document.getElementById('id_region');
+        if (!select) {
+            return false;
+        }
+        var label = document.querySelector('label[for="id_region"]');
+        if (!label) {
+            var row = select.closest('.field-region') || select.closest('.form-row');
+            label = row ? row.querySelector('label') : null;
+        }
+        if (!label || label.querySelector('.course-admin-field-info')) {
+            return !!label;
+        }
+        var icon = document.createElement('i');
+        icon.className = 'fas fa-info-circle course-admin-field-info';
+        icon.setAttribute('title', REGION_HELP_TEXT);
+        icon.setAttribute('aria-label', REGION_HELP_TEXT);
+        label.appendChild(document.createTextNode(' '));
+        label.appendChild(icon);
+        return true;
+    }
+
+    if (!attachRegionInfoIcon()) {
+        var attempts = 0;
+        var timer = setInterval(function () {
+            if (attachRegionInfoIcon() || ++attempts >= 24) {
+                clearInterval(timer);
+            }
+        }, 250);
+    }
+
+    var slugInput = document.getElementById('id_slug');
+    var urlPreview = document.querySelector('.course-url-preview');
+    if (slugInput && urlPreview) {
+        var urlPrefix = '/photography-courses/';
+        var urlSuffix = '/';
+
+        function updateCourseUrl() {
+            var slug = slugInput.value.trim();
+            var path = slug ? urlPrefix + slug + urlSuffix : '';
+            urlPreview.textContent = path || 'Enter a slug above to see the public course URL.';
+        }
+
+        slugInput.addEventListener('input', updateCourseUrl);
+        slugInput.addEventListener('change', updateCourseUrl);
+        updateCourseUrl();
+    }
+})();
+</script>
+{% endblock %}

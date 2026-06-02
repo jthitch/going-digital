@@ -17,7 +17,7 @@ from django.db.models import Q, Prefetch
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Course, Workshop, Venue, VenueContent, CourseCategory, LEVEL_NAME_TO_ID, LEVEL_DISPLAY_NAMES
+from .models import Course, Workshop, Venue, CourseCategory, LEVEL_NAME_TO_ID, LEVEL_DISPLAY_NAMES
 from .forms import ContactForm, GiftVoucherRequestForm, CONTACT_REGION_CHOICES, VOUCHER_AMOUNT_CHOICES
 from .utils import get_promoted_occasions
 from website.models import GiftVoucherPageImage, HeroImage, Testimonial, BeforeAfterImage, FAQ
@@ -452,7 +452,7 @@ class VenueDetailView(DetailView):
         venue = Venue.objects.filter(
             slug=location_slug,
             active=1,
-        ).exclude(slug='').prefetch_related('media', 'content_block').first()
+        ).exclude(slug='').prefetch_related('media').first()
         if venue is None:
             from django.http import Http404
             raise Http404('No active venue found for this slug.')
@@ -461,14 +461,9 @@ class VenueDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         venue = self.object
-        # Venue content (optional, from admin)
-        try:
-            content_block = venue.content_block
-        except VenueContent.DoesNotExist:
-            content_block = None
-        context['venue_content'] = content_block
+        gd_content = venue.get_content()
+        context['venue_content'] = gd_content
         context['venue_images'] = list(venue.media.all())
-        # Upcoming bookable workshops at this venue
         instances = Workshop.objects.filter(
             venue=venue,
             course__active=True,
@@ -476,16 +471,15 @@ class VenueDetailView(DetailView):
             date__gte=timezone.now()
         ).select_related('course', 'venue').order_by('date')
         context['instances'] = instances
-        # Meta from VenueContent or fallback
-        if content_block and content_block.meta_description:
-            context['meta_description'] = content_block.meta_description[:160]
+        if gd_content and gd_content.meta_description:
+            context['meta_description'] = gd_content.meta_description[:160]
         else:
             context['meta_description'] = (
                 f"Photography courses at {venue.venue_name}, {venue.location or ''}. "
                 f"View dates and book {venue.venue_name} workshops."
             )
         context['meta_title'] = (
-            (content_block.meta_title or '').strip() if content_block else ''
+            (gd_content.meta_title or '').strip() if gd_content else ''
         ) or f"{venue.venue_name} - Photography Courses Venue"
         return context
 

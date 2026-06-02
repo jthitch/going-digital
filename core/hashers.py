@@ -11,10 +11,13 @@ class BcryptPasswordHasher(BasePasswordHasher):
     def verify(self, password, encoded):
         if not encoded or not encoded.startswith("$2"):
             return False
+        candidate = encoded
+        if encoded.startswith("$2y$") or encoded.startswith("$2a$"):
+            candidate = "$2b$" + encoded[4:]
         try:
             return bcrypt.checkpw(
                 password.encode("utf-8"),
-                encoded.encode("utf-8"),
+                candidate.encode("utf-8"),
             )
         except Exception:
             return False

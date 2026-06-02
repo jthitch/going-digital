@@ -18,6 +18,11 @@ _REDIRECT_MISS = '__no_redirect__'
 # Session flag when dev passcode is accepted (see DevSiteAccessMiddleware).
 DEV_SITE_SESSION_KEY = 'dev_site_access_granted'
 
+# Paths that must not require the dev passcode (no browser session, e.g. Stripe CLI webhooks).
+DEV_SITE_ACCESS_EXEMPT_PREFIXES = (
+    '/payments/webhook/',
+)
+
 
 class DevSiteAccessMiddleware(MiddlewareMixin):
     """
@@ -41,6 +46,9 @@ class DevSiteAccessMiddleware(MiddlewareMixin):
             return None
         if path.startswith('/favicon'):
             return None
+        for prefix in DEV_SITE_ACCESS_EXEMPT_PREFIXES:
+            if path.startswith(prefix):
+                return None
         next_qs = urlencode({'next': request.get_full_path()})
         login_url = reverse('dev_site_access')
         return HttpResponseRedirect(f'{login_url}?{next_qs}')

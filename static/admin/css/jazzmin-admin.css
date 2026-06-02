@@ -1,4 +1,118 @@
-/* Fix sidebar logo being cut off - allow full display of wide logos */
+/* Going Digital admin — light/dark friendly (works with Jazzmin dark_mode_theme) */
+
+:root {
+    --gd-logo-bg: #ffffff;
+    --gd-navbar-bg: #ffffff;
+    --gd-navbar-text: #212529;
+    --gd-navbar-text-hover: #000000;
+    --gd-navbar-border: #dee2e6;
+    --gd-navbar-user-color: #212529;
+    --gd-sidebar-bg: #f4f6f9;
+    --gd-sidebar-text: #212529;
+    --gd-sidebar-text-muted: #495057;
+    --gd-sidebar-text-hover: #000000;
+    --gd-sidebar-border: #dee2e6;
+    --gd-sidebar-active-bg: rgba(0, 123, 255, 0.12);
+    --gd-sidebar-hover-bg: rgba(0, 0, 0, 0.05);
+    --gd-text-muted: #6c757d;
+    --gd-badge-pending-bg: #fff3cd;
+    --gd-badge-pending-fg: #856404;
+    --gd-badge-pending-border: #ffeeba;
+    --gd-badge-approved-bg: #d4edda;
+    --gd-badge-approved-fg: #155724;
+    --gd-badge-approved-border: #c3e6cb;
+    --gd-badge-rejected-bg: #f8d7da;
+    --gd-badge-rejected-fg: #721c24;
+    --gd-badge-rejected-border: #f5c6cb;
+    --gd-row-pending-bg: #fffdf5;
+    --gd-booked-high-fg: #856404;
+    --gd-booked-full-fg: #721c24;
+    --gd-alert-warning-bg: #fff3cd;
+    --gd-alert-warning-fg: #856404;
+    --gd-alert-warning-border: #ffeeba;
+    --gd-alert-warning-muted: #6c757d;
+    --gd-dashboard-card-border: rgba(0, 0, 0, 0.08);
+    --gd-dashboard-link: inherit;
+    --gd-legacy-grey: #747a80;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --gd-logo-bg: #2b3035;
+        --gd-navbar-bg: #343a40;
+        --gd-navbar-text: rgba(255, 255, 255, 0.92);
+        --gd-navbar-text-hover: #ffffff;
+        --gd-navbar-border: #4b545c;
+        --gd-navbar-user-color: rgba(255, 255, 255, 0.92);
+        --gd-sidebar-bg: #343a40;
+        --gd-sidebar-text: rgba(255, 255, 255, 0.9);
+        --gd-sidebar-text-muted: rgba(255, 255, 255, 0.65);
+        --gd-sidebar-text-hover: #ffffff;
+        --gd-sidebar-border: #4b545c;
+        --gd-sidebar-active-bg: rgba(255, 255, 255, 0.12);
+        --gd-sidebar-hover-bg: rgba(255, 255, 255, 0.08);
+        --gd-text-muted: #adb5bd;
+        --gd-badge-pending-bg: #4a3f1a;
+        --gd-badge-pending-fg: #ffe08a;
+        --gd-badge-pending-border: #6c5a1e;
+        --gd-badge-approved-bg: #1e4620;
+        --gd-badge-approved-fg: #b8e0b9;
+        --gd-badge-approved-border: #2d6a30;
+        --gd-badge-rejected-bg: #4a1f24;
+        --gd-badge-rejected-fg: #f5b7bd;
+        --gd-badge-rejected-border: #6d2f36;
+        --gd-row-pending-bg: #3a3520;
+        --gd-booked-high-fg: #ffc107;
+        --gd-booked-full-fg: #f5a8ae;
+        --gd-alert-warning-bg: #4a3f1a;
+        --gd-alert-warning-fg: #ffe08a;
+        --gd-alert-warning-border: #6c5a1e;
+        --gd-alert-warning-muted: #d4c89a;
+        --gd-dashboard-card-border: rgba(255, 255, 255, 0.1);
+        --gd-dashboard-link: #7ec8ff;
+        --gd-legacy-grey: #9aa0a6;
+    }
+}
+
+/* Login / logout page logo (templates/registration/base.html) */
+body.jazzmin-login-page .login-box {
+    width: 360px;
+    max-width: calc(100vw - 2rem);
+}
+
+body.jazzmin-login-page .gd-login-logo,
+body.jazzmin-login-page .login-logo {
+    width: 100%;
+    max-width: 100%;
+    text-align: center;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+}
+
+body.jazzmin-login-page .gd-login-logo h1,
+body.jazzmin-login-page .login-logo h1 {
+    margin: 0;
+    line-height: 1;
+}
+
+body.jazzmin-login-page .gd-login-logo picture,
+body.jazzmin-login-page .login-logo picture {
+    display: block;
+    max-width: 100%;
+}
+
+body.jazzmin-login-page .gd-login-logo__img,
+body.jazzmin-login-page .login-logo img {
+    display: block !important;
+    max-width: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: 3.5rem !important;
+    margin: 0 auto !important;
+    object-fit: contain !important;
+}
+
+/* Sidebar logo */
 #jazzy-logo.brand-link {
     display: flex;
     align-items: center;
@@ -6,9 +120,10 @@
     min-height: 4rem;
     padding: 0.5rem 1rem;
     overflow: visible;
-    background: #ffffff !important;
+    background: var(--gd-logo-bg) !important;
     box-shadow: none !important;
 }
+
 #jazzy-logo .brand-image {
     max-height: 2.5rem;
     width: auto;
@@ -21,9 +136,307 @@
     display: none;
 }
 
-/* Override #3f474e with #747a80 */
+/* Top navbar: user email beside profile icon */
+#jazzy-navbar .gd-navbar-user-menu {
+    flex-direction: row;
+    flex-wrap: nowrap;
+}
+
+#jazzy-navbar .gd-navbar-user-email {
+    color: var(--gd-navbar-user-color);
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 0 0.65rem 0 0.25rem;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+#jazzy-navbar .gd-navbar-user-menu > .nav-link.btn {
+    padding-left: 0.35rem;
+    padding-right: 0.5rem;
+}
+
+/* Top navbar — light in light mode, dark when OS is dark */
+#jazzy-navbar.main-header {
+    background-color: var(--gd-navbar-bg) !important;
+    border-bottom: 1px solid var(--gd-navbar-border);
+}
+
+#jazzy-navbar .nav-link,
+#jazzy-navbar .navbar-nav .nav-link {
+    color: var(--gd-navbar-text) !important;
+}
+
+#jazzy-navbar .nav-link:hover,
+#jazzy-navbar .nav-link:focus {
+    color: var(--gd-navbar-text-hover) !important;
+}
+
+#jazzy-navbar .form-control-navbar {
+    background-color: #f1f3f5;
+    border-color: #ced4da;
+    color: var(--gd-navbar-text);
+}
+
+#jazzy-navbar .btn-navbar {
+    background-color: #e9ecef;
+    border-color: #ced4da;
+    color: var(--gd-navbar-text);
+}
+
+@media (prefers-color-scheme: dark) {
+    #jazzy-navbar .form-control-navbar {
+        background-color: #3f474e;
+        border-color: #565e64;
+        color: var(--gd-navbar-text);
+    }
+
+    #jazzy-navbar .btn-navbar {
+        background-color: #4b545c;
+        border-color: #565e64;
+        color: var(--gd-navbar-text);
+    }
+}
+
+/* Left sidebar */
+.main-sidebar,
+aside.main-sidebar {
+    background-color: var(--gd-sidebar-bg) !important;
+    border-right: 1px solid var(--gd-sidebar-border);
+}
+
+.sidebar-light-primary .nav-header,
+.main-sidebar .nav-header {
+    color: var(--gd-sidebar-text-muted) !important;
+    font-weight: 600;
+}
+
+.sidebar-light-primary .nav-sidebar > .nav-item > .nav-link,
+.main-sidebar .nav-sidebar .nav-link {
+    color: var(--gd-sidebar-text) !important;
+}
+
+.sidebar-light-primary .nav-sidebar > .nav-item > .nav-link p,
+.main-sidebar .nav-sidebar .nav-link p {
+    color: inherit !important;
+}
+
+.sidebar-light-primary .nav-sidebar > .nav-item > .nav-link:hover,
+.main-sidebar .nav-sidebar .nav-link:hover {
+    color: var(--gd-sidebar-text-hover) !important;
+    background-color: var(--gd-sidebar-hover-bg) !important;
+}
+
+.sidebar-light-primary .nav-sidebar > .nav-item > .nav-link.active,
+.main-sidebar .nav-sidebar .nav-link.active {
+    color: var(--gd-sidebar-text-hover) !important;
+    background-color: var(--gd-sidebar-active-bg) !important;
+    font-weight: 600;
+}
+
+.sidebar-light-primary .nav-sidebar .nav-icon,
+.main-sidebar .nav-sidebar .nav-icon {
+    color: var(--gd-sidebar-text-muted) !important;
+}
+
+.sidebar-light-primary .nav-sidebar > .nav-item > .nav-link.active .nav-icon,
+.sidebar-light-primary .nav-sidebar > .nav-item > .nav-link:hover .nav-icon {
+    color: var(--gd-sidebar-text-hover) !important;
+}
+
+.main-sidebar .user-panel {
+    display: none !important;
+}
+
+/* Legacy inline colour overrides */
 [style*="3f474e"],
 [style*="3F474E"] {
-    background-color: #747a80 !important;
-    color: #747a80 !important;
+    background-color: var(--gd-legacy-grey) !important;
+    color: var(--gd-legacy-grey) !important;
+}
+
+/* Dashboard — two-column layout (main + recent actions) */
+@media (min-width: 992px) {
+    body.dashboard #content > .row {
+        align-items: flex-start;
+    }
+
+    body.dashboard .gd-dashboard-sidebar {
+        position: sticky;
+        top: 1rem;
+    }
+
+    body.dashboard .gd-dashboard-sidebar #content-related {
+        margin-top: 0;
+    }
+}
+
+body.dashboard .gd-dashboard-main .gd-upcoming-workshops {
+    margin-bottom: 1.25rem;
+}
+
+/* Dashboard — payment KPIs */
+body.dashboard .gd-payment-kpis .gd-kpi-card {
+    border: 1px solid var(--gd-dashboard-card-border);
+}
+
+body.dashboard .gd-payment-kpis .gd-kpi-value {
+    font-size: 1.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--gd-sidebar-text);
+}
+
+body.dashboard .gd-payment-kpis .gd-kpi-label {
+    font-size: 0.8125rem;
+    margin-top: 0.25rem;
+}
+
+/* Dashboard — upcoming workshops */
+body.dashboard .gd-upcoming-workshops {
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--gd-dashboard-card-border);
+}
+
+body.dashboard .gd-upcoming-workshops .card-header {
+    border-bottom: 1px solid var(--gd-dashboard-card-border);
+}
+
+body.dashboard .gd-upcoming-workshops thead th {
+    border-top: none;
+    font-weight: 600;
+    color: var(--gd-sidebar-text-muted);
+    background: transparent;
+}
+
+body.dashboard .gd-upcoming-workshops .table td,
+body.dashboard .gd-upcoming-workshops .table th {
+    vertical-align: middle;
+}
+
+body.dashboard .gd-upcoming-workshops .card-footer {
+    border-top: 1px solid var(--gd-dashboard-card-border);
+    background: transparent;
+}
+
+body.dashboard .content .card {
+    border: 1px solid var(--gd-dashboard-card-border);
+}
+
+body.dashboard .card-header {
+    border-bottom: 1px solid var(--gd-dashboard-card-border);
+}
+
+body.dashboard .card-body .table td a {
+    color: var(--gd-dashboard-link);
+}
+
+body.dashboard .card-body .table td a:hover {
+    text-decoration: underline;
+}
+
+body.dashboard #recent-actions-module .timeline-item {
+    border-radius: 0.25rem;
+}
+
+@media (prefers-color-scheme: dark) {
+    body.dashboard #recent-actions-module .timeline-header a {
+        color: var(--gd-dashboard-link);
+    }
+
+    body.dashboard #recent-actions-module .mini.quiet {
+        color: var(--gd-text-muted);
+    }
+
+    body.dashboard .breadcrumb-item,
+    body.dashboard .breadcrumb-item a {
+        color: var(--gd-text-muted);
+    }
+
+    body.dashboard .breadcrumb-item.active {
+        color: #dee2e6;
+    }
+}
+
+/* Pending venue alerts (dashboard + venue list) */
+.gd-pending-venue-alert {
+    margin-bottom: 1.25rem;
+}
+
+.gd-pending-venue-alert ul {
+    margin-bottom: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+    .gd-pending-venue-alert.alert-warning {
+        background-color: var(--gd-alert-warning-bg);
+        border-color: var(--gd-alert-warning-border);
+        color: var(--gd-alert-warning-fg);
+    }
+
+    .gd-pending-venue-alert .text-muted {
+        color: var(--gd-alert-warning-muted) !important;
+    }
+
+    .gd-pending-venue-alert a:not(.btn) {
+        color: var(--gd-dashboard-link);
+    }
+}
+
+/* Shared status badges (venues, etc.) */
+.gd-badge {
+    display: inline-block;
+    padding: 0.2em 0.55em;
+    font-size: 0.85em;
+    font-weight: 600;
+    border-radius: 0.25rem;
+    white-space: nowrap;
+}
+
+.gd-badge-pending {
+    background: var(--gd-badge-pending-bg);
+    color: var(--gd-badge-pending-fg);
+    border: 1px solid var(--gd-badge-pending-border);
+}
+
+.gd-badge-approved {
+    background: var(--gd-badge-approved-bg);
+    color: var(--gd-badge-approved-fg);
+    border: 1px solid var(--gd-badge-approved-border);
+}
+
+.gd-badge-rejected {
+    background: var(--gd-badge-rejected-bg);
+    color: var(--gd-badge-rejected-fg);
+    border: 1px solid var(--gd-badge-rejected-border);
+}
+
+body.app-courses.model-venue.change-list #result_list tr:has(.gd-badge-pending) {
+    background-color: var(--gd-row-pending-bg);
+}
+
+/* Workshop changelist: booked % */
+body.app-courses.model-workshop.change-list .gd-workshop-booked {
+    white-space: nowrap;
+}
+
+body.app-courses.model-workshop.change-list .gd-workshop-booked-pct {
+    font-weight: 600;
+    margin-right: 0.35em;
+}
+
+body.app-courses.model-workshop.change-list .gd-workshop-booked-count {
+    color: var(--gd-text-muted);
+    font-size: 0.9em;
+}
+
+body.app-courses.model-workshop.change-list .gd-workshop-booked-high .gd-workshop-booked-pct {
+    color: var(--gd-booked-high-fg);
+}
+
+body.app-courses.model-workshop.change-list .gd-workshop-booked-full .gd-workshop-booked-pct {
+    color: var(--gd-booked-full-fg);
 }

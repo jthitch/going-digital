@@ -7,6 +7,12 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Some tools (e.g. Cursor) set SSLKEYLOGFILE to a virtual path Python cannot write.
+# That makes every HTTPS call fail with PermissionError, including Stripe API requests.
+_ssl_keylog = os.environ.get('SSLKEYLOGFILE', '')
+if _ssl_keylog.startswith('\\\\?\\Volume'):
+    os.environ.pop('SSLKEYLOGFILE', None)
+
 # Try to use django-environ if available, otherwise use environment variables or defaults
 try:
     import environ
@@ -348,15 +354,7 @@ JAZZMIN_SETTINGS = {
         "payments",
     ],
     
-    # Custom links to append to app groups, keyed on app name
-    "custom_links": {
-        "courses": [{
-            "name": "View Courses",
-            "url": "/photography-courses/",
-            "icon": "fas fa-camera",
-            "new_window": True,
-        }]
-    },
+    "custom_links": {},
     
     # Custom icons for side menu apps/models
     "icons": {
@@ -430,15 +428,15 @@ JAZZMIN_UI_TWEAKS = {
     "footer_small_text": False,
     "body_small_text": False,
     "brand_small_text": False,
-    "brand_colour": "navbar-primary",
+    "brand_colour": False,
     "accent": "accent-primary",
-    "navbar": "navbar-dark",
+    "navbar": "navbar-white navbar-light",
     "no_navbar_border": False,
     "navbar_fixed": True,
     "layout_boxed": False,
     "footer_fixed": False,
     "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-primary",
+    "sidebar": "sidebar-light-primary",
     "sidebar_nav_small_text": False,
     "sidebar_disable_expand": False,
     "sidebar_nav_child_indent": False,
@@ -446,7 +444,8 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar_nav_legacy_style": False,
     "sidebar_nav_flat_style": False,
     "theme": "default",
-    "dark_mode_theme": None,
+    # Follow OS light/dark preference (Bootswatch darkly via prefers-color-scheme)
+    "dark_mode_theme": "darkly",
     "button_classes": {
         "primary": "btn-primary",
         "secondary": "btn-secondary",
