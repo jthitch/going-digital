@@ -807,6 +807,23 @@ class Workshop(models.Model):
         """Compatibility: return venue as location-like object (has .name, .city)."""
         return self.venue
 
+    @property
+    def byline_plain(self):
+        from django.utils.html import strip_tags
+
+        return strip_tags(self.byline or '').strip()
+
+    @property
+    def byline_needs_expand(self):
+        return len(self.byline_plain.split()) > 80
+
+    @property
+    def byline_preview_80(self):
+        words = self.byline_plain.split()
+        if len(words) <= 80:
+            return self.byline_plain
+        return ' '.join(words[:80]) + '…'
+
     def get_absolute_url(self):
         """URL for workshop - course detail with venue slug if available."""
         if self.course and self.course.slug:

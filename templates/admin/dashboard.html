@@ -25,11 +25,12 @@
         </div>
         {% include "admin/includes/payment_kpis.html" %}
         {% include "admin/includes/upcoming_workshops.html" %}
+        {% include "admin/includes/recent_bookings.html" %}
 
         <div class="row">
             <div class="col-md-6 col-sm-12">
                 {% for app in dashboard_list %}
-                    {% if app.app_label != 'courses' and app.app_label != 'payments' %}
+                    {% if app.app_label != 'courses' and app.app_label != 'payments' and app.app_label != 'bookings' %}
                     <div class="card">
                         <div class="card-header">
                             <h5 class="m-0">{{ app.name }}</h5>

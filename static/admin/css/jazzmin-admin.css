@@ -296,16 +296,19 @@ body.dashboard .gd-payment-kpis .gd-kpi-label {
 }
 
 /* Dashboard — upcoming workshops */
-body.dashboard .gd-upcoming-workshops {
+body.dashboard .gd-upcoming-workshops,
+body.dashboard .gd-recent-bookings {
     margin-bottom: 1.25rem;
     border: 1px solid var(--gd-dashboard-card-border);
 }
 
-body.dashboard .gd-upcoming-workshops .card-header {
+body.dashboard .gd-upcoming-workshops .card-header,
+body.dashboard .gd-recent-bookings .card-header {
     border-bottom: 1px solid var(--gd-dashboard-card-border);
 }
 
-body.dashboard .gd-upcoming-workshops thead th {
+body.dashboard .gd-upcoming-workshops thead th,
+body.dashboard .gd-recent-bookings thead th {
     border-top: none;
     font-weight: 600;
     color: var(--gd-sidebar-text-muted);
@@ -313,11 +316,14 @@ body.dashboard .gd-upcoming-workshops thead th {
 }
 
 body.dashboard .gd-upcoming-workshops .table td,
-body.dashboard .gd-upcoming-workshops .table th {
+body.dashboard .gd-upcoming-workshops .table th,
+body.dashboard .gd-recent-bookings .table td,
+body.dashboard .gd-recent-bookings .table th {
     vertical-align: middle;
 }
 
-body.dashboard .gd-upcoming-workshops .card-footer {
+body.dashboard .gd-upcoming-workshops .card-footer,
+body.dashboard .gd-recent-bookings .card-footer {
     border-top: 1px solid var(--gd-dashboard-card-border);
     background: transparent;
 }

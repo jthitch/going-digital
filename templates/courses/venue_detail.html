@@ -72,6 +72,9 @@
                                 · {{ instance.start_date|date:"g:i A" }} – {{ instance.end_date|date:"g:i A" }}
                             {% endif %}
                         </span>
+                        {% if instance.byline %}
+                        <span class="instance-byline">{{ instance.byline|safe }}</span>
+                        {% endif %}
                         <span class="instance-price">£{{ instance.price }}</span>
                     </a>
                     <div class="instance-actions">

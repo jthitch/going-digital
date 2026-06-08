@@ -342,7 +342,7 @@ class WorkshopAdmin(RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
         if not image or not image.url:
             return '—'
         return format_html(
-            '<img src="{}" alt="" style="max-height:140px;max-width:100%;">',
+            '<img src="{}" alt="" style="max-height:50px;max-width:100%;">',
             image.url,
         )
 

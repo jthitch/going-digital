@@ -77,7 +77,39 @@
         </div>
     </section>
     
-    <!-- Course Description -->
+    <!-- Course / workshop content -->
+    {% if is_location_specific and featured_instance %}
+    <section class="course-content-tabs" data-course-tabs>
+        <div class="course-tabs-nav" role="tablist" aria-label="Course information">
+            <button type="button" class="course-tab-btn is-active" role="tab" id="course-tab-about" aria-selected="true" aria-controls="course-panel-about" data-course-tab="about">
+                About this course
+            </button>
+            <button type="button" class="course-tab-btn" role="tab" id="course-tab-workshop" aria-selected="false" aria-controls="course-panel-workshop" data-course-tab="workshop" tabindex="-1">
+                Workshop details
+            </button>
+        </div>
+        <div class="course-tab-panels">
+            <div class="course-tab-panel is-active" role="tabpanel" id="course-panel-about" aria-labelledby="course-tab-about" data-course-panel="about">
+                <div class="course-main-content">
+                    {% if course.content and course.content.main_content %}
+                        {{ course.content.main_content|safe }}
+                    {% else %}
+                        {{ course.description|linebreaks }}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="course-tab-panel" role="tabpanel" id="course-panel-workshop" aria-labelledby="course-tab-workshop" data-course-panel="workshop" hidden>
+                <div class="course-main-content">
+                    {% if featured_instance.byline %}
+                        {{ featured_instance.byline|safe }}
+                    {% else %}
+                        <p class="course-tab-empty">Workshop details are not available yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+    {% else %}
     <section class="course-description">
         <h2>About This Course</h2>
         <div class="course-main-content">
@@ -88,6 +120,7 @@
             {% endif %}
         </div>
     </section>
+    {% endif %}
     
     <!-- Course Images & Videos (uploaded media) -->
     {% if course.media.exists %}
@@ -180,8 +213,9 @@
                 <h3>{{ city }}</h3>
                 <ul class="instance-list">
                     {% for instance in instances %}
-                    <li class="instance-item">
-                        <a href="{{ instance.get_absolute_url }}" class="instance-link" aria-label="View {{ course.title }} at {{ instance.location.city }}">
+                    <li class="instance-item{% if instance.byline_plain %} instance-item--has-byline{% endif %}">
+                        <a href="{{ instance.get_absolute_url }}" class="instance-card-link" aria-label="View {{ course.title }} at {{ instance.location.name }} on {{ instance.start_date|date:'d F Y' }}"></a>
+                        <div class="instance-col-main">
                             <div class="instance-date">
                                 <strong>{{ instance.start_date|date:"d F Y" }}</strong>
                                 <span>{{ instance.start_date|date:"g:i A" }} - {{ instance.end_date|date:"g:i A" }}</span>
@@ -194,20 +228,28 @@
                                 {% endif %}
                                 {% endwith %}
                             </div>
-                            <div class="instance-info">
-                                <span class="price">£{{ instance.price }}</span>
-                                <span class="spaces">Spaces: {{ instance.spaces_available }} available</span>
+                            <p class="instance-spaces">Spaces: {{ instance.spaces_available }} available</p>
+                            <div class="instance-book">
+                                {% if instance.is_full %}
+                                <span class="status-badge full">Fully Booked</span>
+                                {% elif instance.enrollment_open %}
+                                <a href="{% url 'bookings:create' instance.id %}" class="btn-book btn-primary">Book Now - £{{ instance.price }}</a>
+                                {% else %}
+                                <span class="status-badge closed">Enrollment Closed</span>
+                                {% endif %}
                             </div>
-                        </a>
-                        <div class="instance-actions">
-                            {% if instance.is_full %}
-                            <span class="status-badge full">Fully Booked</span>
-                            {% elif instance.enrollment_open %}
-                            <a href="{% url 'bookings:create' instance.id %}" class="btn-book btn-primary">Book Now - £{{ instance.price }}</a>
-                            {% else %}
-                            <span class="status-badge closed">Enrollment Closed</span>
-                            {% endif %}
                         </div>
+                        {% if instance.byline_plain %}
+                        <div class="instance-col-byline">
+                            <div class="instance-byline" data-byline-expandable>
+                                <div class="instance-byline-preview">{{ instance.byline_preview_80|linebreaksbr }}</div>
+                                {% if instance.byline_needs_expand %}
+                                <div class="instance-byline-full" hidden>{{ instance.byline|safe }}</div>
+                                <button type="button" class="instance-byline-toggle" aria-expanded="false">See more</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
                     </li>
                     {% endfor %}
                 </ul>
@@ -250,7 +292,58 @@
 {% block extra_js %}
 <!-- Load React booking component (if needed) -->
 <script src="{% static 'js/booking-widget.js' %}" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-byline-expandable]').forEach(function (block) {
+        var toggle = block.querySelector('.instance-byline-toggle');
+        var preview = block.querySelector('.instance-byline-preview');
+        var full = block.querySelector('.instance-byline-full');
+        if (!toggle || !preview || !full) {
+            return;
+        }
+        toggle.addEventListener('click', function () {
+            var expanded = toggle.getAttribute('aria-expanded') === 'true';
+            if (expanded) {
+                preview.hidden = false;
+                full.hidden = true;
+                toggle.setAttribute('aria-expanded', 'false');
+                toggle.textContent = 'See more';
+            } else {
+                preview.hidden = true;
+                full.hidden = false;
+                toggle.setAttribute('aria-expanded', 'true');
+                toggle.textContent = 'See less';
+            }
+        });
+    });
+});
+</script>
 {% if is_location_specific and featured_instance %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var tabsRoot = document.querySelector('[data-course-tabs]');
+    if (tabsRoot) {
+        var tabButtons = tabsRoot.querySelectorAll('[data-course-tab]');
+        var tabPanels = tabsRoot.querySelectorAll('[data-course-panel]');
+        tabButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                var target = button.getAttribute('data-course-tab');
+                tabButtons.forEach(function (btn) {
+                    var active = btn === button;
+                    btn.classList.toggle('is-active', active);
+                    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+                    btn.tabIndex = active ? 0 : -1;
+                });
+                tabPanels.forEach(function (panel) {
+                    var active = panel.getAttribute('data-course-panel') === target;
+                    panel.classList.toggle('is-active', active);
+                    panel.hidden = !active;
+                });
+            });
+        });
+    }
+});
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var floatingBar = document.getElementById('floating-book-bar');

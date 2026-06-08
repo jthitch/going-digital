@@ -1,5 +1,5 @@
 /**
- * Workshop admin: keep Jazzmin Select2 width in sync with CSS (width: element).
+ * Workshop admin: control widths and byline label info button.
  */
 (function ($) {
     'use strict';
@@ -14,8 +14,44 @@
         });
     }
 
-    $(document).ready(function () {
+    function initBylineInfo() {
+        if (!$('body').hasClass('model-workshop')) {
+            return;
+        }
+        var $label = $('.field-byline label').first();
+        if (!$label.length || $label.find('.gd-byline-info').length) {
+            return;
+        }
+
+        var $btn = $(
+            '<button type="button" class="gd-byline-info" ' +
+            'aria-label="Jump to byline instructions" title="View instructions"></button>'
+        );
+        $btn.append('<i class="fas fa-info-circle" aria-hidden="true"></i>');
+        $btn.on('click', function () {
+            var help = document.querySelector('.field-byline .gd-byline-help');
+            if (help) {
+                help.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                help.classList.add('gd-byline-help-highlight');
+                window.setTimeout(function () {
+                    help.classList.remove('gd-byline-help-highlight');
+                }, 1200);
+            }
+        });
+        $label.append($btn);
+    }
+
+    function initWorkshopAdmin() {
         fixWorkshopControlWidths();
-        setTimeout(fixWorkshopControlWidths, 0);
+        initBylineInfo();
+    }
+
+    $(document).ready(function () {
+        initWorkshopAdmin();
+        setTimeout(initWorkshopAdmin, 0);
+    });
+
+    $(document).on('shown.bs.tab', 'a[data-toggle="pill"]', function () {
+        setTimeout(initWorkshopAdmin, 0);
     });
 })(django.jQuery);

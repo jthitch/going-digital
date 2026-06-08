@@ -15,6 +15,7 @@ from django.contrib import messages
 from django.views.generic import ListView, DetailView, TemplateView, FormView
 from django.db.models import Q, Prefetch
 from django.utils import timezone
+from django.utils.html import strip_tags
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Course, Workshop, Venue, CourseCategory, LEVEL_NAME_TO_ID, LEVEL_DISPLAY_NAMES
@@ -347,9 +348,11 @@ class CourseListView(ListView):
                         words = card_desc.split()
                         if len(words) > 20:
                             card_desc = ' '.join(words[:20]) + '…'
+                    byline_text = strip_tags(instance.byline or '').strip()
                     instances_data.append({
                         'instance_id': instance.id,
                         'course_title': course.title,
+                        'byline': byline_text,
                         'course_slug': course.slug,
                         'course_level': course.level,
                         'level_display': course.get_level_display(),

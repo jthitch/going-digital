@@ -184,6 +184,7 @@ class User(AbstractBaseUser):
         'courses.add_venuemedia',
         'courses.change_venuemedia',
         'courses.delete_venuemedia',
+        'bookings.view_booking',
         'payments.view_payment',
     })
 
@@ -199,7 +200,7 @@ class User(AbstractBaseUser):
             return False
         if self.is_superuser or self.user_type_id == 2:
             return True
-        if self.is_region_scoped and app_label in ('courses', 'payments'):
+        if self.is_region_scoped and app_label in ('courses', 'bookings', 'payments'):
             return bool(self.get_region_ids())
         return False
 

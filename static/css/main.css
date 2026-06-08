@@ -551,6 +551,7 @@ address.instance-address-inline {
 }
 
 .course-description,
+.course-content-tabs,
 .course-media,
 .what-youll-learn,
 .audience,
@@ -559,6 +560,60 @@ address.instance-address-inline {
 .course-instances,
 .faqs {
     margin-bottom: 2rem;
+}
+
+/* Course / workshop tabs (location-specific workshop page) */
+.course-content-tabs {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-primary);
+}
+
+.course-tabs-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+}
+
+.course-tab-btn {
+    flex: 1 1 auto;
+    min-width: 10rem;
+    padding: 0.9rem 1.25rem;
+    border: none;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.course-tab-btn:hover {
+    color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.course-tab-btn.is-active {
+    color: var(--primary-color, #0066cc);
+    border-bottom-color: var(--primary-color, #0066cc);
+    background: var(--bg-primary);
+}
+
+.course-tab-panels {
+    padding: 1.5rem;
+}
+
+.course-tab-panel[hidden] {
+    display: none;
+}
+
+.course-tab-empty {
+    margin: 0;
+    color: var(--text-secondary);
 }
 
 /* Rich text content from CKEditor - match admin panel typography */
@@ -871,8 +926,72 @@ address.instance-address-inline {
     display: grid;
     grid-template-columns: 1fr;
     gap: 1rem;
+    align-items: start;
     background-color: var(--bg-primary);
     position: relative;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.instance-item:hover {
+    border-color: var(--primary-color, #0066cc);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.instance-card-link {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    text-decoration: none;
+}
+
+.instance-card-link:focus {
+    outline: 2px solid var(--primary-color, #0066cc);
+    outline-offset: 2px;
+}
+
+.instance-col-main,
+.instance-col-byline {
+    position: relative;
+    z-index: 0;
+}
+
+.instance-book a,
+.instance-book .status-badge,
+.instance-byline-toggle {
+    position: relative;
+    z-index: 2;
+}
+
+.instance-col-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.instance-col-main .instance-location {
+    margin: 0;
+}
+
+.instance-spaces {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+
+.instance-book {
+    margin-top: 0.25rem;
+}
+
+.instance-book .btn-book {
+    width: 100%;
+    max-width: 16rem;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.instance-col-byline {
+    min-width: 0;
 }
 
 .instance-link {
@@ -898,6 +1017,46 @@ address.instance-address-inline {
     margin-bottom: 0.25rem;
 }
 
+.instance-byline {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.instance-byline-preview,
+.instance-byline-full {
+    margin: 0;
+}
+
+.instance-byline p {
+    margin: 0 0 0.35rem;
+}
+
+.instance-byline p:last-child {
+    margin-bottom: 0;
+}
+
+.instance-byline-toggle {
+    margin-top: 0.5rem;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--primary-color, #0066cc);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.instance-byline-toggle:hover {
+    opacity: 0.85;
+}
+
+.venue-instance-link .instance-byline {
+    display: block;
+    margin-top: 0.35rem;
+}
+
 .instance-info {
     display: flex;
     flex-direction: column;
@@ -908,6 +1067,10 @@ address.instance-address-inline {
     font-size: 1.5rem;
     font-weight: bold;
     color: var(--primary-color, #0066cc);
+}
+
+.instance-item .instance-book .status-badge {
+    display: inline-block;
 }
 
 .instance-actions {
@@ -1298,7 +1461,11 @@ footer,
     }
     
     .instance-item {
-        grid-template-columns: 200px 1fr auto;
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .instance-item--has-byline {
+        grid-template-columns: 2fr 3fr;
     }
     
     .course-detail h1 {

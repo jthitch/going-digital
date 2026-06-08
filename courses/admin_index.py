@@ -4,6 +4,7 @@
 def patch_admin_index():
     from django.contrib import admin
 
+    from bookings.dashboard_recent import get_recent_bookings_dashboard_context
     from courses.dashboard_workshops import get_upcoming_workshops_dashboard_context
     from payments.dashboard_kpis import get_payment_kpis_dashboard_context
 
@@ -13,6 +14,7 @@ def patch_admin_index():
         context = dict(extra_context or {})
         context.update(get_payment_kpis_dashboard_context(request))
         context.update(get_upcoming_workshops_dashboard_context(request))
+        context.update(get_recent_bookings_dashboard_context(request))
         return original_index(request, context)
 
     admin.site.index = index

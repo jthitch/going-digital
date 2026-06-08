@@ -537,6 +537,7 @@ function initializeMap() {
                 const price = inst.price != null ? inst.price.toFixed(2) : '0.00';
                 const category = inst.category ? escapeHtmlMap(inst.category) : '';
                 const shortDesc = inst.short_description ? escapeHtmlMap(inst.short_description) : '';
+                const byline = inst.byline ? escapeHtmlMap(inst.byline) : '';
                 var durationHours = '';
                 if (inst.duration_hours !== undefined && inst.duration_hours !== null) {
                     durationHours = String(inst.duration_hours);
@@ -570,6 +571,7 @@ function initializeMap() {
                 }
                 var metaBlock = metaInner ? '<div class="course-meta">' + metaInner + '</div>' : '';
                 var descBlock = shortDesc ? '<p class="course-short-desc">' + shortDesc + '</p>' : '';
+                var bylineBlock = byline ? '<p class="instance-byline">' + byline + '</p>' : '';
                 return '<article class="course-card map-sidebar-card map-sidebar-item" data-instance-id="' + (inst.instance_id || '') + '">' +
                     '<a href="' + href + '" class="course-card-link">' +
                     '<div class="course-image-wrapper">' + imgBlock +
@@ -577,6 +579,7 @@ function initializeMap() {
                     '<div class="course-card-content">' +
                     '<div class="course-header"><h2 class="course-title">' + title + '</h2></div>' +
                     descBlock +
+                    bylineBlock +
                     metaBlock +
                     '<div class="course-locations"><div class="course-locations-list map-sidebar-locations-list">' +
                     '<span class="location-item">' + locationLine + '</span></div></div>' +

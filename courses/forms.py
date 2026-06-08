@@ -5,6 +5,7 @@ from django import forms
 from django.db.models import Q
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from ckeditor.widgets import CKEditorWidget
 from django_recaptcha.fields import ReCaptchaField
 from django_recaptcha.widgets import ReCaptchaV2Checkbox
@@ -51,11 +52,44 @@ def _recent_workshops_queryset(exclude_pk=None, include_pk=None, owner_user_id=N
     return Workshop.objects.filter(pk__in=[w.pk for w in recent]).order_by('-date', '-id')
 
 
-def _workshop_image_queryset(include_pk=None):
-    qs = Image.objects.filter(active=1).order_by('-id')
-    if include_pk:
-        qs = Image.objects.filter(Q(active=1) | Q(pk=include_pk)).order_by('-id')
-    return qs[:_WORKSHOP_IMAGE_CHOICES_LIMIT]
+def _image_owned_by_user(image, user_id):
+    if not image or not user_id:
+        return False
+    return image.user_id == user_id or image.createdby_id == user_id
+
+
+def _workshop_image_queryset(include_pk=None, owner_user_id=None):
+    """Images for workshop picker; limited to images the current user uploaded."""
+    qs = Image.objects.filter(active=1)
+    if owner_user_id:
+        qs = qs.filter(Q(user_id=owner_user_id) | Q(createdby_id=owner_user_id))
+    qs = qs.order_by('-id')
+    pks = list(qs.values_list('pk', flat=True)[:_WORKSHOP_IMAGE_CHOICES_LIMIT])
+    if include_pk and include_pk not in pks:
+        extra = Image.objects.filter(pk=include_pk).first()
+        if extra and (not owner_user_id or _image_owned_by_user(extra, owner_user_id)):
+            pks.insert(0, include_pk)
+            pks = pks[:_WORKSHOP_IMAGE_CHOICES_LIMIT]
+    return Image.objects.filter(pk__in=pks).order_by('-id')
+
+
+class WorkshopImageModelChoiceField(forms.ModelChoiceField):
+    """Existing workshop image picker with thumbnail previews."""
+
+    widget = forms.RadioSelect(attrs={'class': 'gd-workshop-image-picker'})
+
+    def label_from_instance(self, obj):
+        caption = obj.source_name or obj.file_name or f'Image #{obj.pk}'
+        if not obj.url:
+            return caption
+        return format_html(
+            '<span class="gd-workshop-image-option">'
+            '<img src="{}" alt="" class="gd-workshop-image-thumb" loading="lazy">'
+            '<span class="gd-workshop-image-caption">{}</span>'
+            '</span>',
+            obj.url,
+            caption,
+        )
 
 
 CONTACT_REGION_CHOICES = [
@@ -708,6 +742,29 @@ class CourseCategoryAdminForm(forms.ModelForm):
         return category
 
 
+WORKSHOP_BYLINE_ADMIN_HELP = format_html(
+    '<div class="gd-byline-help" role="note">'
+    '<p class="gd-byline-help-lead">'
+    '<i class="fas fa-info-circle" aria-hidden="true"></i> '
+    'Where this appears on the public site</p>'
+    '<ul>'
+    '<li>the date and location cards on the course page</li>'
+    '<li>the <strong>Workshop details</strong> tab on this workshop&rsquo;s page</li>'
+    '</ul>'
+    '<p>Include information specific to this workshop date and venue, for example '
+    'start time, meeting point, parking, and what will be covered on the day.</p>'
+    '</div>'
+)
+
+
+class WorkshopBylineWidget(CKEditorWidget):
+    """CKEditor with byline instructions rendered above the input."""
+
+    def render(self, name, value, attrs=None, renderer=None):
+        editor = super().render(name, value, attrs, renderer)
+        return mark_safe(f'{WORKSHOP_BYLINE_ADMIN_HELP}{editor}')
+
+
 class WorkshopAdminForm(forms.ModelForm):
     """Workshop admin: legacy integer FKs as labeled dropdowns."""
 
@@ -728,7 +785,7 @@ class WorkshopAdminForm(forms.ModelForm):
     )
     byline = forms.CharField(
         required=False,
-        widget=CKEditorWidget(config_name='default'),
+        widget=WorkshopBylineWidget(config_name='default'),
         label='Byline',
     )
     region = forms.ModelChoiceField(
@@ -767,12 +824,12 @@ class WorkshopAdminForm(forms.ModelForm):
         empty_label='---------',
         label='Cloned from workshop',
     )
-    image = forms.ModelChoiceField(
+    image = WorkshopImageModelChoiceField(
         queryset=Image.objects.none(),
         required=False,
-        empty_label='---------',
+        empty_label='No image',
         label='Existing image',
-        help_text='Pick a previously uploaded image, or upload a new file below.',
+        help_text='Choose one of your previously uploaded images, or upload a new file below.',
     )
     image_upload = forms.ImageField(
         required=False,
@@ -841,7 +898,21 @@ class WorkshopAdminForm(forms.ModelForm):
             clone_qs = clone_qs.filter(region_id__in=region_ids)
         self.fields['cloned_from_workshop'].queryset = clone_qs
         image_include = self.instance.image_id if self.instance.pk and self.instance.image_id else None
-        self.fields['image'].queryset = _workshop_image_queryset(include_pk=image_include)
+        image_qs = _workshop_image_queryset(
+            include_pk=image_include,
+            owner_user_id=self.editor_user_id,
+        )
+        self.fields['image'].queryset = image_qs
+        if not image_qs.exists():
+            self.fields['image'].help_text = (
+                'You have not uploaded any images yet. Use Upload image below, '
+                'then save and re-open this workshop to pick it here.'
+            )
+        else:
+            self.fields['image'].help_text = (
+                'Only images you have uploaded are shown. '
+                'Pick one below or upload a new file.'
+            )
         self._set_initial_from_id('region', Region, 'region_id')
         self._set_initial_from_id('tutor', Tutor, 'tutor_id')
         self._set_initial_from_id('assistant', Assistant, 'assistant_id')

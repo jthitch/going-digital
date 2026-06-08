@@ -370,6 +370,7 @@ JAZZMIN_SETTINGS = {
         "website.Testimonial": "fas fa-quote-left",
         "website.BeforeAfterImage": "fas fa-images",
         "website.FAQ": "fas fa-question-circle",
+        "bookings": "fas fa-ticket-alt",
         "bookings.Booking": "fas fa-ticket-alt",
         "bookings.Voucher": "fas fa-gift",
         "franchises.Franchise": "fas fa-building",
