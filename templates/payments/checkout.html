@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Checkout - Photography Courses{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/booking.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="booking-container checkout-container">
+    <h1>Checkout</h1>
+
+    <div class="course-summary">
+        <h2>{{ booking.workshop.course.title }}</h2>
+        <div class="course-details">
+            <p><strong>Date:</strong> {{ booking.workshop.start_date|date:"d F Y" }} at {{ booking.workshop.start_date|date:"g:i A" }}</p>
+            <p><strong>Location:</strong> {{ booking.workshop.venue.name }}, {{ booking.workshop.venue.city }}</p>
+            <p><strong>Booking reference:</strong> {{ booking.booking_reference }}</p>
+        </div>
+    </div>
+
+    <div class="checkout-pricing">
+        <p><strong>Course price:</strong> £{{ list_price|floatformat:2 }}</p>
+        {% if booking.voucher_code %}
+        <p class="checkout-voucher-applied">
+            <strong>Voucher applied:</strong> {{ booking.voucher_code }}
+            <span class="checkout-discount">-£{{ booking.voucher_discount|floatformat:2 }}</span>
+        </p>
+        {% endif %}
+        <p class="checkout-total"><strong>Amount to pay:</strong> £{{ booking.price_paid|floatformat:2 }}</p>
+    </div>
+
+  {% if messages %}
+    <ul class="checkout-messages">
+      {% for message in messages %}
+      <li class="{{ message.tags }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <form method="post" class="checkout-voucher-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="redeem">
+        <div class="form-group">
+            <label for="id_voucher_code">Voucher or promo code</label>
+            <div class="checkout-voucher-row">
+                <input type="text" name="voucher_code" id="id_voucher_code"
+                       value="{{ voucher_form.voucher_code.value|default:'' }}"
+                       placeholder="Enter voucher code" autocomplete="off"
+                       class="checkout-voucher-input">
+                <button type="submit" class="btn-secondary">Redeem</button>
+            </div>
+            {% if voucher_form.voucher_code.errors %}
+            <span class="error">{{ voucher_form.voucher_code.errors }}</span>
+            {% endif %}
+            <small>Enter one code at a time and click Redeem. The value is deducted from the balance to pay.</small>
+        </div>
+    </form>
+
+    {% if booking.voucher_code %}
+    <form method="post" class="checkout-remove-voucher">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="remove">
+        <button type="submit" class="btn-link">Remove voucher</button>
+    </form>
+    {% endif %}
+
+    <form method="post" class="checkout-pay-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="pay">
+        <div class="form-actions">
+            <button type="submit" class="btn-primary" id="checkout-pay">
+                {% if booking.price_paid <= 0 %}
+                Confirm booking
+                {% else %}
+                Continue to payment
+                {% endif %}
+            </button>
+            <a href="{{ booking.workshop.get_absolute_url }}" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+<script>
+(function () {
+    var payForm = document.querySelector('.checkout-pay-form');
+    var payBtn = document.getElementById('checkout-pay');
+    if (payForm && payBtn) {
+        payForm.addEventListener('submit', function () {
+            payBtn.disabled = true;
+            payBtn.textContent = 'Processing…';
+        });
+    }
+})();
+</script>
+{% endblock %}

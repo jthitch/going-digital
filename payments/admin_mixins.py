@@ -10,9 +10,10 @@ class RegionScopedPaymentAdminMixin:
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return filter_payments_for_user(qs, request.user).select_related(
-            'booking__workshop__course',
-            'booking__workshop__venue',
             'user',
+        ).prefetch_related(
+            'bookings__workshop__course',
+            'bookings__workshop__venue',
         )
 
     def has_module_permission(self, request):

@@ -29,6 +29,21 @@
         {% endif %}
         <p>You will receive a confirmation email with your voucher details shortly.</p>
     </div>
+    {% elif bookings %}
+    <p class="success-message">Thank you for your booking. Your payment has been processed successfully.</p>
+    <div class="booking-info">
+        <h2>Booking Details</h2>
+        {% for booking in bookings %}
+        <div class="success-booking-item">
+            <p><strong>Booking Reference:</strong> {{ booking.booking_reference }}</p>
+            <p><strong>Course:</strong> {{ booking.workshop.course.title|default:"Workshop" }}</p>
+            <p><strong>Date:</strong> {{ booking.workshop.start_date|date:"d F Y" }} at {{ booking.workshop.start_date|date:"g:i A" }}</p>
+            <p><strong>Student:</strong> {{ booking.student_first_name }} {{ booking.student_last_name }}</p>
+            <p><strong>Amount Paid:</strong> £{{ booking.price_paid|floatformat:2 }}</p>
+        </div>
+        {% endfor %}
+        <p>You will receive a confirmation email for each booking shortly.</p>
+    </div>
     {% elif booking %}
     <p class="success-message">Thank you for your booking. Your payment has been processed successfully.</p>
     <div class="booking-info">
@@ -37,16 +52,80 @@
         <p><strong>Course:</strong> {{ booking.workshop.course.title|default:"Workshop" }}</p>
         <p><strong>Date:</strong> {{ booking.workshop.start_date|date:"d F Y" }} at {{ booking.workshop.start_date|date:"g:i A" }}</p>
         <p><strong>Location:</strong> {{ booking.workshop.venue.name|default:"TBC" }}, {{ booking.workshop.venue.city|default:"" }}</p>
-        <p><strong>Amount Paid:</strong> £{{ booking.price_paid }}</p>
+        {% if booking.voucher_code %}
+        <p><strong>Voucher used:</strong> {{ booking.voucher_code }} (-£{{ booking.voucher_discount|floatformat:2 }})</p>
+        {% endif %}
+        <p><strong>Amount Paid:</strong> £{{ booking.price_paid|floatformat:2 }}</p>
         <p>You will receive a confirmation email shortly.</p>
+    </div>
+    {% elif checkout_pending %}
+    <p class="success-message">Thank you for your booking. Your payment has been processed successfully.</p>
+    <div class="booking-info">
+        <p>Your confirmation email is on its way{% if payment_account.email %} to <strong>{{ payment_account.email }}</strong>{% endif %}.</p>
+        <p>Create a password below to view your bookings online any time.</p>
     </div>
     {% elif request.GET.session_id %}
     <p class="success-message">Thank you. Your payment has been processed successfully.</p>
     <div class="booking-info">
-        <p>You will receive a confirmation email shortly.</p>
+        <p>We could not load your booking details from this payment reference. If you have just paid, check your confirmation email or contact us.</p>
     </div>
     {% else %}
     <p class="success-message">Thank you. Your payment has been processed successfully.</p>
+    {% endif %}
+
+    {% if payment_account %}
+    <div class="account-setup-panel">
+        {% if payment_account.mode == 'setup' %}
+        <h2>Complete your account</h2>
+        <p class="account-setup-lead">
+            Hi {{ payment_account.firstname }}, set a password for <strong>{{ payment_account.email }}</strong>
+            to view your bookings and course details any time.
+        </p>
+        <form method="post" action="{% url 'account:complete_setup' %}" class="booking-form account-form account-form--inline">
+            {% csrf_token %}
+            {{ account_setup_form.email }}
+            {% if payment_account.booking_reference %}
+            <input type="hidden" name="ref" value="{{ payment_account.booking_reference }}">
+            {% endif %}
+            <div class="booking-form-row booking-form-row--2">
+                <div class="form-group">
+                    <label for="{{ account_setup_form.password1.id_for_label }}">Password</label>
+                    {{ account_setup_form.password1 }}
+                </div>
+                <div class="form-group">
+                    <label for="{{ account_setup_form.password2.id_for_label }}">Confirm password</label>
+                    {{ account_setup_form.password2 }}
+                </div>
+            </div>
+            <div class="account-form-actions account-form-actions--inline">
+                <button type="submit" class="btn-primary">Save password and view bookings</button>
+                {% if payment_account.booking_reference %}
+                <a href="{% url 'account:complete_setup' %}?ref={{ payment_account.booking_reference }}" class="btn-secondary">Set up later</a>
+                {% endif %}
+            </div>
+        </form>
+        {% else %}
+        <h2>View your bookings</h2>
+        <p class="account-setup-lead">
+            An account already exists for <strong>{{ payment_account.email }}</strong>.
+            Sign in to see this booking and any others.
+        </p>
+        <div class="account-form-actions account-form-actions--inline">
+            <a href="{% url 'account:login' %}?next={% url 'account:my_bookings' %}" class="btn-primary">Sign in to my bookings</a>
+            {% if payment_account.booking_reference %}
+            <a href="{% url 'bookings:confirm' payment_account.booking_reference %}" class="btn-secondary">View this booking</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% elif user.is_authenticated %}
+    <div class="account-setup-panel">
+        <h2>View your bookings</h2>
+        <p class="account-setup-lead">You're signed in. Your bookings are in your account.</p>
+        <div class="account-form-actions account-form-actions--inline">
+            <a href="{% url 'account:my_bookings' %}" class="btn-primary">My bookings</a>
+        </div>
+    </div>
     {% endif %}
 
     <div class="actions">

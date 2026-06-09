@@ -28,12 +28,12 @@ class Booking(models.Model):
         related_name='bookings'
     )
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name='bookings')
-    payment = models.OneToOneField(
+    payment = models.ForeignKey(
         Payment,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='booking'
+        related_name='bookings',
     )
     
     # Student information (may differ from user account)
@@ -53,10 +53,33 @@ class Booking(models.Model):
     booking_reference = models.CharField(max_length=50, unique=True, db_index=True)
     
     # Pricing (snapshot at booking time)
+    list_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Workshop price before voucher discount',
+    )
+    voucher_id = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text='gd_voucher.id applied at checkout (redeemed after payment)',
+    )
+    voucher_code = models.CharField(max_length=255, blank=True, default='')
+    voucher_discount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+    )
+    voucher_redeemed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When the voucher was marked redeemed against this booking',
+    )
     price_paid = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        validators=[MinValueValidator(Decimal('0.01'))]
+        validators=[MinValueValidator(Decimal('0.00'))]
     )
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -104,6 +127,10 @@ class Booking(models.Model):
         """Check if course has already started."""
         from django.utils import timezone
         return timezone.now() > self.workshop.start_date
+
+    @property
+    def used_voucher(self):
+        return bool(self.voucher_id and self.voucher_code)
 
 
 class Voucher(models.Model):

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Complete your account - Photography Courses{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/booking.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="booking-container account-page">
+    <header class="basket-page-header booking-page-header">
+        <div>
+            <h1>Complete your account</h1>
+            <p class="basket-page-subtitle">
+                Set a password for <strong>{{ setup.email }}</strong> to view your bookings any time.
+            </p>
+        </div>
+    </header>
+
+    <div class="account-card account-setup-card">
+        <p class="account-setup-lead">
+            Hi {{ setup.firstname }}, your booking{% if setup.booking_reference %} ({{ setup.booking_reference }}){% endif %} is confirmed.
+            Choose a password to finish setting up your account.
+        </p>
+
+        <form method="post" action="{% url 'account:complete_setup' %}" class="booking-form account-form">
+            {% csrf_token %}
+            {{ form.email }}
+            {% if setup.booking_reference %}
+            <input type="hidden" name="ref" value="{{ setup.booking_reference }}">
+            {% endif %}
+
+            <div class="booking-form-row booking-form-row--2">
+                <div class="form-group">
+                    <label for="{{ form.password1.id_for_label }}">Password</label>
+                    {{ form.password1 }}
+                    {% if form.password1.errors %}<span class="error">{{ form.password1.errors }}</span>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.password2.id_for_label }}">Confirm password</label>
+                    {{ form.password2 }}
+                    {% if form.password2.errors %}<span class="error">{{ form.password2.errors }}</span>{% endif %}
+                </div>
+            </div>
+
+            {% if form.non_field_errors %}
+            <div class="error-message" role="alert">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div class="account-form-actions">
+                <button type="submit" class="btn-primary">Save password and view bookings</button>
+            </div>
+        </form>
+
+        <p class="account-switch">
+            Already have a password? <a href="{% url 'account:login' %}">Sign in</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

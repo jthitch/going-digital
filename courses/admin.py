@@ -1,7 +1,10 @@
 from django import forms
 from django.contrib import admin
+from django.http import JsonResponse
+from django.urls import path
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
+from django.views.decorators.http import require_GET
 
 from .admin_mixins import (
     PlatformAdminOnlyMixin,
@@ -318,6 +321,38 @@ class WorkshopAdmin(RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
         'updated_at',
     ]
 
+    def _fieldsets_without_bookings(self, fieldsets):
+        cleaned = []
+        for title, opts in fieldsets:
+            fields = tuple(f for f in opts.get('fields', ()) if f != 'bookings_display')
+            cleaned.append((title, {**opts, 'fields': fields}))
+        return cleaned
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = self._fieldsets_without_bookings(list(super().get_fieldsets(request, obj)))
+        if obj and obj.pk:
+            fieldsets.append((
+                'Customers',
+                {
+                    'fields': ('bookings_display',),
+                    'classes': ('wide', 'gd-workshop-customers-tab'),
+                },
+            ))
+        return fieldsets
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly = list(super().get_readonly_fields(request, obj))
+        if obj and obj.pk:
+            if 'bookings_display' not in readonly:
+                readonly.append('bookings_display')
+        else:
+            readonly = [f for f in readonly if f != 'bookings_display']
+        return readonly
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        self._current_request = request
+        return super().change_view(request, object_id, form_url, extra_context)
+
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('course', 'venue')
 
@@ -357,6 +392,16 @@ class WorkshopAdmin(RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
     @admin.display(description='Updated by')
     def updatedby_display(self, obj):
         return obj.get_updatedby_display()
+
+    @admin.display(description='')
+    def bookings_display(self, obj):
+        if not obj or not obj.pk:
+            return '—'
+
+        from .workshop_bookings_display import render_workshop_bookings_table
+
+        request = getattr(self, '_current_request', None)
+        return mark_safe(render_workshop_bookings_table(obj, request))
 
     class Media:
         css = {'all': ('admin/css/workshop-admin.css',)}
@@ -474,9 +519,10 @@ class VenueAdmin(RegionScopedVenueAdminMixin, admin.ModelAdmin):
                 'venue_region',
                 'county',
                 'venue_name',
-                'location',
                 'slug',
+                'postcode_lookup',
                 'venue_address',
+                'location',
                 'venue_telephone',
                 'venue_url',
                 'latitude',
@@ -522,9 +568,9 @@ class VenueAdmin(RegionScopedVenueAdminMixin, admin.ModelAdmin):
                 'display_venue_region',
                 'display_county',
                 'venue_name',
-                'location',
                 'slug',
                 'venue_address',
+                'location',
                 'venue_telephone',
                 'venue_url',
                 'latitude',
@@ -565,9 +611,10 @@ class VenueAdmin(RegionScopedVenueAdminMixin, admin.ModelAdmin):
                 'venue_user',
                 'county',
                 'venue_name',
-                'location',
                 'slug',
+                'postcode_lookup',
                 'venue_address',
+                'location',
                 'venue_telephone',
                 'venue_url',
                 'latitude',
@@ -602,6 +649,7 @@ class VenueAdmin(RegionScopedVenueAdminMixin, admin.ModelAdmin):
     class Media:
         css = {
             'all': (
+                'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
                 'admin/css/venue-admin.css',
                 'admin/css/course-admin.css',
             ),
@@ -609,8 +657,39 @@ class VenueAdmin(RegionScopedVenueAdminMixin, admin.ModelAdmin):
         js = (
             'admin/js/urlify.js',
             'admin/js/prepopulate.js',
+            'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
             'courses/js/admin-venue.js',
         )
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'postcode-lookup/',
+                self.admin_site.admin_view(self.postcode_lookup_view),
+                name='courses_venue_postcode_lookup',
+            ),
+        ]
+        return custom_urls + urls
+
+    @staticmethod
+    @require_GET
+    def postcode_lookup_view(request):
+        from courses.postcode_lookup import lookup_uk_postcode
+
+        postcode = (request.GET.get('postcode') or '').strip()
+        if not postcode:
+            return JsonResponse({'error': 'Enter a postcode.'}, status=400)
+        try:
+            result = lookup_uk_postcode(postcode)
+        except ValueError as exc:
+            return JsonResponse({'error': str(exc)}, status=400)
+        except Exception:
+            return JsonResponse(
+                {'error': 'Postcode lookup failed. Try again.'},
+                status=502,
+            )
+        return JsonResponse(result)
 
     def _venue_content_value(self, obj, attr, *, allow_html=False, empty='—'):
         if not obj:

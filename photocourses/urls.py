@@ -32,6 +32,7 @@ urlpatterns = [
     path('robots.txt', RobotsTxtView.as_view(), name='robots_txt'),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='sitemap'),
     path('', include('courses.urls')),
+    path('account/', include('core.urls')),
     path('bookings/', include('bookings.urls')),
     path('payments/', include('payments.urls')),
 ]

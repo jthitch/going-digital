@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Sign up - Photography Courses{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/booking.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="booking-container account-page">
+    <header class="basket-page-header booking-page-header">
+        <div>
+            <h1>Create account</h1>
+            <p class="basket-page-subtitle">Sign up to see all your course bookings in one place.</p>
+        </div>
+        <a href="{% url 'account:login' %}" class="basket-continue-shopping">Sign in</a>
+    </header>
+
+    <div class="account-card">
+        <form method="post" class="booking-form account-form">
+            {% csrf_token %}
+
+            <div class="booking-form-row booking-form-row--2">
+                <div class="form-group">
+                    <label for="{{ form.firstname.id_for_label }}">First name</label>
+                    {{ form.firstname }}
+                    {% if form.firstname.errors %}<span class="error">{{ form.firstname.errors }}</span>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.lastname.id_for_label }}">Last name</label>
+                    {{ form.lastname }}
+                    {% if form.lastname.errors %}<span class="error">{{ form.lastname.errors }}</span>{% endif %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.email.id_for_label }}">Email</label>
+                {{ form.email }}
+                {% if form.email.errors %}<span class="error">{{ form.email.errors }}</span>{% endif %}
+            </div>
+
+            <div class="booking-form-row booking-form-row--2">
+                <div class="form-group">
+                    <label for="{{ form.password1.id_for_label }}">Password</label>
+                    {{ form.password1 }}
+                    {% if form.password1.errors %}<span class="error">{{ form.password1.errors }}</span>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.password2.id_for_label }}">Confirm password</label>
+                    {{ form.password2 }}
+                    {% if form.password2.errors %}<span class="error">{{ form.password2.errors }}</span>{% endif %}
+                </div>
+            </div>
+
+            {% if form.non_field_errors %}
+            <div class="error-message" role="alert">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div class="account-form-actions">
+                <button type="submit" class="btn-primary">Create account</button>
+            </div>
+        </form>
+
+        <p class="account-switch">
+            Already have an account? <a href="{% url 'account:login' %}">Sign in</a>
+        </p>
+        <p class="account-help">Booked as a guest? Use the same email and we'll link your courses automatically.</p>
+    </div>
+</div>
+{% endblock %}

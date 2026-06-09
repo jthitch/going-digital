@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Going Digital{% endblock %}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;color:#333;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f4f4;padding:24px 12px;">
+    <tr>
+        <td align="center">
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #e0e0e0;">
+                <tr>
+                    <td style="padding:24px 28px;background:#1a1a1a;color:#ffffff;text-align:center;">
+                        {% if logo_url %}
+                        <a href="{{ site_url|default:'#' }}" style="text-decoration:none;">
+                            <img src="{{ logo_url }}" alt="Going Digital" width="200" style="display:inline-block;max-width:200px;width:200px;height:auto;border:0;">
+                        </a>
+                        {% else %}
+                        <strong style="font-size:20px;">Going Digital</strong>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:28px;line-height:1.6;font-size:15px;">
+                        {% block content %}{% endblock %}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:16px 28px;background:#f8f8f8;border-top:1px solid #e0e0e0;font-size:12px;color:#666;">
+                        {% block footer %}
+                        <p style="margin:0;">Going Digital photography courses</p>
+                        {% if contact_email %}
+                        <p style="margin:8px 0 0;">Questions? Contact us at <a href="mailto:{{ contact_email }}" style="color:#0066cc;">{{ contact_email }}</a></p>
+                        {% endif %}
+                        {% endblock %}
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

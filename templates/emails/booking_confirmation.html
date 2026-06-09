@@ -1,0 +1,57 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Booking confirmed — {{ course_title }}{% endblock %}
+
+{% block content %}
+<p style="margin:0 0 16px;">Dear {{ student_name }},</p>
+
+<p style="margin:0 0 16px;">Thank you for your booking. Your payment has been received and your place is confirmed.</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#f9f9f9;border:1px solid #e8e8e8;">
+    <tr>
+        <td style="padding:16px 18px;">
+            <p style="margin:0 0 8px;"><strong>Booking reference:</strong> {{ booking_reference }}</p>
+            <p style="margin:0 0 8px;"><strong>Course:</strong> {{ course_title }}</p>
+            <p style="margin:0 0 8px;"><strong>Date:</strong> {{ workshop_date }}{% if workshop_time %} at {{ workshop_time }}{% endif %}</p>
+            <p style="margin:0 0 8px;"><strong>Location:</strong> {{ location_name }}{% if location_city %}, {{ location_city }}{% endif %}</p>
+            {% if location_address %}
+            <p style="margin:0 0 8px;"><strong>Address:</strong> {{ location_address|linebreaksbr }}</p>
+            {% endif %}
+            {% if voucher_code %}
+            <p style="margin:0 0 8px;"><strong>Voucher:</strong> {{ voucher_code }} (-£{{ voucher_discount }})</p>
+            {% endif %}
+            <p style="margin:0 0 8px;"><strong>Amount paid:</strong> £{{ price_paid }}</p>
+            {% if tutor_name %}
+            <p style="margin:0;"><strong>Your tutor:</strong> {{ tutor_name }}{% if tutor_email %} (<a href="mailto:{{ tutor_email }}" style="color:#0066cc;">{{ tutor_email }}</a>){% endif %}</p>
+            {% endif %}
+        </td>
+    </tr>
+</table>
+
+{% if special_requirements %}
+<p style="margin:0 0 16px;"><strong>Special requirements noted:</strong> {{ special_requirements }}</p>
+{% endif %}
+
+<p style="margin:0 0 16px;">You will receive joining instructions from your local tutor before the workshop.</p>
+
+{% if account_setup_url %}
+<p style="margin:0 0 16px;">
+    <strong>View your bookings online:</strong>
+    <a href="{{ account_setup_url }}" style="color:#0066cc;">Set a password to complete your account</a>
+    and see this booking any time.
+</p>
+{% endif %}
+
+{% if google_calendar_url or outlook_calendar_url %}
+<p style="margin:0 0 8px;"><strong>Add to your calendar</strong></p>
+<p style="margin:0 0 16px;">
+    {% if google_calendar_url %}<a href="{{ google_calendar_url }}" style="color:#0066cc;margin-right:12px;">Google Calendar</a>{% endif %}
+    {% if outlook_calendar_url %}<a href="{{ outlook_calendar_url }}" style="color:#0066cc;margin-right:12px;">Outlook</a>{% endif %}
+    {% if calendar_ics %}<span style="color:#666;">or open the attached <strong>{{ calendar_ics_filename }}</strong> file</span>{% endif %}
+</p>
+{% endif %}
+
+{% if workshop_url %}
+<p style="margin:0;"><a href="{{ workshop_url }}" style="color:#0066cc;">View workshop details on our website</a></p>
+{% endif %}
+{% endblock %}

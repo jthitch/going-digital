@@ -147,6 +147,26 @@ class BooleanToggleWidget(forms.CheckboxInput):
         )
 
 
+class VenuePostcodeLookupWidget(forms.TextInput):
+    """Postcode field with a visible Look up control (JS wires the click handler)."""
+
+    class Media:
+        js = ('courses/js/admin-venue.js',)
+
+    def render(self, name, value, attrs=None, renderer=None):
+        final_attrs = self.build_attrs(self.attrs, attrs)
+        css_class = final_attrs.get('class', '')
+        final_attrs['class'] = f'{css_class} venue-postcode-lookup-input'.strip()
+        input_html = super().render(name, value, final_attrs, renderer)
+        return format_html(
+            '<div class="venue-postcode-lookup-wrap">'
+            '{}'
+            '<button type="button" class="button venue-postcode-lookup-btn">Look up</button>'
+            '</div>',
+            input_html,
+        )
+
+
 class CourseUrlHelpWidget(forms.Widget):
     """Read-only course URL preview for admin (no input box)."""
 
@@ -426,6 +446,15 @@ class VenueAdminForm(forms.ModelForm):
         label='County',
         widget=_venue_admin_select_widget(),
     )
+    postcode_lookup = forms.CharField(
+        required=False,
+        label='Postcode lookup',
+        help_text='Enter a UK postcode and click Look up to fill the address and map coordinates.',
+        widget=VenuePostcodeLookupWidget(attrs={
+            'placeholder': 'e.g. GL54 1AB',
+            'autocomplete': 'postal-code',
+        }),
+    )
 
     class Meta:
         model = Venue
@@ -436,9 +465,9 @@ class VenueAdminForm(forms.ModelForm):
             'venue_user',
             'county',
             'venue_name',
-            'location',
             'slug',
             'venue_address',
+            'location',
             'venue_telephone',
             'venue_url',
             'latitude',
@@ -447,6 +476,12 @@ class VenueAdminForm(forms.ModelForm):
             'created_at',
             'updated_at',
         ]
+        widgets = {
+            'venue_url': forms.TextInput(attrs={
+                'placeholder': 'https://',
+                'inputmode': 'url',
+            }),
+        }
 
     def __init__(self, *args, region_ids=None, franchisee_mode=False, editor_user_id=None, **kwargs):
         self.region_ids = region_ids

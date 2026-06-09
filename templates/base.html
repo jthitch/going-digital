@@ -28,6 +28,15 @@
             <div class="nav-end">
                 <div class="nav-links">
                     <a href="{% url 'courses:course_list' %}" class="nav-link-item">Explore Courses</a>
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'account:my_bookings' %}" class="nav-link-item">My bookings</a>
+                    <form method="post" action="{% url 'account:logout' %}" class="nav-logout-form nav-logout-form--desktop">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-logout-btn">Sign out</button>
+                    </form>
+                    {% else %}
+                    <a href="{% url 'account:login' %}" class="nav-link-item">Sign in</a>
+                    {% endif %}
                     <div class="nav-gift-wrap">
                         <a href="{% url 'courses:gift_vouchers' %}" class="nav-gift-vouchers nav-link-item" aria-label="Gift Vouchers">
                             <span class="nav-gift-text">Gift Vouchers</span>
@@ -51,9 +60,20 @@
                     <div id="nav-menu" class="nav-menu" aria-hidden="true">
                         <a href="{% url 'courses:course_list' %}" class="nav-menu-mobile-only">Explore Courses</a>
                         <a href="{% url 'courses:gift_vouchers' %}" class="nav-menu-mobile-only">Gift Vouchers</a>
+                        <a href="{% url 'bookings:basket' %}">Basket{% if basket_item_count %} ({{ basket_item_count }}){% endif %}</a>
                         <a href="{% url 'courses:venue_list' %}">Venues</a>
                         <a href="{% url 'courses:faq' %}">FAQ</a>
                         <a href="{% url 'courses:contact' %}">Contact</a>
+                        {% if user.is_authenticated %}
+                        <a href="{% url 'account:my_bookings' %}" class="nav-menu-mobile-only">My bookings</a>
+                        <form method="post" action="{% url 'account:logout' %}" class="nav-logout-form nav-menu-mobile-only">
+                            {% csrf_token %}
+                            <button type="submit" class="nav-logout-btn">Sign out</button>
+                        </form>
+                        {% else %}
+                        <a href="{% url 'account:login' %}" class="nav-menu-mobile-only">Sign in</a>
+                        <a href="{% url 'account:signup' %}" class="nav-menu-mobile-only">Sign up</a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -86,17 +106,6 @@
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        var giftWraps = document.querySelectorAll('.nav-gift-wrap');
-        if (giftWraps.length) {
-            setTimeout(function() {
-                giftWraps.forEach(function(w) { w.classList.add('gift-promo'); });
-                function hideOnScroll() {
-                    giftWraps.forEach(function(w) { w.classList.remove('gift-promo'); });
-                    window.removeEventListener('scroll', hideOnScroll, { passive: true });
-                }
-                window.addEventListener('scroll', hideOnScroll, { passive: true });
-            }, 3000);
-        }
         var burger = document.querySelector('.nav-burger');
         var menu = document.getElementById('nav-menu');
         if (burger && menu) {

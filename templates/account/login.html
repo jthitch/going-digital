@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Sign in - Photography Courses{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/booking.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="booking-container account-page">
+    <header class="basket-page-header booking-page-header">
+        <div>
+            <h1>Sign in</h1>
+            <p class="basket-page-subtitle">View your booked courses and manage your account.</p>
+        </div>
+        <a href="{% url 'account:signup' %}" class="basket-continue-shopping">Create account</a>
+    </header>
+
+    {% if messages %}
+    <div class="basket-messages" role="status" aria-live="polite">
+        {% for message in messages %}
+        <p class="basket-message basket-message--{{ message.tags|default:'info' }}">{{ message }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="account-card">
+        <form method="post" class="booking-form account-form">
+            {% csrf_token %}
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+            <div class="form-group">
+                <label for="{{ form.email.id_for_label }}">Email</label>
+                {{ form.email }}
+                {% if form.email.errors %}<span class="error">{{ form.email.errors }}</span>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.password.id_for_label }}">Password</label>
+                {{ form.password }}
+                {% if form.password.errors %}<span class="error">{{ form.password.errors }}</span>{% endif %}
+            </div>
+
+            {% if form.non_field_errors %}
+            <div class="error-message" role="alert">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div class="account-form-actions">
+                <button type="submit" class="btn-primary">Sign in</button>
+            </div>
+        </form>
+
+        <p class="account-switch">
+            New here? <a href="{% url 'account:signup' %}">Create an account</a>
+        </p>
+        <p class="account-help">If you booked with us before, use the same email and your existing password.</p>
+    </div>
+</div>
+{% endblock %}

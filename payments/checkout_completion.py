@@ -1,4 +1,5 @@
 """Shared logic to mark a Stripe Checkout Session as paid in Django."""
+from django.db import transaction
 from django.db.models import F
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -44,7 +45,8 @@ def complete_checkout_session(session, *, source='checkout.session.completed'):
         payment.status = 'succeeded'
         payment.succeeded_at = now
         payment.last_webhook_event = source
-        payment.webhook_processed = source == 'checkout.session.completed'
+        if source == 'checkout.session.completed':
+            payment.webhook_processed = True
         payment.save(
             update_fields=[
                 'status',
@@ -62,7 +64,9 @@ def complete_checkout_session(session, *, source='checkout.session.completed'):
 
     try:
         if 'gift_voucher_basket_id' in metadata:
-            _complete_gift_voucher(metadata, session_id)
+            _complete_gift_voucher(metadata, session_id, payment)
+        elif 'workshop_basket_id' in metadata:
+            _complete_workshop_basket(metadata, payment)
         elif 'booking_id' in metadata:
             _complete_booking(metadata)
     except (Booking.DoesNotExist, KeyError, ValueError, TypeError):
@@ -71,7 +75,7 @@ def complete_checkout_session(session, *, source='checkout.session.completed'):
     return payment
 
 
-def _complete_gift_voucher(metadata, session_id):
+def _complete_gift_voucher(metadata, session_id, payment):
     from bookings.gift_voucher_basket import (
         create_vouchers_from_basket,
         get_vouchers_for_basket,
@@ -82,45 +86,183 @@ def _complete_gift_voucher(metadata, session_id):
     basket_id = int(metadata['gift_voucher_basket_id'])
     update_basket_gateway_transaction(basket_id, session_id)
 
-    if get_vouchers_for_basket(basket_id):
+    voucher_codes = get_vouchers_for_basket(basket_id)
+    if not voucher_codes:
+        voucher_codes = create_vouchers_from_basket(basket_id, session_id)
+    if not voucher_codes:
         return
 
-    voucher_codes = create_vouchers_from_basket(basket_id, session_id)
-    if voucher_codes:
-        send_gift_voucher_confirmation_email(basket_id, voucher_codes)
+    should_send_email = False
+    payment_id = None
+
+    with transaction.atomic():
+        locked_payment = Payment.objects.select_for_update().get(pk=payment.pk)
+        payment_id = locked_payment.pk
+        pay_meta = dict(locked_payment.metadata or {})
+        if not pay_meta.get('confirmation_email_sent'):
+            pay_meta['confirmation_email_sent'] = True
+            should_send_email = True
+            locked_payment.metadata = pay_meta
+            locked_payment.save(update_fields=['metadata', 'updated_at'])
+
+    if should_send_email:
+        try:
+            send_gift_voucher_confirmation_email(basket_id, voucher_codes)
+        except Exception:
+            with transaction.atomic():
+                locked_payment = Payment.objects.select_for_update().get(pk=payment_id)
+                pay_meta = dict(locked_payment.metadata or {})
+                pay_meta.pop('confirmation_email_sent', None)
+                locked_payment.metadata = pay_meta
+                locked_payment.save(update_fields=['metadata', 'updated_at'])
+            raise
 
 
-def _increment_workshop_places_booked(workshop_id):
+def _increment_workshop_places_booked(workshop_id, places=1):
     """Increment gd_workshop.places_booked (NULL is treated as 0)."""
-    if not workshop_id:
+    if not workshop_id or places < 1:
         return
     from courses.models import Workshop
 
     Workshop.objects.filter(pk=workshop_id).update(
-        places_booked=Coalesce(F('places_booked'), 0) + 1,
+        places_booked=Coalesce(F('places_booked'), 0) + places,
     )
 
 
+def _complete_workshop_basket(metadata, payment):
+    """Confirm all bookings in a workshop basket payment."""
+    from collections import Counter
+
+    from payments.tasks import send_booking_confirmation_email
+
+    basket_id = int(metadata['workshop_basket_id'])
+    booking_ids = metadata.get('booking_ids') or []
+    if isinstance(booking_ids, str):
+        booking_ids = [int(x) for x in booking_ids.split(',') if x.strip().isdigit()]
+    else:
+        booking_ids = [int(x) for x in booking_ids]
+
+    if not booking_ids:
+        from bookings.workshop_basket import get_workshop_basket
+        basket = get_workshop_basket(basket_id)
+        if basket:
+            booking_ids = basket['basket_data'].get('booking_ids') or []
+
+    should_send_emails = []
+    places_by_workshop = Counter()
+    payment_id = payment.pk
+    apply_places = False
+    places_to_apply = {}
+
+    with transaction.atomic():
+        locked_payment = Payment.objects.select_for_update().get(pk=payment_id)
+        pay_meta = dict(locked_payment.metadata or {})
+        apply_places = not pay_meta.get('places_booked_applied')
+
+        for booking_id in booking_ids:
+            booking = Booking.objects.select_for_update().get(id=booking_id)
+            if booking.payment_id != locked_payment.pk:
+                booking.payment = locked_payment
+                booking.save(update_fields=['payment', 'updated_at'])
+
+            if booking.status != 'confirmed':
+                booking.status = 'confirmed'
+                booking.save(update_fields=['status', 'updated_at'])
+
+            places_by_workshop[booking.workshop_id] += 1
+
+            if not pay_meta.get('voucher_redeemed') and booking.voucher_id:
+                from bookings.voucher_redemption import redeem_voucher_for_booking
+                redeem_voucher_for_booking(booking)
+
+            email_key = f'confirmation_email_sent_{booking_id}'
+            if not pay_meta.get(email_key):
+                pay_meta[email_key] = True
+                should_send_emails.append(booking_id)
+
+        if not pay_meta.get('voucher_redeemed'):
+            pay_meta['voucher_redeemed'] = True
+
+        if apply_places:
+            pay_meta['places_booked_applied'] = True
+            places_to_apply = dict(places_by_workshop)
+
+        locked_payment.metadata = pay_meta
+        locked_payment.save(update_fields=['metadata', 'updated_at'])
+
+    if apply_places:
+        for workshop_id, count in places_to_apply.items():
+            _increment_workshop_places_booked(workshop_id, count)
+
+    for booking_id in should_send_emails:
+        try:
+            send_booking_confirmation_email(booking_id)
+        except Exception:
+            with transaction.atomic():
+                locked_payment = Payment.objects.select_for_update().get(pk=payment_id)
+                pay_meta = dict(locked_payment.metadata or {})
+                pay_meta.pop(f'confirmation_email_sent_{booking_id}', None)
+                locked_payment.metadata = pay_meta
+                locked_payment.save(update_fields=['metadata', 'updated_at'])
+            raise
+
+
 def _complete_booking(metadata):
-    from payments.tasks import send_booking_confirmation_email, send_payment_success_email
+    """Confirm booking once; increment places and send email at most once (webhook + success safe)."""
+    from payments.tasks import send_booking_confirmation_email
 
     booking_id = int(metadata['booking_id'])
-    booking = Booking.objects.select_related('payment').get(id=booking_id)
-    payment = getattr(booking, 'payment', None)
-    pay_meta = dict(payment.metadata or {}) if payment else {}
+    should_increment_places = False
+    should_send_email = False
+    workshop_id = None
+    payment_id = None
 
-    newly_confirmed = booking.status != 'confirmed'
-    if newly_confirmed:
-        booking.status = 'confirmed'
-        booking.save(update_fields=['status', 'updated_at'])
+    with transaction.atomic():
+        booking = Booking.objects.select_for_update().get(id=booking_id)
+        payment = booking.payment
+        if not payment:
+            return
 
-    if not pay_meta.get('places_booked_applied'):
-        _increment_workshop_places_booked(booking.workshop_id)
-        if payment:
+        payment = Payment.objects.select_for_update().get(pk=payment.pk)
+        payment_id = payment.pk
+        pay_meta = dict(payment.metadata or {})
+
+        if booking.status != 'confirmed':
+            booking.status = 'confirmed'
+            booking.save(update_fields=['status', 'updated_at'])
+
+        if not pay_meta.get('places_booked_applied'):
             pay_meta['places_booked_applied'] = True
-            payment.metadata = pay_meta
-            payment.save(update_fields=['metadata', 'updated_at'])
+            should_increment_places = True
+            workshop_id = booking.workshop_id
 
-    if newly_confirmed:
-        send_booking_confirmation_email(booking.id)
-        send_payment_success_email(booking.id)
+        if not pay_meta.get('confirmation_email_sent'):
+            pay_meta['confirmation_email_sent'] = True
+            should_send_email = True
+
+        if not pay_meta.get('voucher_redeemed'):
+            if booking.voucher_id:
+                from bookings.voucher_redemption import redeem_voucher_for_booking
+                redeem_voucher_for_booking(booking)
+                pay_meta['voucher_id'] = booking.voucher_id
+                pay_meta['voucher_code'] = booking.voucher_code
+                pay_meta['voucher_discount'] = str(booking.voucher_discount)
+            pay_meta['voucher_redeemed'] = True
+
+        payment.metadata = pay_meta
+        payment.save(update_fields=['metadata', 'updated_at'])
+
+    if should_increment_places:
+        _increment_workshop_places_booked(workshop_id)
+
+    if should_send_email:
+        try:
+            send_booking_confirmation_email(booking_id)
+        except Exception:
+            with transaction.atomic():
+                payment = Payment.objects.select_for_update().get(pk=payment_id)
+                pay_meta = dict(payment.metadata or {})
+                pay_meta.pop('confirmation_email_sent', None)
+                payment.metadata = pay_meta
+                payment.save(update_fields=['metadata', 'updated_at'])
+            raise

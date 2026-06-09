@@ -8,78 +8,238 @@
 {% endblock %}
 
 {% block content %}
-<div class="booking-container">
-    <h1>Book Your Course</h1>
-    
-    <div class="course-summary">
-        <h2>{{ course_instance.course.title }}</h2>
-        <div class="course-details">
-            <p><strong>Date:</strong> {{ course_instance.start_date|date:"d F Y" }} at {{ course_instance.start_date|date:"g:i A" }}</p>
-            <p><strong>Location:</strong> {{ course_instance.location.name }}, {{ course_instance.location.city }}</p>
-            <p><strong>Price:</strong> £{{ course_instance.price }}</p>
-            {% if course_instance.spaces_available %}
-            <p><strong>Spaces Available:</strong> {{ course_instance.spaces_available }}</p>
-            {% else %}
-            <p class="warning"><strong>Only {{ course_instance.spaces_available }} space(s) remaining!</strong></p>
-            {% endif %}
+<div class="booking-container booking-page">
+    <header class="basket-page-header booking-page-header">
+        <div>
+            <h1>Book your course</h1>
+            <p class="basket-page-subtitle">Add places to your basket — you can book more courses before checkout.</p>
         </div>
+        <a href="{{ course_instance.get_absolute_url }}" class="basket-continue-shopping">Back to course</a>
+    </header>
+
+    {% if messages %}
+    <div class="basket-messages" role="status" aria-live="polite">
+        {% for message in messages %}
+        <p class="basket-message basket-message--{{ message.tags|default:'info' }}">{{ message }}</p>
+        {% endfor %}
     </div>
-    
-    <form method="post" class="booking-form">
-        {% csrf_token %}
-        
-        <div class="form-group">
-            <label for="{{ form.student_first_name.id_for_label }}">First Name *</label>
-            {{ form.student_first_name }}
-            {% if form.student_first_name.errors %}
-            <span class="error">{{ form.student_first_name.errors }}</span>
-            {% endif %}
-        </div>
-        
-        <div class="form-group">
-            <label for="{{ form.student_last_name.id_for_label }}">Last Name *</label>
-            {{ form.student_last_name }}
-            {% if form.student_last_name.errors %}
-            <span class="error">{{ form.student_last_name.errors }}</span>
-            {% endif %}
-        </div>
-        
-        <div class="form-group">
-            <label for="{{ form.student_email.id_for_label }}">Email *</label>
-            {{ form.student_email }}
-            {% if form.student_email.errors %}
-            <span class="error">{{ form.student_email.errors }}</span>
-            {% endif %}
-        </div>
-        
-        <div class="form-group">
-            <label for="{{ form.student_phone.id_for_label }}">Phone</label>
-            {{ form.student_phone }}
-            {% if form.student_phone.errors %}
-            <span class="error">{{ form.student_phone.errors }}</span>
-            {% endif %}
-            <small>Format: +1234567890</small>
-        </div>
-        
-        <div class="form-group">
-            <label for="{{ form.special_requirements.id_for_label }}">Special Requirements</label>
-            {{ form.special_requirements }}
-            {% if form.special_requirements.errors %}
-            <span class="error">{{ form.special_requirements.errors }}</span>
-            {% endif %}
-            <small>Dietary requirements, accessibility needs, etc.</small>
-        </div>
-        
-        {% if form.non_field_errors %}
-        <div class="error-message">
-            {{ form.non_field_errors }}
-        </div>
-        {% endif %}
-        
-        <div class="form-actions">
-            <button type="submit" class="btn-primary">Continue to Payment</button>
-            <a href="{{ course_instance.get_absolute_url }}" class="btn-secondary">Cancel</a>
-        </div>
-    </form>
+    {% endif %}
+
+    <div class="booking-layout">
+        <section class="booking-form-section" aria-label="Booking details">
+            <form method="post" class="booking-form" id="booking-form">
+                {% csrf_token %}
+
+                <div class="booking-form-card">
+                    <h2 class="booking-form-card-title">Your details</h2>
+                    <p class="booking-form-card-lead">These details apply to all places on this line. You can add different students by booking separately.</p>
+
+                    <div class="booking-form-row booking-form-row--2">
+                        <div class="form-group">
+                            <label for="{{ form.student_first_name.id_for_label }}">First name <span class="booking-required" aria-hidden="true">*</span></label>
+                            {{ form.student_first_name }}
+                            {% if form.student_first_name.errors %}
+                            <span class="error">{{ form.student_first_name.errors }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label for="{{ form.student_last_name.id_for_label }}">Last name <span class="booking-required" aria-hidden="true">*</span></label>
+                            {{ form.student_last_name }}
+                            {% if form.student_last_name.errors %}
+                            <span class="error">{{ form.student_last_name.errors }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="booking-form-row booking-form-row--2">
+                        <div class="form-group">
+                            <label for="{{ form.student_email.id_for_label }}">Email <span class="booking-required" aria-hidden="true">*</span></label>
+                            {{ form.student_email }}
+                            {% if form.student_email.errors %}
+                            <span class="error">{{ form.student_email.errors }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label for="{{ form.student_phone.id_for_label }}">Phone</label>
+                            {{ form.student_phone }}
+                            {% if form.student_phone.errors %}
+                            <span class="error">{{ form.student_phone.errors }}</span>
+                            {% endif %}
+                            <small>Optional — include country code, e.g. +44 7700 900000</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="booking-form-card">
+                    <h2 class="booking-form-card-title">Booking options</h2>
+
+                    <div class="form-group">
+                        <label for="{{ form.quantity.id_for_label }}">Number of places <span class="booking-required" aria-hidden="true">*</span></label>
+                        <div class="booking-qty-row">
+                            <div class="basket-qty-stepper">
+                                <button type="button" class="basket-qty-btn" data-qty-action="decrease"
+                                        aria-label="Decrease number of places">−</button>
+                                {{ form.quantity }}
+                                <button type="button" class="basket-qty-btn" data-qty-action="increase"
+                                        aria-label="Increase number of places">+</button>
+                            </div>
+                            <span class="booking-qty-hint">Same student details for each place</span>
+                        </div>
+                        {% if form.quantity.errors %}
+                        <span class="error">{{ form.quantity.errors }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.special_requirements.id_for_label }}">Special requirements</label>
+                        {{ form.special_requirements }}
+                        {% if form.special_requirements.errors %}
+                        <span class="error">{{ form.special_requirements.errors }}</span>
+                        {% endif %}
+                        <small>Dietary needs, accessibility, or anything we should know before the day.</small>
+                    </div>
+                </div>
+
+                {% if form.non_field_errors %}
+                <div class="error-message" role="alert">
+                    {{ form.non_field_errors }}
+                </div>
+                {% endif %}
+
+                <div class="booking-form-actions booking-form-actions--mobile">
+                    <button type="submit" name="action" value="basket" class="btn-primary" id="booking-submit">
+                        Add to basket
+                    </button>
+                    <button type="submit" name="action" value="checkout" class="btn-secondary">
+                        Add and checkout
+                    </button>
+                    {% if basket_has_items %}
+                    <a href="{% url 'bookings:basket' %}" class="btn-secondary booking-basket-link">
+                        View basket ({{ basket_item_count }})
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </section>
+
+        <aside class="booking-course-summary" aria-label="Course summary">
+            <div class="booking-course-card">
+                <div class="booking-course-media">
+                    {% if course_instance.course.image and course_instance.course.image.url %}
+                    <img src="{{ course_instance.course.image.url }}"
+                         alt=""
+                         class="booking-course-image"
+                         loading="lazy"
+                         decoding="async">
+                    {% else %}
+                    <div class="booking-course-image-placeholder" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
+                            <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                        </svg>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <h2 class="booking-course-title">{{ course_instance.course.title }}</h2>
+
+                <ul class="basket-item-meta booking-course-meta">
+                    <li>
+                        <svg class="basket-meta-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z"/>
+                        </svg>
+                        <span>{{ course_instance.start_date|date:"l j F Y" }} · {{ course_instance.start_date|date:"g:i A" }}</span>
+                    </li>
+                    <li>
+                        <svg class="basket-meta-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        </svg>
+                        <span>{{ course_instance.location.name }}, {{ course_instance.location.city }}</span>
+                    </li>
+                </ul>
+
+                <dl class="booking-course-pricing">
+                    <div class="booking-course-pricing-row">
+                        <dt>Price per place</dt>
+                        <dd>£{{ course_instance.price }}</dd>
+                    </div>
+                    <div class="booking-course-pricing-row booking-course-pricing-row--total">
+                        <dt>Line total</dt>
+                        <dd id="booking-line-total">£{{ course_instance.price }}</dd>
+                    </div>
+                </dl>
+
+                {% if course_instance.is_full %}
+                <p class="booking-availability booking-availability--full">This course is fully booked</p>
+                {% elif course_instance.spaces_available <= 3 %}
+                <p class="booking-availability booking-availability--low">
+                    Only {{ course_instance.spaces_available }} place{{ course_instance.spaces_available|pluralize }} left
+                </p>
+                {% else %}
+                <p class="booking-availability">{{ course_instance.spaces_available }} places available</p>
+                {% endif %}
+            </div>
+
+            <div class="booking-sidebar-actions">
+                <button type="submit" form="booking-form" name="action" value="basket" class="btn-primary booking-sidebar-btn">
+                    Add to basket
+                </button>
+                <button type="submit" form="booking-form" name="action" value="checkout" class="btn-secondary booking-sidebar-btn">
+                    Add and checkout
+                </button>
+                {% if basket_has_items %}
+                <a href="{% url 'bookings:basket' %}" class="btn-secondary booking-sidebar-btn booking-basket-link">
+                    View basket ({{ basket_item_count }})
+                </a>
+                {% endif %}
+            </div>
+
+            <p class="basket-secure-note">Add more courses from your basket before paying. Gift vouchers can be applied at checkout.</p>
+        </aside>
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var form = document.getElementById('booking-form');
+    var qtyInput = form && form.querySelector('.booking-qty-input');
+    var lineTotal = document.getElementById('booking-line-total');
+    var unitPrice = {{ course_instance.price }};
+    var submitBtn = document.getElementById('booking-submit');
+
+    function updateLineTotal() {
+        if (!qtyInput || !lineTotal) return;
+        var qty = parseInt(qtyInput.value, 10) || 1;
+        lineTotal.textContent = '£' + (unitPrice * qty).toFixed(2);
+    }
+
+    if (qtyInput) {
+        var min = parseInt(qtyInput.getAttribute('min'), 10) || 1;
+        var max = parseInt(qtyInput.getAttribute('max'), 10) || 10;
+
+        form.querySelectorAll('[data-qty-action]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var value = parseInt(qtyInput.value, 10) || min;
+                if (btn.getAttribute('data-qty-action') === 'decrease') {
+                    qtyInput.value = Math.max(min, value - 1);
+                } else {
+                    qtyInput.value = Math.min(max, value + 1);
+                }
+                updateLineTotal();
+            });
+        });
+
+        qtyInput.addEventListener('input', updateLineTotal);
+        updateLineTotal();
+    }
+
+    if (form && submitBtn) {
+        form.addEventListener('submit', function () {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Adding…';
+        });
+    }
+});
+</script>
 {% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}My bookings - Photography Courses{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/booking.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="booking-container account-page account-page--wide">
+    <header class="basket-page-header booking-page-header">
+        <div>
+            <h1>My bookings</h1>
+            <p class="basket-page-subtitle">
+                {% if booking_count %}
+                {{ booking_count }} booking{{ booking_count|pluralize }} for {{ user.get_full_name }}
+                {% else %}
+                Signed in as {{ user.email }}
+                {% endif %}
+            </p>
+        </div>
+        <a href="{% url 'courses:course_list' %}" class="basket-continue-shopping">Book another course</a>
+    </header>
+
+    {% if messages %}
+    <div class="basket-messages" role="status" aria-live="polite">
+        {% for message in messages %}
+        <p class="basket-message basket-message--{{ message.tags|default:'info' }}">{{ message }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if upcoming_bookings or past_bookings or cancelled_bookings %}
+    {% if upcoming_bookings %}
+    <section class="account-bookings-section" aria-labelledby="upcoming-heading">
+        <h2 id="upcoming-heading" class="account-section-title">Upcoming</h2>
+        <ul class="account-booking-list">
+            {% for booking in upcoming_bookings %}
+            {% include "account/_booking_card.html" with booking=booking %}
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
+    {% if past_bookings %}
+    <section class="account-bookings-section" aria-labelledby="past-heading">
+        <h2 id="past-heading" class="account-section-title">Past courses</h2>
+        <ul class="account-booking-list">
+            {% for booking in past_bookings %}
+            {% include "account/_booking_card.html" with booking=booking %}
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
+    {% if cancelled_bookings %}
+    <section class="account-bookings-section" aria-labelledby="cancelled-heading">
+        <h2 id="cancelled-heading" class="account-section-title">Cancelled</h2>
+        <ul class="account-booking-list">
+            {% for booking in cancelled_bookings %}
+            {% include "account/_booking_card.html" with booking=booking %}
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+    {% else %}
+    <div class="basket-empty account-empty">
+        <div class="basket-empty-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+                <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z"/>
+            </svg>
+        </div>
+        <h2 class="basket-empty-title">No bookings yet</h2>
+        <p class="basket-empty-text">When you book a workshop, it will appear here. Guest bookings are linked when you sign in with the same email.</p>
+        <a href="{% url 'courses:course_list' %}" class="btn-primary">Explore courses</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

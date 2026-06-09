@@ -24,6 +24,7 @@ class Payment(models.Model):
     INTENT_CHOICES = [
         ('checkout_session', 'Checkout Session'),
         ('payment_intent', 'Payment Intent'),
+        ('voucher_free', 'Voucher (no card charge)'),
     ]
     
     user = models.ForeignKey(
@@ -37,7 +38,7 @@ class Payment(models.Model):
     amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        validators=[MinValueValidator(Decimal('0.01'))]
+        validators=[MinValueValidator(Decimal('0.00'))]
     )
     currency = models.CharField(max_length=3, default='gbp')
     

@@ -9,12 +9,20 @@
         <div class="card-body">
             <div class="row text-center">
                 <div class="col-sm-6 mb-3 mb-sm-0">
-                    <p class="gd-kpi-value mb-0">{{ payment_kpis_count }}</p>
-                    <p class="gd-kpi-label text-muted mb-0">{% trans 'Payments' %}</p>
+                    <p class="gd-kpi-value mb-0">
+                        {{ payment_kpis_booking_count }}{% if payment_kpis_gift_count %}<span class="gd-kpi-gift-addon"> + {{ payment_kpis_gift_count }}</span>{% endif %}
+                    </p>
+                    <p class="gd-kpi-label text-muted mb-0">
+                        {% trans 'Payments' %}{% if payment_kpis_gift_count %}<span class="d-block small">{% trans 'incl. gift vouchers' %}</span>{% endif %}
+                    </p>
                 </div>
                 <div class="col-sm-6">
-                    <p class="gd-kpi-value mb-0">£{{ payment_kpis_total|floatformat:2 }}</p>
-                    <p class="gd-kpi-label text-muted mb-0">{% trans 'Received' %}</p>
+                    <p class="gd-kpi-value mb-0">
+                        £{{ payment_kpis_booking_total|floatformat:2 }}{% if payment_kpis_gift_total %}<span class="gd-kpi-gift-addon"> + £{{ payment_kpis_gift_total|floatformat:2 }}</span>{% endif %}
+                    </p>
+                    <p class="gd-kpi-label text-muted mb-0">
+                        {% trans 'Received' %}{% if payment_kpis_gift_total %}<span class="d-block small">{% trans 'gift vouchers' %}</span>{% endif %}
+                    </p>
                 </div>
             </div>
             <div class="text-center mt-3">

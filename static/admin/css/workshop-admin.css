@@ -34,6 +34,10 @@ body.app-courses.model-workshop.add-form .card-body {
     overflow-x: hidden;
 }
 
+body.app-courses.model-workshop.change-form .tab-pane.gd-workshop-customers-tab .card-body.p-5 {
+    overflow-x: visible;
+}
+
 body.app-courses.model-workshop.change-form .card-body fieldset.module.aligned .form-row .flex-container,
 body.app-courses.model-workshop.add-form .card-body fieldset.module.aligned .form-row .flex-container {
     align-items: flex-start;
@@ -267,4 +271,81 @@ body.app-courses.model-workshop.add-form .gd-workshop-image-caption {
     line-height: 1.3;
     color: #495057;
     word-break: break-word;
+}
+
+/* Customers tab — Jazzmin uses form-group + col-sm-3 label / col-sm-7 field grid */
+body.app-courses.model-workshop.change-form .tab-pane.gd-workshop-customers-tab > .card.gd-workshop-customers-tab {
+    border: none;
+    box-shadow: none;
+    margin-bottom: 0;
+}
+
+body.app-courses.model-workshop.change-form .tab-pane.gd-workshop-customers-tab .form-group.field-bookings_display {
+    margin-bottom: 0;
+}
+
+body.app-courses.model-workshop.change-form .tab-pane.gd-workshop-customers-tab .form-group.field-bookings_display > .row {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+body.app-courses.model-workshop.change-form .tab-pane.gd-workshop-customers-tab .form-group.field-bookings_display label.col-sm-3.text-left {
+    display: none;
+}
+
+body.app-courses.model-workshop.change-form .tab-pane.gd-workshop-customers-tab .form-group.field-bookings_display .col-sm-7.field-bookings_display {
+    flex: 0 0 100%;
+    max-width: 100%;
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+body.app-courses.model-workshop.change-form .tab-pane.gd-workshop-customers-tab .form-group.field-bookings_display .readonly {
+    display: block;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+}
+
+body.app-courses.model-workshop.change-form .gd-workshop-customers-card {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border: 1px solid var(--gd-dashboard-card-border, #dee2e6);
+    border-radius: 0.25rem;
+    box-sizing: border-box;
+}
+
+body.app-courses.model-workshop.change-form .gd-workshop-customers-card .card-header {
+    border-bottom: 1px solid var(--gd-dashboard-card-border, #dee2e6);
+}
+
+body.app-courses.model-workshop.change-form .gd-workshop-customers-card #result_list th,
+body.app-courses.model-workshop.change-form .gd-workshop-customers-card #result_list td {
+    vertical-align: middle;
+}
+
+body.app-courses.model-workshop.change-form .gd-workshop-customers-card #result_list thead th {
+    border-top: none;
+    white-space: nowrap;
+}
+
+body.app-courses.model-workshop.change-form .gd-workshop-customers-card #result_list .field-booking_reference {
+    font-weight: 600;
+}
+
+body.app-courses.model-workshop.change-form .gd-workshop-customers-card #result_list .nowrap {
+    white-space: nowrap;
+}
+
+body.app-courses.model-workshop.change-form .gd-workshop-customers-card .table-responsive {
+    width: 100%;
+    max-width: none;
+}
+
+body.app-courses.model-workshop.change-form .gd-workshop-customers-card #result_list {
+    width: 100%;
+    margin-bottom: 0;
 }

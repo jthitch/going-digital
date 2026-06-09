@@ -30,16 +30,31 @@ def _aware_range(start_day, end_day):
     return start, end
 
 
+def _aggregate_stats(queryset):
+    agg = queryset.aggregate(count=Count('id'), total=Sum('amount'))
+    return {
+        'count': agg['count'] or 0,
+        'total': agg['total'] if agg['total'] is not None else Decimal('0.00'),
+    }
+
+
 def _period_stats(queryset, start, end):
     qs = queryset.filter(
         status='succeeded',
         received_at__gte=start,
         received_at__lt=end,
     )
-    agg = qs.aggregate(count=Count('id'), total=Sum('amount'))
+    gift_qs = qs.filter(metadata__has_key='gift_voucher_basket_id')
+    booking_qs = qs.exclude(metadata__has_key='gift_voucher_basket_id')
+    booking = _aggregate_stats(booking_qs)
+    gift = _aggregate_stats(gift_qs)
     return {
-        'count': agg['count'] or 0,
-        'total': agg['total'] if agg['total'] is not None else Decimal('0.00'),
+        'count': booking['count'] + gift['count'],
+        'total': booking['total'] + gift['total'],
+        'booking_count': booking['count'],
+        'booking_total': booking['total'],
+        'gift_count': gift['count'],
+        'gift_total': gift['total'],
     }
 
 
@@ -76,5 +91,9 @@ def get_payment_kpis_dashboard_context(request):
         'payment_kpis_month_label': date_format(this_start_day, format='F Y'),
         'payment_kpis_count': stats['count'],
         'payment_kpis_total': stats['total'],
+        'payment_kpis_booking_count': stats['booking_count'],
+        'payment_kpis_booking_total': stats['booking_total'],
+        'payment_kpis_gift_count': stats['gift_count'],
+        'payment_kpis_gift_total': stats['gift_total'],
         'payment_kpis_changelist_url': 'admin:payments_payment_changelist',
     }

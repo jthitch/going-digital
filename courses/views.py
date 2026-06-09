@@ -7,7 +7,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib.staticfiles.storage import staticfiles_storage
-from django.core.mail import send_mail
+from core.mail import send_filtered_mail
 from django.shortcuts import get_object_or_404, redirect
 from django.http import HttpResponsePermanentRedirect, JsonResponse
 from django.urls import reverse
@@ -760,7 +760,7 @@ Message:
 This enquiry was sent via the contact form. Information is not stored in the database.
 """
         contact_email = getattr(settings, 'CONTACT_EMAIL', settings.DEFAULT_FROM_EMAIL)
-        send_mail(
+        send_filtered_mail(
             subject=f'Going Digital Contact: {region_label} - {form.cleaned_data["name"]}',
             message=email_body,
             from_email=settings.DEFAULT_FROM_EMAIL,

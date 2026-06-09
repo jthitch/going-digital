@@ -295,6 +295,12 @@ body.dashboard .gd-payment-kpis .gd-kpi-label {
     margin-top: 0.25rem;
 }
 
+body.dashboard .gd-payment-kpis .gd-kpi-gift-addon {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--gd-text-muted);
+}
+
 /* Dashboard — upcoming workshops */
 body.dashboard .gd-upcoming-workshops,
 body.dashboard .gd-recent-bookings {

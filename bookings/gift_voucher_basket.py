@@ -245,6 +245,6 @@ def create_vouchers_from_basket(basket_id, stripe_session_id):
                     now,
                 ]
             )
-            codes.append(code)
+            codes.append((code, float(amount)))
 
     return codes

@@ -193,6 +193,38 @@ body > header nav {
     text-decoration: none;
 }
 
+.nav-logout-form {
+    display: inline;
+    margin: 0;
+}
+
+.nav-logout-btn {
+    background: none;
+    border: none;
+    color: var(--header-text);
+    font: inherit;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.nav-logout-btn:hover {
+    background-color: var(--bg-secondary);
+}
+
+.nav-menu .nav-logout-form {
+    display: block;
+    width: 100%;
+}
+
+.nav-menu .nav-logout-btn {
+    width: 100%;
+    text-align: left;
+    padding: 0.75rem 1rem;
+}
+
 .nav-gift-icon {
     display: none;
     vertical-align: middle;
@@ -247,7 +279,7 @@ body > header nav {
     display: block;
 }
 
-/* Gift promo: shimmer + Giftcards label */
+/* Gift promo: Giftcards label */
 .nav-gift-wrap {
     position: relative;
     display: inline-flex;
@@ -294,34 +326,6 @@ body > header nav {
 }
 .nav-gift-wrap.gift-promo {
     overflow: visible;
-}
-.nav-gift-wrap.gift-promo::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 60%;
-    height: 100%;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.5),
-        transparent
-    );
-    animation: gift-shimmer 1.2s ease-in-out;
-}
-[data-theme="dark"] .nav-gift-wrap.gift-promo::after,
-:root:not([data-theme="light"]) .nav-gift-wrap.gift-promo::after {
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.25),
-        transparent
-    );
-}
-@keyframes gift-shimmer {
-    0% { left: -100%; }
-    100% { left: 100%; }
 }
 .nav-menu {
     display: none;

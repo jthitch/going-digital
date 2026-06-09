@@ -7,7 +7,20 @@ from courses.models import Workshop
 
 
 class BookingForm(forms.ModelForm):
-    """Form for creating a booking."""
+    """Form for adding a workshop line to the booking basket."""
+
+    quantity = forms.IntegerField(
+        min_value=1,
+        max_value=10,
+        initial=1,
+        label='Number of places',
+        widget=forms.NumberInput(attrs={
+            'class': 'basket-qty-input booking-qty-input',
+            'min': 1,
+            'max': 10,
+            'inputmode': 'numeric',
+        }),
+    )
     
     class Meta:
         model = Booking
@@ -16,10 +29,30 @@ class BookingForm(forms.ModelForm):
             'student_last_name',
             'student_email',
             'student_phone',
-            'special_requirements'
+            'special_requirements',
         ]
         widgets = {
-            'special_requirements': forms.Textarea(attrs={'rows': 4}),
+            'student_first_name': forms.TextInput(attrs={
+                'class': 'booking-field-input',
+                'autocomplete': 'given-name',
+            }),
+            'student_last_name': forms.TextInput(attrs={
+                'class': 'booking-field-input',
+                'autocomplete': 'family-name',
+            }),
+            'student_email': forms.EmailInput(attrs={
+                'class': 'booking-field-input',
+                'autocomplete': 'email',
+            }),
+            'student_phone': forms.TextInput(attrs={
+                'class': 'booking-field-input',
+                'autocomplete': 'tel',
+                'inputmode': 'tel',
+            }),
+            'special_requirements': forms.Textarea(attrs={
+                'class': 'booking-field-input booking-field-textarea',
+                'rows': 4,
+            }),
         }
     
     def __init__(self, *args, **kwargs):
@@ -36,12 +69,19 @@ class BookingForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         
-        # Check if course instance is full
+        quantity = cleaned_data.get('quantity', 1)
+
         if self.workshop and self.workshop.is_full:
-            raise forms.ValidationError("This course is fully booked.")
-        
-        # Check if course instance enrollment is open
+            raise forms.ValidationError('This course is fully booked.')
+
         if self.workshop and not self.workshop.enrollment_open:
-            raise forms.ValidationError("Enrollment is not currently open for this course.")
-        
+            raise forms.ValidationError('Enrollment is not currently open for this course.')
+
+        if self.workshop:
+            available = self.workshop.spaces_available
+            if available is not None and quantity > available:
+                raise forms.ValidationError(
+                    f'Only {available} place(s) available on this course.'
+                )
+
         return cleaned_data

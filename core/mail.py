@@ -1,0 +1,138 @@
+"""Outgoing email helpers (Mailjet SMTP via Django settings)."""
+import logging
+
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+
+logger = logging.getLogger(__name__)
+
+
+def _normalise_email(addr):
+    return (addr or '').strip().lower()
+
+
+def get_suppressed_recipients():
+    return set(getattr(settings, 'EMAIL_SUPPRESS_RECIPIENTS', []) or [])
+
+
+def filter_suppressed_recipients(addresses):
+    """Drop addresses listed in EMAIL_SUPPRESS_RECIPIENTS (.env, comma-separated)."""
+    suppressed = get_suppressed_recipients()
+    if not suppressed:
+        return [addr for addr in addresses if addr and str(addr).strip()]
+    filtered = []
+    removed = []
+    for addr in addresses:
+        if not addr or not str(addr).strip():
+            continue
+        if _normalise_email(addr) in suppressed:
+            removed.append(addr)
+            continue
+        filtered.append(addr.strip())
+    if removed:
+        logger.info('Suppressed email recipient(s): %s', removed)
+    return filtered
+
+
+def send_html_email(
+    *,
+    to,
+    subject,
+    html_template,
+    text_template=None,
+    context=None,
+    bcc=None,
+    attachments=None,
+    fail_silently=False,
+):
+    """
+    Send multipart HTML + plain-text email.
+
+    Mirrors legacy cf_send_mail(): primary recipients in ``to``, franchisees/staff in ``bcc``.
+    """
+    context = context or {}
+    to = filter_suppressed_recipients(to)
+    bcc = filter_suppressed_recipients(bcc or [])
+    if not to:
+        return 0
+
+    html_body = render_to_string(html_template, context)
+    if text_template:
+        text_body = render_to_string(text_template, context)
+    else:
+        text_body = strip_tags(html_body)
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body.strip(),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=to,
+        bcc=bcc or None,
+    )
+    msg.attach_alternative(html_body, 'text/html')
+
+    for attachment in attachments or []:
+        if len(attachment) == 2:
+            filename, content = attachment
+            mimetype = None
+        else:
+            filename, content, mimetype = attachment
+        msg.attach(filename, content, mimetype)
+
+    try:
+        sent = msg.send(fail_silently=fail_silently)
+        logger.info('Sent email "%s" to %s (bcc=%s)', subject, to, bcc)
+        return sent
+    except Exception:
+        logger.exception('Failed to send email "%s" to %s', subject, to)
+        if not fail_silently:
+            raise
+        return 0
+
+
+def send_filtered_mail(subject, message, from_email, recipient_list, **kwargs):
+    """Like django.core.mail.send_mail but honours EMAIL_SUPPRESS_RECIPIENTS."""
+    from django.core.mail import send_mail
+
+    recipient_list = filter_suppressed_recipients(recipient_list)
+    if not recipient_list:
+        logger.info('Skipped email "%s" — all recipients suppressed', subject)
+        return 0
+    return send_mail(subject, message, from_email, recipient_list, **kwargs)
+
+
+def franchisee_emails_for_workshop(workshop):
+    """Emails for workshop owner, region franchisees, and tutor."""
+    from core.models import User
+    from courses.models import RegionUser, Tutor
+
+    if not getattr(settings, 'EMAIL_FRANCHISEE_BCC_ENABLED', True):
+        return []
+
+    if not workshop:
+        return []
+
+    user_ids = set()
+    if workshop.user_id:
+        user_ids.add(workshop.user_id)
+    if workshop.createdby_id:
+        user_ids.add(workshop.createdby_id)
+    if workshop.region_id:
+        user_ids.update(
+            RegionUser.objects.filter(region_id=workshop.region_id).values_list('user_id', flat=True)
+        )
+
+    emails = set()
+    for uid in user_ids:
+        user = User.objects.filter(pk=uid, active=1).first()
+        if user and user.email:
+            emails.add(user.email.strip().lower())
+
+    if workshop.tutor_id:
+        tutor = Tutor.objects.filter(pk=workshop.tutor_id).first()
+        if tutor and tutor.email:
+            emails.add(tutor.email.strip().lower())
+
+    return filter_suppressed_recipients(sorted(emails))

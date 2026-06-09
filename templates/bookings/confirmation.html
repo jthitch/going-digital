@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Booking {{ booking.booking_reference }} - Photography Courses{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/booking.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="booking-container account-page">
+    <header class="basket-page-header booking-page-header">
+        <div>
+            <h1>Booking details</h1>
+            <p class="basket-page-subtitle">Reference {{ booking.booking_reference }}</p>
+        </div>
+        <a href="{% url 'account:my_bookings' %}" class="basket-continue-shopping">All bookings</a>
+    </header>
+
+    <div class="account-booking-detail">
+        <div class="account-booking-card account-booking-card--detail">
+            <div class="account-booking-card-header">
+                <h2 class="account-booking-title">{{ booking.workshop.course.title }}</h2>
+                <span class="account-status account-status--{{ booking.status }}">{{ booking.get_status_display }}</span>
+            </div>
+
+            <ul class="basket-item-meta booking-course-meta">
+                <li>
+                    <svg class="basket-meta-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"/>
+                    </svg>
+                    <span>{{ booking.workshop.start_date|date:"l j F Y" }} · {{ booking.workshop.start_date|date:"g:i A" }}</span>
+                </li>
+                <li>
+                    <svg class="basket-meta-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                    </svg>
+                    <span>{{ booking.workshop.venue.name }}, {{ booking.workshop.venue.city }}</span>
+                </li>
+            </ul>
+
+            <dl class="booking-course-pricing account-detail-rows">
+                <div class="booking-course-pricing-row">
+                    <dt>Student</dt>
+                    <dd>{{ booking.student_first_name }} {{ booking.student_last_name }}</dd>
+                </div>
+                <div class="booking-course-pricing-row">
+                    <dt>Email</dt>
+                    <dd>{{ booking.student_email }}</dd>
+                </div>
+                {% if booking.student_phone %}
+                <div class="booking-course-pricing-row">
+                    <dt>Phone</dt>
+                    <dd>{{ booking.student_phone }}</dd>
+                </div>
+                {% endif %}
+                <div class="booking-course-pricing-row">
+                    <dt>Amount paid</dt>
+                    <dd>£{{ booking.price_paid|floatformat:2 }}</dd>
+                </div>
+                {% if booking.voucher_code %}
+                <div class="booking-course-pricing-row">
+                    <dt>Voucher</dt>
+                    <dd>{{ booking.voucher_code }} (−£{{ booking.voucher_discount|floatformat:2 }})</dd>
+                </div>
+                {% endif %}
+            </dl>
+
+            {% if booking.special_requirements %}
+            <div class="account-detail-notes">
+                <h3>Special requirements</h3>
+                <p>{{ booking.special_requirements|linebreaksbr }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="form-actions">
+            <a href="{% url 'account:my_bookings' %}" class="btn-primary">Back to my bookings</a>
+            <a href="{% url 'courses:contact' %}" class="btn-secondary">Contact us</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

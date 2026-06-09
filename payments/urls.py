@@ -9,6 +9,7 @@ app_name = 'payments'
 urlpatterns = [
     # Stripe Checkout
     path('checkout/<int:booking_id>/', views.CreateCheckoutSessionView.as_view(), name='create_checkout'),
+    path('checkout/basket/<int:basket_id>/', views.CreateWorkshopBasketCheckoutView.as_view(), name='create_workshop_basket_checkout'),
     path('checkout/gift-voucher/<int:basket_id>/', views.CreateGiftVoucherCheckoutView.as_view(), name='create_gift_voucher_checkout'),
     
     # Stripe webhooks

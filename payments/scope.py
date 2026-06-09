@@ -19,24 +19,27 @@ def filter_payments_for_user(queryset, user):
     if not region_ids:
         return queryset.none()
     return queryset.filter(
-        booking__isnull=False,
-        booking__workshop__region_id__in=region_ids,
+        bookings__isnull=False,
+        bookings__workshop__region_id__in=region_ids,
     ).filter(
-        Q(booking__workshop__user_id=user.pk)
-        | Q(booking__workshop__createdby_id=user.pk)
+        Q(bookings__workshop__user_id=user.pk)
+        | Q(bookings__workshop__createdby_id=user.pk)
     ).distinct()
 
 
 def user_can_view_payment(user, payment):
     if user_has_full_region_access(user):
         return True
-    booking = getattr(payment, 'booking', None)
-    if not booking:
-        return False
-    workshop = booking.workshop
-    if not workshop or not workshop.region_id:
+    bookings = payment.bookings.select_related('workshop').all()
+    if not bookings:
         return False
     region_ids = get_user_region_ids(user) or []
-    if workshop.region_id not in region_ids:
-        return False
-    return franchisee_owns_workshop(user, workshop)
+    for booking in bookings:
+        workshop = booking.workshop
+        if not workshop or not workshop.region_id:
+            continue
+        if workshop.region_id not in region_ids:
+            continue
+        if franchisee_owns_workshop(user, workshop):
+            return True
+    return False

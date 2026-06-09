@@ -1,0 +1,32 @@
+<li class="account-booking-card">
+    <div class="account-booking-card-body">
+        <div class="account-booking-card-header">
+            <h3 class="account-booking-title">{{ booking.workshop.course.title }}</h3>
+            <span class="account-status account-status--{{ booking.status }}">{{ booking.get_status_display }}</span>
+        </div>
+        <ul class="basket-item-meta booking-course-meta">
+            <li>
+                <svg class="basket-meta-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z"/>
+                </svg>
+                <span>{{ booking.workshop.start_date|date:"l j F Y" }} · {{ booking.workshop.start_date|date:"g:i A" }}</span>
+            </li>
+            <li>
+                <svg class="basket-meta-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+                <span>{{ booking.workshop.venue.name }}, {{ booking.workshop.venue.city }}</span>
+            </li>
+            <li>
+                <svg class="basket-meta-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                </svg>
+                <span>Ref {{ booking.booking_reference }} · £{{ booking.price_paid|floatformat:2 }}</span>
+            </li>
+        </ul>
+        <p class="account-booking-student">{{ booking.student_first_name }} {{ booking.student_last_name }}</p>
+    </div>
+    <div class="account-booking-card-actions">
+        <a href="{% url 'bookings:confirm' booking.booking_reference %}" class="btn-secondary btn-sm">View details</a>
+    </div>
+</li>
