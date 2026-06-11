@@ -417,7 +417,7 @@ JAZZMIN_SETTINGS = {
     #############
     # Relative paths to custom CSS/JS scripts (must be present in static files)
     "custom_css": "admin/css/jazzmin-admin.css",
-    "custom_js": None,
+    "custom_js": "admin/js/jazzmin-admin.js",
     
     # Whether to link font from fonts.googleapis.com
     "use_google_fonts_cdn": True,
