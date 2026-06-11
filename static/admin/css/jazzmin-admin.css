@@ -1,4 +1,4 @@
-/* Going Digital admin — light/dark friendly (works with Jazzmin dark_mode_theme) */
+/* Going Digital admin — light/dark via Jazzmin 3.0.4 data-bs-theme */
 
 :root {
     --gd-logo-bg: #ffffff;
@@ -36,8 +36,7 @@
     --gd-legacy-grey: #747a80;
 }
 
-@media (prefers-color-scheme: dark) {
-    :root {
+html[data-bs-theme="dark"] {
         --gd-logo-bg: #2b3035;
         --gd-navbar-bg: #343a40;
         --gd-navbar-text: rgba(255, 255, 255, 0.92);
@@ -71,15 +70,17 @@
         --gd-dashboard-card-border: rgba(255, 255, 255, 0.1);
         --gd-dashboard-link: #7ec8ff;
         --gd-legacy-grey: #9aa0a6;
-    }
 }
 
 /* Login / logout page logo (templates/registration/base.html) */
+body.login-page .login-box,
 body.jazzmin-login-page .login-box {
     width: 360px;
     max-width: calc(100vw - 2rem);
 }
 
+body.login-page .gd-login-logo,
+body.login-page .login-logo,
 body.jazzmin-login-page .gd-login-logo,
 body.jazzmin-login-page .login-logo {
     width: 100%;
@@ -89,18 +90,24 @@ body.jazzmin-login-page .login-logo {
     overflow: hidden;
 }
 
+body.login-page .gd-login-logo h1,
+body.login-page .login-logo h1,
 body.jazzmin-login-page .gd-login-logo h1,
 body.jazzmin-login-page .login-logo h1 {
     margin: 0;
     line-height: 1;
 }
 
+body.login-page .gd-login-logo picture,
+body.login-page .login-logo picture,
 body.jazzmin-login-page .gd-login-logo picture,
 body.jazzmin-login-page .login-logo picture {
     display: block;
     max-width: 100%;
 }
 
+body.login-page .gd-login-logo__img,
+body.login-page .login-logo img,
 body.jazzmin-login-page .gd-login-logo__img,
 body.jazzmin-login-page .login-logo img {
     display: block !important;
@@ -159,7 +166,8 @@ body.jazzmin-login-page .login-logo img {
     padding-right: 0.5rem;
 }
 
-/* Top navbar — light in light mode, dark when OS is dark */
+/* Top navbar */
+#jazzy-navbar.app-header,
 #jazzy-navbar.main-header {
     background-color: var(--gd-navbar-bg) !important;
     border-bottom: 1px solid var(--gd-navbar-border);
@@ -187,49 +195,54 @@ body.jazzmin-login-page .login-logo img {
     color: var(--gd-navbar-text);
 }
 
-@media (prefers-color-scheme: dark) {
-    #jazzy-navbar .form-control-navbar {
-        background-color: #3f474e;
-        border-color: #565e64;
-        color: var(--gd-navbar-text);
-    }
+html[data-bs-theme="dark"] #jazzy-navbar .form-control-navbar {
+    background-color: #3f474e;
+    border-color: #565e64;
+    color: var(--gd-navbar-text);
+}
 
-    #jazzy-navbar .btn-navbar {
-        background-color: #4b545c;
-        border-color: #565e64;
-        color: var(--gd-navbar-text);
-    }
+html[data-bs-theme="dark"] #jazzy-navbar .btn-navbar {
+    background-color: #4b545c;
+    border-color: #565e64;
+    color: var(--gd-navbar-text);
 }
 
 /* Left sidebar */
+.app-sidebar,
+#jazzy-sidebar.app-sidebar,
 .main-sidebar,
 aside.main-sidebar {
     background-color: var(--gd-sidebar-bg) !important;
     border-right: 1px solid var(--gd-sidebar-border);
 }
 
+.app-sidebar .nav-header,
 .sidebar-light-primary .nav-header,
 .main-sidebar .nav-header {
     color: var(--gd-sidebar-text-muted) !important;
     font-weight: 600;
 }
 
+.app-sidebar .sidebar-menu > .nav-item > .nav-link,
 .sidebar-light-primary .nav-sidebar > .nav-item > .nav-link,
 .main-sidebar .nav-sidebar .nav-link {
     color: var(--gd-sidebar-text) !important;
 }
 
+.app-sidebar .sidebar-menu > .nav-item > .nav-link p,
 .sidebar-light-primary .nav-sidebar > .nav-item > .nav-link p,
 .main-sidebar .nav-sidebar .nav-link p {
     color: inherit !important;
 }
 
+.app-sidebar .sidebar-menu > .nav-item > .nav-link:hover,
 .sidebar-light-primary .nav-sidebar > .nav-item > .nav-link:hover,
 .main-sidebar .nav-sidebar .nav-link:hover {
     color: var(--gd-sidebar-text-hover) !important;
     background-color: var(--gd-sidebar-hover-bg) !important;
 }
 
+.app-sidebar .sidebar-menu > .nav-item > .nav-link.active,
 .sidebar-light-primary .nav-sidebar > .nav-item > .nav-link.active,
 .main-sidebar .nav-sidebar .nav-link.active {
     color: var(--gd-sidebar-text-hover) !important;
@@ -237,16 +250,20 @@ aside.main-sidebar {
     font-weight: 600;
 }
 
+.app-sidebar .sidebar-menu .nav-icon,
 .sidebar-light-primary .nav-sidebar .nav-icon,
 .main-sidebar .nav-sidebar .nav-icon {
     color: var(--gd-sidebar-text-muted) !important;
 }
 
+.app-sidebar .sidebar-menu > .nav-item > .nav-link.active .nav-icon,
+.app-sidebar .sidebar-menu > .nav-item > .nav-link:hover .nav-icon,
 .sidebar-light-primary .nav-sidebar > .nav-item > .nav-link.active .nav-icon,
 .sidebar-light-primary .nav-sidebar > .nav-item > .nav-link:hover .nav-icon {
     color: var(--gd-sidebar-text-hover) !important;
 }
 
+.app-sidebar .user-panel,
 .main-sidebar .user-panel {
     display: none !important;
 }
@@ -334,6 +351,7 @@ body.dashboard .gd-recent-bookings .card-footer {
     background: transparent;
 }
 
+body.dashboard .app-content .card,
 body.dashboard .content .card {
     border: 1px solid var(--gd-dashboard-card-border);
 }
@@ -354,23 +372,21 @@ body.dashboard #recent-actions-module .timeline-item {
     border-radius: 0.25rem;
 }
 
-@media (prefers-color-scheme: dark) {
-    body.dashboard #recent-actions-module .timeline-header a {
-        color: var(--gd-dashboard-link);
-    }
+html[data-bs-theme="dark"] body.dashboard #recent-actions-module .timeline-header a {
+    color: var(--gd-dashboard-link);
+}
 
-    body.dashboard #recent-actions-module .mini.quiet {
-        color: var(--gd-text-muted);
-    }
+html[data-bs-theme="dark"] body.dashboard #recent-actions-module .mini.quiet {
+    color: var(--gd-text-muted);
+}
 
-    body.dashboard .breadcrumb-item,
-    body.dashboard .breadcrumb-item a {
-        color: var(--gd-text-muted);
-    }
+html[data-bs-theme="dark"] body.dashboard .breadcrumb-item,
+html[data-bs-theme="dark"] body.dashboard .breadcrumb-item a {
+    color: var(--gd-text-muted);
+}
 
-    body.dashboard .breadcrumb-item.active {
-        color: #dee2e6;
-    }
+html[data-bs-theme="dark"] body.dashboard .breadcrumb-item.active {
+    color: #dee2e6;
 }
 
 /* Pending venue alerts (dashboard + venue list) */
@@ -382,20 +398,18 @@ body.dashboard #recent-actions-module .timeline-item {
     margin-bottom: 0.5rem;
 }
 
-@media (prefers-color-scheme: dark) {
-    .gd-pending-venue-alert.alert-warning {
-        background-color: var(--gd-alert-warning-bg);
-        border-color: var(--gd-alert-warning-border);
-        color: var(--gd-alert-warning-fg);
-    }
+html[data-bs-theme="dark"] .gd-pending-venue-alert.alert-warning {
+    background-color: var(--gd-alert-warning-bg);
+    border-color: var(--gd-alert-warning-border);
+    color: var(--gd-alert-warning-fg);
+}
 
-    .gd-pending-venue-alert .text-muted {
-        color: var(--gd-alert-warning-muted) !important;
-    }
+html[data-bs-theme="dark"] .gd-pending-venue-alert .text-muted {
+    color: var(--gd-alert-warning-muted) !important;
+}
 
-    .gd-pending-venue-alert a:not(.btn) {
-        color: var(--gd-dashboard-link);
-    }
+html[data-bs-theme="dark"] .gd-pending-venue-alert a:not(.btn) {
+    color: var(--gd-dashboard-link);
 }
 
 /* Shared status badges (venues, etc.) */

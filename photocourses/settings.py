@@ -468,8 +468,8 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar_nav_legacy_style": False,
     "sidebar_nav_flat_style": False,
     "theme": "default",
-    # Follow OS light/dark preference (Bootswatch darkly via prefers-color-scheme)
-    "dark_mode_theme": "darkly",
+    # Follow OS light/dark preference via data-bs-theme (Jazzmin 3.0.4+)
+    "default_theme_mode": "auto",
     "button_classes": {
         "primary": "btn-primary",
         "secondary": "btn-secondary",
