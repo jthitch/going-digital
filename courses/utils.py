@@ -2,6 +2,11 @@
 Utility functions for courses app.
 """
 from datetime import date, timedelta
+from zoneinfo import ZoneInfo
+
+from django.utils import timezone
+
+UK_TZ = ZoneInfo('Europe/London')
 
 
 def get_easter_sunday(year):
@@ -103,3 +108,19 @@ def get_promoted_occasions():
         })
 
     return occasions
+
+
+def workshop_calendar_date(dt):
+    """
+    UK wall-clock calendar date (YYYY-MM-DD) for a workshop datetime.
+
+    Legacy gd_workshop rows are often naive local UK times; aware values are
+    converted to Europe/London before taking the date.
+    """
+    if not dt:
+        return ''
+    if timezone.is_aware(dt):
+        local = timezone.localtime(dt, UK_TZ)
+    else:
+        local = dt.replace(tzinfo=UK_TZ)
+    return local.strftime('%Y-%m-%d')

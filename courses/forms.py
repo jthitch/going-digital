@@ -25,6 +25,7 @@ from .models import (
     Tutor,
     Venue,
     Workshop,
+    WorkshopGalleryImage,
     WorkshopType,
     COURSE_STATUS_CHOICES,
     COURSE_STATUS_DISPLAY_NAMES,
@@ -58,38 +59,88 @@ def _image_owned_by_user(image, user_id):
     return image.user_id == user_id or image.createdby_id == user_id
 
 
-def _workshop_image_queryset(include_pk=None, owner_user_id=None):
+def _workshop_image_queryset(include_pks=None, owner_user_id=None):
     """Images for workshop picker; limited to images the current user uploaded."""
+    include_pks = [pk for pk in (include_pks or []) if pk]
     qs = Image.objects.filter(active=1)
     if owner_user_id:
         qs = qs.filter(Q(user_id=owner_user_id) | Q(createdby_id=owner_user_id))
     qs = qs.order_by('-id')
     pks = list(qs.values_list('pk', flat=True)[:_WORKSHOP_IMAGE_CHOICES_LIMIT])
-    if include_pk and include_pk not in pks:
-        extra = Image.objects.filter(pk=include_pk).first()
-        if extra and (not owner_user_id or _image_owned_by_user(extra, owner_user_id)):
-            pks.insert(0, include_pk)
-            pks = pks[:_WORKSHOP_IMAGE_CHOICES_LIMIT]
+    for include_pk in include_pks:
+        if include_pk not in pks:
+            extra = Image.objects.filter(pk=include_pk).first()
+            if extra and (not owner_user_id or _image_owned_by_user(extra, owner_user_id)):
+                pks.insert(0, include_pk)
+    pks = pks[:_WORKSHOP_IMAGE_CHOICES_LIMIT]
     return Image.objects.filter(pk__in=pks).order_by('-id')
 
 
-class WorkshopImageModelChoiceField(forms.ModelChoiceField):
-    """Existing workshop image picker with thumbnail previews."""
+def _workshop_image_option_label(obj):
+    caption = obj.source_name or obj.file_name or f'Image #{obj.pk}'
+    if not obj.url:
+        return caption
+    return format_html(
+        '<span class="gd-workshop-image-option">'
+        '<img src="{}" alt="" class="gd-workshop-image-thumb" loading="lazy">'
+        '<span class="gd-workshop-image-caption">{}</span>'
+        '</span>',
+        obj.url,
+        caption,
+    )
 
-    widget = forms.RadioSelect(attrs={'class': 'gd-workshop-image-picker'})
+
+def _sync_workshop_gallery(workshop, image_ids):
+    """Replace workshop gallery links with the selected image ids (ordered)."""
+    if not workshop or not workshop.pk:
+        return
+
+    ordered_ids = []
+    seen = set()
+    for image_id in image_ids or []:
+        try:
+            normalised = int(image_id)
+        except (TypeError, ValueError):
+            continue
+        if normalised and normalised not in seen:
+            seen.add(normalised)
+            ordered_ids.append(normalised)
+
+    existing = {
+        int(link.image_id): link
+        for link in WorkshopGalleryImage.objects.filter(workshop_id=workshop.pk)
+    }
+    keep = set()
+    for order, image_id in enumerate(ordered_ids):
+        keep.add(image_id)
+        link = existing.get(image_id)
+        if link:
+            if link.display_order != order:
+                link.display_order = order
+                link.save(update_fields=['display_order'])
+            continue
+        link, _created = WorkshopGalleryImage.objects.get_or_create(
+            workshop_id=workshop.pk,
+            image_id=image_id,
+            defaults={'display_order': order},
+        )
+        if link.display_order != order:
+            link.display_order = order
+            link.save(update_fields=['display_order'])
+        existing[image_id] = link
+
+    WorkshopGalleryImage.objects.filter(workshop_id=workshop.pk).exclude(
+        image_id__in=keep,
+    ).delete()
+
+
+class WorkshopImagesModelMultipleChoiceField(forms.ModelMultipleChoiceField):
+    """Workshop image picker with thumbnail previews; select multiple."""
+
+    widget = forms.CheckboxSelectMultiple(attrs={'class': 'gd-workshop-image-picker'})
 
     def label_from_instance(self, obj):
-        caption = obj.source_name or obj.file_name or f'Image #{obj.pk}'
-        if not obj.url:
-            return caption
-        return format_html(
-            '<span class="gd-workshop-image-option">'
-            '<img src="{}" alt="" class="gd-workshop-image-thumb" loading="lazy">'
-            '<span class="gd-workshop-image-caption">{}</span>'
-            '</span>',
-            obj.url,
-            caption,
-        )
+        return _workshop_image_option_label(obj)
 
 
 CONTACT_REGION_CHOICES = [
@@ -859,12 +910,11 @@ class WorkshopAdminForm(forms.ModelForm):
         empty_label='---------',
         label='Cloned from workshop',
     )
-    image = WorkshopImageModelChoiceField(
+    images = WorkshopImagesModelMultipleChoiceField(
         queryset=Image.objects.none(),
         required=False,
-        empty_label='No image',
-        label='Existing image',
-        help_text='Choose one of your previously uploaded images, or upload a new file below.',
+        label='Display images',
+        help_text='Select one or more of your uploaded images to show on the workshop page.',
     )
     image_upload = forms.ImageField(
         required=False,
@@ -932,21 +982,29 @@ class WorkshopAdminForm(forms.ModelForm):
         if region_ids is not None:
             clone_qs = clone_qs.filter(region_id__in=region_ids)
         self.fields['cloned_from_workshop'].queryset = clone_qs
-        image_include = self.instance.image_id if self.instance.pk and self.instance.image_id else None
+        gallery_ids = []
+        if self.instance.pk:
+            gallery_ids = list(
+                self.instance.gallery_images.order_by('display_order', 'id').values_list('image_id', flat=True)
+            )
+        if not gallery_ids and self.instance.image_id:
+            gallery_ids = [self.instance.image_id]
         image_qs = _workshop_image_queryset(
-            include_pk=image_include,
+            include_pks=gallery_ids,
             owner_user_id=self.editor_user_id,
         )
-        self.fields['image'].queryset = image_qs
+        self.fields['images'].queryset = image_qs
+        if gallery_ids:
+            self.fields['images'].initial = gallery_ids
         if not image_qs.exists():
-            self.fields['image'].help_text = (
+            self.fields['images'].help_text = (
                 'You have not uploaded any images yet. Use Upload image below, '
-                'then save and re-open this workshop to pick it here.'
+                'then save and re-open this workshop to select them here.'
             )
         else:
-            self.fields['image'].help_text = (
+            self.fields['images'].help_text = (
                 'Only images you have uploaded are shown. '
-                'Pick one below or upload a new file.'
+                'Select one or more below, or upload a new file.'
             )
         self._set_initial_from_id('region', Region, 'region_id')
         self._set_initial_from_id('tutor', Tutor, 'tutor_id')
@@ -954,17 +1012,16 @@ class WorkshopAdminForm(forms.ModelForm):
         self._set_initial_from_id('alt_course', Course, 'alt_course_id', skip_zero=True)
         self._set_initial_from_id('workshop_type', WorkshopType, 'workshop_type_id')
         self._set_initial_from_id('cloned_from_workshop', Workshop, 'cloned_from_workshop_id')
-        self._set_initial_from_id('image', Image, 'image_id', skip_zero=True)
         if 'image_upload' in self.fields:
             self.fields['image_upload'].widget.attrs.setdefault('accept', 'image/*')
         self._order_image_fields()
 
     def _order_image_fields(self):
-        if 'image' not in self.fields or 'image_upload' not in self.fields:
+        if 'images' not in self.fields or 'image_upload' not in self.fields:
             return
         order = list(self.fields.keys())
         order.remove('image_upload')
-        order.insert(order.index('image') + 1, 'image_upload')
+        order.insert(order.index('images') + 1, 'image_upload')
         self.order_fields(order)
 
     def _set_initial_from_id(self, field_name, model, id_attr, skip_zero=False):
@@ -1034,6 +1091,13 @@ class WorkshopAdminForm(forms.ModelForm):
         workshop.workshop_type_id = workshop_type.pk if workshop_type else None
         cloned = self.cleaned_data.get('cloned_from_workshop')
         workshop.cloned_from_workshop_id = cloned.pk if cloned else None
+        selected_images = list(self.cleaned_data.get('images') or [])
+        selected_ids = []
+        seen = set()
+        for image in selected_images:
+            if image.pk not in seen:
+                seen.add(image.pk)
+                selected_ids.append(image.pk)
         upload = self.cleaned_data.get('image_upload')
         if upload:
             from .gd_image_upload import create_gd_image_from_upload
@@ -1046,13 +1110,26 @@ class WorkshopAdminForm(forms.ModelForm):
                 source_name=label,
                 description=f'Workshop image: {label}'[:1000],
             )
-            workshop.image_id = gd_image.pk
-        else:
-            image = self.cleaned_data.get('image')
-            workshop.image_id = image.pk if image else 0
+            if gd_image.pk not in seen:
+                selected_ids.insert(0, gd_image.pk)
+        workshop.image_id = selected_ids[0] if selected_ids else 0
+        self._gallery_image_ids = selected_ids
+        self._gallery_synced = False
         if commit:
             workshop.save()
+            self.sync_gallery(workshop)
         return workshop
+
+    def sync_gallery(self, workshop):
+        """Persist selected display images (admin saves the workshop with commit=False first)."""
+        if not workshop or not workshop.pk or getattr(self, '_gallery_synced', False):
+            return
+        image_ids = getattr(self, '_gallery_image_ids', None)
+        if image_ids is None:
+            selected = self.cleaned_data.get('images') if getattr(self, 'cleaned_data', None) else None
+            image_ids = [image.pk for image in (selected or [])]
+        _sync_workshop_gallery(workshop, image_ids)
+        self._gallery_synced = True
 
 
 class CourseAdminForm(forms.ModelForm):
@@ -1100,15 +1177,32 @@ class CourseAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        range_fields = {
+            'card_image_focus_x': {'min': 0, 'max': 100, 'step': 1},
+            'card_image_focus_y': {'min': 0, 'max': 100, 'step': 1},
+            'card_image_zoom': {'min': 100, 'max': 200, 'step': 5},
+        }
+        for name, attrs in range_fields.items():
+            if name not in self.fields:
+                continue
+            widget_attrs = {
+                'type': 'range',
+                'class': 'course-card-image-range',
+                'data-card-preview-input': name.replace('card_image_', ''),
+            }
+            widget_attrs.update(attrs)
+            self.fields[name].widget = forms.NumberInput(attrs=widget_attrs)
+            self.fields[name].widget.attrs.setdefault('style', 'width:100%;max-width:24rem;')
         slug = ''
         if self.is_bound:
             slug = self.data.get('slug', '')
         elif self.instance.pk:
             slug = self.instance.slug or ''
-        self.fields['course_url'].initial = self.course_url_path(slug)
-        if self.instance.pk and self.instance.region_id:
+        if 'course_url' in self.fields:
+            self.fields['course_url'].initial = self.course_url_path(slug)
+        if 'region' in self.fields and self.instance.pk and self.instance.region_id:
             self.fields['region'].initial = Region.objects.filter(pk=self.instance.region_id).first()
-        if not self.is_bound:
+        if 'status' in self.fields and not self.is_bound:
             status_id = self.instance.status_id if self.instance.pk else 2
             if status_id in COURSE_STATUS_DISPLAY_NAMES:
                 self.fields['status'].initial = status_id
@@ -1118,13 +1212,18 @@ class CourseAdminForm(forms.ModelForm):
                 self.fields['status'].initial = status_id
         content = getattr(self.instance, 'content', None) if self.instance.pk else None
         if content:
-            self.fields['content_title'].initial = content.content_title
-            self.fields['strapline'].initial = content.strapline
-            self.fields['main_content'].initial = content.main_content
-            self.fields['sub_content'].initial = content.sub_content
-            self.fields['meta_title'].initial = content.meta_title
-            self.fields['meta_description'].initial = content.meta_description
-            self.fields['meta_keywords'].initial = content.meta_keywords
+            content_initial = {
+                'content_title': content.content_title,
+                'strapline': content.strapline,
+                'main_content': content.main_content,
+                'sub_content': content.sub_content,
+                'meta_title': content.meta_title,
+                'meta_description': content.meta_description,
+                'meta_keywords': content.meta_keywords,
+            }
+            for name, value in content_initial.items():
+                if name in self.fields:
+                    self.fields[name].initial = value
 
     def save(self, commit=True):
         course = super().save(commit=False)

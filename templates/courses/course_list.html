@@ -7,7 +7,7 @@
 {% block extra_head %}
 <!-- Leaflet CSS for map -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="{% static 'css/course-list.css' %}">
+<link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=6">
 {% endblock %}
 
 {% block content %}
@@ -111,11 +111,11 @@
             </div>
             
             <div class="filter-group">
-                <label for="city" class="filter-label">City</label>
+                <label for="city" class="filter-label">Locations</label>
                 <select id="city" name="city" class="filter-select">
-                    <option value="">All Cities</option>
-                    {% for city in cities %}
-                    <option value="{{ city }}" {% if current_city == city %}selected{% endif %}>{{ city }}</option>
+                    <option value="">All locations</option>
+                    {% for venue in filter_venues %}
+                    <option value="{{ venue.slug|default:venue.id }}" {% if current_city == venue.slug or current_city == venue.id|stringformat:"s" %}selected{% endif %}>{{ venue.venue_name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -159,36 +159,43 @@
                 <h2 class="category-section-title">{{ category.grouper }}</h2>
                 <div class="category-courses">
                     {% for course in category.list %}
-            <article class="course-card">
+            {% with list_video=course.list_card_video %}
+            <article class="course-card course-card--overlay{% if list_video %} course-card--has-video{% endif %}"{% if list_video %} data-has-video{% endif %}>
                 <a href="{% url 'courses:course_detail' slug=course.slug %}" class="course-card-link">
-                    <div class="course-image-wrapper">
+                    <div class="course-image-wrapper{% if list_video %} course-image-wrapper--has-video{% endif %}">
                         {% if course.image %}
-                        <img src="{{ course.image.url }}" alt="{{ course.title }}" class="course-thumbnail">
+                        <img src="{{ course.image.url }}" alt="" class="course-thumbnail course-card-poster" loading="lazy" decoding="async"
+                             style="{{ course.list_card_thumbnail_style }}">
                         {% elif course.first_uploaded_image %}
-                        <img src="{{ course.first_uploaded_image.image.url }}" alt="{{ course.title }}" class="course-thumbnail">
+                        <img src="{{ course.first_uploaded_image.image.url }}" alt="" class="course-thumbnail course-card-poster" loading="lazy" decoding="async"
+                             style="{{ course.list_card_thumbnail_style }}">
                         {% else %}
-                        <div class="course-placeholder">📷</div>
+                        <div class="course-placeholder course-card-poster" aria-hidden="true">📷</div>
                         {% endif %}
-                        <div class="course-level-badge" data-level="{{ course.level }}">{{ course.get_level_display }}</div>
+                        {% if list_video %}
+                            {% if list_video.kind == 'file' %}
+                            <video class="course-card-video" muted loop playsinline webkit-playsinline preload="none"
+                                   {% if list_video.poster %}poster="{{ list_video.poster }}"{% endif %}
+                                   style="{{ list_video.style }}">
+                                <source src="{{ list_video.src }}">
+                            </video>
+                            {% else %}
+                            <iframe class="course-card-video course-card-video--embed"
+                                    data-video-src="{{ list_video.src }}"
+                                    title=""
+                                    loading="lazy"
+                                    allow="autoplay; encrypted-media; picture-in-picture"
+                                    tabindex="-1"></iframe>
+                            {% endif %}
+                        {% endif %}
+                        <div class="course-card-scrim" aria-hidden="true"></div>
                     </div>
+                    <div class="course-level-badge" data-level="{{ course.level }}">{{ course.get_level_display }}</div>
                     <div class="course-card-content">
                         <div class="course-header">
                             <h2 class="course-title">
                                 {{ course.title }}
                             </h2>
-                        </div>
-                        {% if course.get_card_short_description %}
-                        <p class="course-short-desc">{{ course.get_card_short_description|truncatewords:20 }}</p>
-                        {% endif %}
-                        <div class="course-meta">
-                            {% if course.get_card_category_display %}
-                            <span class="meta-item category">
-                                {{ course.get_card_category_display }}
-                            </span>
-                            {% endif %}
-                            <span class="meta-item duration">
-                                {{ course.duration_hours }}h
-                            </span>
                         </div>
                         {% if course.workshops.all %}
                         {% regroup course.workshops.all by venue as location_groups %}
@@ -208,11 +215,12 @@
                         {% endif %}
                         <div class="course-footer">
                             <div class="course-price">From £{{ course.min_price }}</div>
-                            <span class="btn-view">View Details →</span>
+                            <span class="btn-view">View course</span>
                         </div>
                     </div>
                 </a>
             </article>
+            {% endwith %}
                     {% endfor %}
                 </div>
             </div>
@@ -535,13 +543,7 @@ function initializeMap() {
                 const levelDisplay = escapeHtmlMap(inst.level_display || 'Various');
                 const title = escapeHtmlMap(inst.course_title || '');
                 const price = inst.price != null ? inst.price.toFixed(2) : '0.00';
-                const category = inst.category ? escapeHtmlMap(inst.category) : '';
-                const shortDesc = inst.short_description ? escapeHtmlMap(inst.short_description) : '';
                 const byline = inst.byline ? escapeHtmlMap(inst.byline) : '';
-                var durationHours = '';
-                if (inst.duration_hours !== undefined && inst.duration_hours !== null) {
-                    durationHours = String(inst.duration_hours);
-                }
                 const imgUrl = (inst.image_url || '').trim();
                 const href = (inst.course_url || '#').replace(/"/g, '&quot;');
                 const locationLine = escapeHtmlMap(
@@ -560,32 +562,25 @@ function initializeMap() {
                     ? '<img src="' + imgUrl.replace(/"/g, '&quot;') + '" alt="' + title + '" class="course-thumbnail" loading="lazy">'
                     : '<div class="course-placeholder" aria-hidden="true">📷</div>';
                 var metaInner = '';
-                if (category) {
-                    metaInner += '<span class="meta-item category">' + category + '</span>';
-                }
-                if (durationHours) {
-                    metaInner += '<span class="meta-item duration">' + escapeHtmlMap(durationHours) + 'h</span>';
-                }
                 if (dateLine) {
                     metaInner += '<span class="meta-item map-sidebar-date">' + dateLine + '</span>';
                 }
                 var metaBlock = metaInner ? '<div class="course-meta">' + metaInner + '</div>' : '';
-                var descBlock = shortDesc ? '<p class="course-short-desc">' + shortDesc + '</p>' : '';
                 var bylineBlock = byline ? '<p class="instance-byline">' + byline + '</p>' : '';
-                return '<article class="course-card map-sidebar-card map-sidebar-item" data-instance-id="' + (inst.instance_id || '') + '">' +
+                return '<article class="course-card course-card--overlay map-sidebar-card map-sidebar-item" data-instance-id="' + (inst.instance_id || '') + '">' +
                     '<a href="' + href + '" class="course-card-link">' +
                     '<div class="course-image-wrapper">' + imgBlock +
-                    '<div class="course-level-badge" data-level="' + level + '">' + levelDisplay + '</div></div>' +
+                    '<div class="course-card-scrim" aria-hidden="true"></div></div>' +
+                    '<div class="course-level-badge" data-level="' + level + '">' + levelDisplay + '</div>' +
                     '<div class="course-card-content">' +
                     '<div class="course-header"><h2 class="course-title">' + title + '</h2></div>' +
-                    descBlock +
                     bylineBlock +
                     metaBlock +
                     '<div class="course-locations"><div class="course-locations-list map-sidebar-locations-list">' +
                     '<span class="location-item">' + locationLine + '</span></div></div>' +
                     '<div class="course-footer">' +
                     '<div class="course-price">£' + price + '</div>' +
-                    '<span class="btn-view">View details →</span></div></div></a>' +
+                    '<span class="btn-view">View course</span></div></div></a>' +
                     '<div class="map-sidebar-card-actions">' + bookBtn + '</div></article>';
             }).join('');
         }
@@ -739,28 +734,49 @@ function initializeMap() {
     var hasNext = grid.dataset.hasNext === 'true';
     var loading = false;
     
+    function buildCardMedia(c) {
+        var cardStyle = (c.card_image_style || '').replace(/"/g, '&quot;');
+        var posterHtml = c.image_url
+            ? '<img src="' + c.image_url + '" alt="" class="course-thumbnail course-card-poster" loading="lazy" decoding="async"'
+              + (cardStyle ? ' style="' + cardStyle + '"' : '') + '>'
+            : '<div class="course-placeholder course-card-poster" aria-hidden="true">📷</div>';
+        var videoHtml = '';
+        var hasVideo = c.video && c.video.src;
+        if (hasVideo) {
+            if (c.video.kind === 'file') {
+                var videoStyle = (c.video.style || '').replace(/"/g, '&quot;');
+                videoHtml = '<video class="course-card-video" muted loop playsinline webkit-playsinline preload="none"'
+                    + (c.video.poster ? ' poster="' + String(c.video.poster).replace(/"/g, '&quot;') + '"' : '')
+                    + (videoStyle ? ' style="' + videoStyle + '"' : '') + '>'
+                    + '<source src="' + String(c.video.src).replace(/"/g, '&quot;') + '"></video>';
+            } else {
+                videoHtml = '<iframe class="course-card-video course-card-video--embed" data-video-src="'
+                    + String(c.video.src).replace(/"/g, '&quot;') + '" title="" loading="lazy"'
+                    + ' allow="autoplay; encrypted-media; picture-in-picture" tabindex="-1"></iframe>';
+            }
+        }
+        var wrapperClass = 'course-image-wrapper' + (hasVideo ? ' course-image-wrapper--has-video' : '');
+        return '<div class="' + wrapperClass + '">' + posterHtml + videoHtml
+            + '<div class="course-card-scrim" aria-hidden="true"></div></div>';
+    }
+
     function buildCard(c) {
-        var imgHtml = c.image_url
-            ? '<img src="' + c.image_url + '" alt="' + (c.title || '').replace(/"/g, '&quot;') + '" class="course-thumbnail">'
-            : '<div class="course-placeholder">📷</div>';
+        var hasVideo = c.video && c.video.src;
         var locs = (c.locations || []).slice(0, 5).map(function(l) {
             return '<span class="location-item">' + (l || 'TBC') + '</span>';
         }).join('');
         var locsHtml = locs ? '<div class="course-locations"><div class="course-locations-list">' + locs + '</div></div>' : '';
-        return '<article class="course-card">' +
+        return '<article class="course-card course-card--overlay' + (hasVideo ? ' course-card--has-video' : '') + '"'
+            + (hasVideo ? ' data-has-video' : '') + '>' +
             '<a href="' + (c.detail_url || '/photography-courses/' + c.slug + '/') + '" class="course-card-link">' +
-            '<div class="course-image-wrapper">' + imgHtml +
-            '<div class="course-level-badge" data-level="' + (c.level || 'beginner') + '">' + (c.level_display || '') + '</div></div>' +
+            buildCardMedia(c) +
+            '<div class="course-level-badge" data-level="' + (c.level || 'beginner') + '">' + (c.level_display || '') + '</div>' +
             '<div class="course-card-content">' +
             '<div class="course-header"><h2 class="course-title">' + (c.title || '').replace(/</g, '&lt;') + '</h2></div>' +
-            (c.short_description ? '<p class="course-short-desc">' + (c.short_description || '').replace(/</g, '&lt;').substring(0, 100) + (c.short_description.length > 100 ? '...' : '') + '</p>' : '') +
-            '<div class="course-meta">' +
-            (c.category ? '<span class="meta-item category">' + (c.category || '').replace(/</g, '&lt;') + '</span>' : '') +
-            '<span class="meta-item duration">' + (c.duration_hours || 0) + 'h</span></div>' +
             locsHtml +
             '<div class="course-footer">' +
             '<div class="course-price">From £' + (c.min_price || '0') + '</div>' +
-            '<span class="btn-view">View Details →</span></div></div></a></article>';
+            '<span class="btn-view">View course</span></div></div></a></article>';
     }
     
     function getOrCreateCategorySection(categoryName) {
@@ -794,7 +810,11 @@ function initializeMap() {
                         if (container) {
                             var div = document.createElement('div');
                             div.innerHTML = buildCard(c);
-                            container.appendChild(div.firstElementChild);
+                            var card = div.firstElementChild;
+                            container.appendChild(card);
+                            if (window.initCourseCardVideos) {
+                                window.initCourseCardVideos(card);
+                            }
                         }
                     });
                 }
@@ -815,4 +835,5 @@ function initializeMap() {
     observer.observe(sentinel);
 })();
 </script>
+<script src="{% static 'js/course-card-video.js' %}?v=2" defer></script>
 {% endblock %}

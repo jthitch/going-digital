@@ -86,7 +86,11 @@
                             <span class="booking-qty-hint">Same student details for each place</span>
                         </div>
                         {% if form.quantity.errors %}
-                        <span class="error">{{ form.quantity.errors }}</span>
+                        <div class="form-field-error" role="alert">
+                            {% for error in form.quantity.errors %}
+                            <p class="form-field-error-text">{{ error }}</p>
+                            {% endfor %}
+                        </div>
                         {% endif %}
                     </div>
 
@@ -102,7 +106,9 @@
 
                 {% if form.non_field_errors %}
                 <div class="error-message" role="alert">
-                    {{ form.non_field_errors }}
+                    {% for error in form.non_field_errors %}
+                    <p class="error-message-text">{{ error }}</p>
+                    {% endfor %}
                 </div>
                 {% endif %}
 
@@ -125,8 +131,8 @@
         <aside class="booking-course-summary" aria-label="Course summary">
             <div class="booking-course-card">
                 <div class="booking-course-media">
-                    {% if course_instance.course.image and course_instance.course.image.url %}
-                    <img src="{{ course_instance.course.image.url }}"
+                    {% if course_instance.display_image_url %}
+                    <img src="{{ course_instance.display_image_url }}"
                          alt=""
                          class="booking-course-image"
                          loading="lazy"

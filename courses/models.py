@@ -651,6 +651,31 @@ class VenueMedia(models.Model):
         return self.caption or f"Image for {self.venue.venue_name}"
 
 
+class WorkshopGalleryImage(models.Model):
+    """Links a workshop to one or more gd_image records for the public gallery."""
+    workshop = models.ForeignKey(
+        'Workshop',
+        on_delete=models.CASCADE,
+        related_name='gallery_images',
+    )
+    image = models.ForeignKey(
+        Image,
+        on_delete=models.CASCADE,
+        related_name='workshop_gallery_links',
+        db_column='image_id',
+    )
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order', 'id']
+        unique_together = [('workshop', 'image')]
+        verbose_name = 'Workshop gallery image'
+        verbose_name_plural = 'Workshop gallery images'
+
+    def __str__(self):
+        return self.image.source_name or self.image.file_name or f'Image #{self.image_id}'
+
+
 class Workshop(models.Model):
     """
     Scheduled workshop - maps to legacy gd_workshop.
@@ -824,6 +849,19 @@ class Workshop(models.Model):
             return self.byline_plain
         return ' '.join(words[:80]) + '…'
 
+    @property
+    def display_image_url(self):
+        """Student-facing image: workshop upload, then parent course images."""
+        from courses.display_images import primary_image_url
+
+        return primary_image_url(workshop=self)
+
+    def gallery_image_list(self):
+        """Ordered gd_image rows selected for this workshop."""
+        from courses.display_images import workshop_gallery_images
+
+        return workshop_gallery_images(self)
+
     def get_absolute_url(self):
         """URL for workshop - course detail with venue slug if available."""
         if self.course and self.course.slug:
@@ -897,6 +935,27 @@ class Course(models.Model):
     created_at = models.DateTimeField(null=True, blank=True, db_column='created_at')
     updated_at = models.DateTimeField(null=True, blank=True, db_column='updated_at')
     workshop_image_id = models.IntegerField(default=0, db_column='workshop_image_id')
+    card_image_focus_x = models.PositiveSmallIntegerField(
+        default=50,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        db_column='card_image_focus_x',
+        verbose_name='List card image focus (horizontal %)',
+        help_text='0 = left edge, 50 = centre, 100 = right edge.',
+    )
+    card_image_focus_y = models.PositiveSmallIntegerField(
+        default=50,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        db_column='card_image_focus_y',
+        verbose_name='List card image focus (vertical %)',
+        help_text='0 = top, 50 = centre, 100 = bottom.',
+    )
+    card_image_zoom = models.PositiveSmallIntegerField(
+        default=100,
+        validators=[MinValueValidator(100), MaxValueValidator(200)],
+        db_column='card_image_zoom',
+        verbose_name='List card image zoom (%)',
+        help_text='100 = default crop; increase to zoom in on the focal point.',
+    )
 
     class Meta:
         db_table = 'gd_course'
@@ -1072,6 +1131,67 @@ class Course(models.Model):
                 return m
         return None
 
+    def list_card_thumbnail_url(self):
+        """Image used on the photography-courses listing card."""
+        try:
+            if self.image_id and self.image and self.image.url:
+                return self.image.url
+        except Exception:
+            pass
+        first = self.first_uploaded_image
+        if first and getattr(first, 'image', None):
+            return first.image.url
+        return ''
+
+    def list_card_thumbnail_style(self):
+        """Inline CSS for object-position and zoom on course list cards."""
+        x = 50 if self.card_image_focus_x is None else int(self.card_image_focus_x)
+        y = 50 if self.card_image_focus_y is None else int(self.card_image_focus_y)
+        zoom_pct = 100 if self.card_image_zoom is None else int(self.card_image_zoom)
+        zoom_pct = max(100, min(200, zoom_pct))
+        scale = zoom_pct / 100
+        return (
+            f'object-position:{x}% {y}%;'
+            f'transform:scale({scale});'
+            f'transform-origin:{x}% {y}%;'
+        )
+
+    def list_card_object_position_style(self):
+        """Object-position only (for video elements that should not use CSS transform)."""
+        x = 50 if self.card_image_focus_x is None else int(self.card_image_focus_x)
+        y = 50 if self.card_image_focus_y is None else int(self.card_image_focus_y)
+        return f'object-position:{x}% {y}%;'
+
+    def list_card_video(self):
+        """First CourseMedia video for photography-courses list card playback."""
+        for media in self.media.all():
+            if media.media_type != CourseMedia.MEDIA_TYPE_VIDEO:
+                continue
+            poster = self.list_card_thumbnail_url()
+            position_style = self.list_card_object_position_style()
+            if media.video_file:
+                try:
+                    src = media.video_file.url
+                except Exception:
+                    src = ''
+                if src:
+                    return {
+                        'kind': 'file',
+                        'src': src,
+                        'poster': poster,
+                        'style': position_style,
+                    }
+            if media.video_url:
+                embed = media.list_card_autoplay_embed_url()
+                if embed:
+                    return {
+                        'kind': 'embed',
+                        'src': embed,
+                        'poster': poster,
+                        'style': position_style,
+                    }
+        return None
+
     def get_absolute_url(self, location=None, location_slug=None):
         """Generate SEO-friendly URL: /photography-courses/<course-slug>/<location-slug>/ or overview."""
         if not self.slug:
@@ -1143,5 +1263,24 @@ class CourseMedia(models.Model):
             vid = url.rstrip('/').split('/')[-1]
             return f"https://player.vimeo.com/video/{vid}"
         return url
+
+    @property
+    def list_card_autoplay_embed_url(self):
+        """Muted embed URL for list-card hover / in-view autoplay."""
+        embed = self.video_embed_url
+        if not embed:
+            return None
+        if 'youtube.com/embed/' in embed:
+            video_id = embed.rstrip('/').split('/')[-1].split('?')[0]
+            join = '&' if '?' in embed else '?'
+            return (
+                f'{embed}{join}autoplay=1&mute=1&controls=0&loop=1'
+                f'&playlist={video_id}&playsinline=1&rel=0&modestbranding=1'
+            )
+        if 'player.vimeo.com/video/' in embed:
+            join = '&' if '?' in embed else '?'
+            return f'{embed}{join}autoplay=1&muted=1&background=1&loop=1&autopause=0'
+        join = '&' if '?' in embed else '?'
+        return f'{embed}{join}autoplay=1&mute=1'
 
 

@@ -14,7 +14,9 @@
     <!-- Open Graph / Social Media -->
     <meta property="og:title" content="{{ meta_title }}">
     <meta property="og:description" content="{{ course.short_description }}">
-    {% if course.image %}
+    {% if header_images %}
+    <meta property="og:image" content="{{ request.build_absolute_uri }}{{ header_images.0.url }}">
+    {% elif course.image %}
     <meta property="og:image" content="{{ request.build_absolute_uri }}{{ course.image.url }}">
     {% endif %}
     <meta property="og:type" content="product">
@@ -28,12 +30,26 @@
     <!-- Course Header Images (gd_image + CourseMedia) - slider when multiple -->
     {% if header_images %}
     {% if header_images|length > 1 %}
-    <div class="course-header-slider">
-        {% for img in header_images %}
-        <div class="course-header-slide {% if forloop.first %}active{% endif %}">
-            <img src="{{ img.url }}" alt="{{ img.alt }}" class="course-image">
+    <div class="course-header-gallery">
+        <div class="course-header-slider" id="course-header-slider">
+            {% for img in header_images %}
+            <div class="course-header-slide {% if forloop.first %}active{% endif %}" data-slide-index="{{ forloop.counter0 }}">
+                <img src="{{ img.url }}" alt="{{ img.alt }}" class="course-image">
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
+        <div class="course-header-thumbs" role="tablist" aria-label="Course images">
+            {% for img in header_images %}
+            <button type="button"
+                    class="course-header-thumb {% if forloop.first %}active{% endif %}"
+                    data-slide-index="{{ forloop.counter0 }}"
+                    role="tab"
+                    aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
+                    aria-label="Show image {{ forloop.counter }} of {{ header_images|length }}">
+                <img src="{{ img.url }}" alt="" loading="lazy" decoding="async">
+            </button>
+            {% endfor %}
+        </div>
     </div>
     {% else %}
     <div class="course-header-single">
@@ -100,11 +116,25 @@
             </div>
             <div class="course-tab-panel" role="tabpanel" id="course-panel-workshop" aria-labelledby="course-tab-workshop" data-course-panel="workshop" hidden>
                 <div class="course-main-content">
+                    {% with v=featured_instance.location %}
+                    {% if v.venue_address or v.location %}
+                    <div class="workshop-venue-details">
+                        <h3 class="workshop-venue-details__title">{{ v.name }}</h3>
+                        <address class="workshop-venue-details__address">
+                            {% if v.venue_address %}{{ v.venue_address|linebreaksbr }}{% endif %}
+                            {% if v.location %}
+                            {% if v.venue_address %}<br>{% endif %}
+                            <span class="workshop-venue-details__city">{{ v.location }}</span>
+                            {% endif %}
+                        </address>
+                    </div>
+                    {% endif %}
                     {% if featured_instance.byline %}
                         {{ featured_instance.byline|safe }}
-                    {% else %}
+                    {% elif not v or not v.venue_address and not v.location %}
                         <p class="course-tab-empty">Workshop details are not available yet.</p>
                     {% endif %}
+                    {% endwith %}
                 </div>
             </div>
         </div>
@@ -208,12 +238,67 @@
     <section class="course-instances" id="available-dates-locations">
         <h2>Available Dates & Locations</h2>
         {% if instances_by_city %}
+            {% if show_instance_filters %}
+            <div class="course-instances-filters" data-course-instance-filters>
+                <div class="course-instances-filters-header">
+                    <div class="course-instances-filters-title">
+                        <svg class="course-instances-filters-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="4" y1="21" x2="4" y2="14"></line>
+                            <line x1="4" y1="10" x2="4" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12" y2="3"></line>
+                            <line x1="20" y1="21" x2="20" y2="16"></line>
+                            <line x1="20" y1="12" x2="20" y2="3"></line>
+                            <line x1="1" y1="14" x2="7" y2="14"></line>
+                            <line x1="9" y1="8" x2="15" y2="8"></line>
+                            <line x1="17" y1="16" x2="23" y2="16"></line>
+                        </svg>
+                        <span>Filter by location or date</span>
+                    </div>
+                    <button type="button" class="course-instances-filter-clear" data-filter-clear hidden>Clear all</button>
+                </div>
+                <div class="course-instances-filters-form{% if all_locations|length > 1 %} course-instances-filters-form--with-location{% endif %}">
+                    {% if all_locations|length > 1 %}
+                    <div class="filter-group">
+                        <label class="filter-label" for="instance-filter-location">Location</label>
+                        <select id="instance-filter-location" class="filter-select" data-filter-location>
+                            <option value="">All locations</option>
+                            {% for loc in all_locations %}
+                            <option value="{{ loc.slug|default:loc.pk }}">{{ loc.name }}{% if loc.location %} ({{ loc.location }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div class="filter-group">
+                        <label class="filter-label" for="instance-filter-from">From</label>
+                        <input type="date" id="instance-filter-from" class="filter-input filter-date-input"
+                               data-filter-date-from
+                               {% if instances_date_min %}min="{{ instances_date_min }}"{% endif %}
+                               {% if instances_date_max %}max="{{ instances_date_max }}"{% endif %}>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label" for="instance-filter-to">To</label>
+                        <input type="date" id="instance-filter-to" class="filter-input filter-date-input"
+                               data-filter-date-to
+                               {% if instances_date_min %}min="{{ instances_date_min }}"{% endif %}
+                               {% if instances_date_max %}max="{{ instances_date_max }}"{% endif %}>
+                    </div>
+                </div>
+                <p class="course-instances-filter-summary" data-filter-summary aria-live="polite"></p>
+            </div>
+            {% endif %}
+            <p class="course-instances-no-matches" data-instances-no-matches hidden>
+                No dates match your filters. Try adjusting the location or date range.
+            </p>
+            <div data-instances-list>
             {% for city, instances in instances_by_city.items %}
-            <div class="city-group">
+            <div class="city-group" data-city-group>
                 <h3>{{ city }}</h3>
                 <ul class="instance-list">
                     {% for instance in instances %}
-                    <li class="instance-item{% if instance.byline_plain %} instance-item--has-byline{% endif %}">
+                    <li class="instance-item{% if instance.byline_plain %} instance-item--has-byline{% endif %}"
+                        data-venue-slug="{% if instance.venue %}{{ instance.venue.slug|default:instance.venue_id }}{% endif %}"
+                        data-instance-date="{{ instance.filter_date }}">
                         <a href="{{ instance.get_absolute_url }}" class="instance-card-link" aria-label="View {{ course.title }} at {{ instance.location.name }} on {{ instance.start_date|date:'d F Y' }}"></a>
                         <div class="instance-col-main">
                             <div class="instance-date">
@@ -222,11 +307,6 @@
                             </div>
                             <div class="instance-location">
                                 <span class="location-tag location-tag-venue">{{ instance.location.name }}</span>
-                                {% with v=instance.location %}
-                                {% if v.venue_address or v.location %}
-                                <address class="instance-address-inline">{% if v.venue_address %}{{ v.venue_address|cut:"\r"|cut:"\n"|truncatechars:140 }}{% endif %}{% if v.location %}{% if v.venue_address %} · {% endif %}{{ v.location }}{% endif %}</address>
-                                {% endif %}
-                                {% endwith %}
                             </div>
                             <p class="instance-spaces">Spaces: {{ instance.spaces_available }} available</p>
                             <div class="instance-book">
@@ -255,6 +335,7 @@
                 </ul>
             </div>
             {% endfor %}
+            </div>
         {% else %}
             <p>No upcoming dates available at this time. Please check back soon or contact us for more information.</p>
         {% endif %}
@@ -294,6 +375,163 @@
 <script src="{% static 'js/booking-widget.js' %}" defer></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    var filtersRoot = document.querySelector('[data-course-instance-filters]');
+    if (filtersRoot) {
+        var locationSelect = filtersRoot.querySelector('[data-filter-location]');
+        var dateFrom = filtersRoot.querySelector('[data-filter-date-from]');
+        var dateTo = filtersRoot.querySelector('[data-filter-date-to]');
+        var clearBtn = filtersRoot.querySelector('[data-filter-clear]');
+        var summaryEl = filtersRoot.querySelector('[data-filter-summary]');
+        var noMatchesEl = document.querySelector('[data-instances-no-matches]');
+        var instancesList = document.querySelector('[data-instances-list]');
+        var items = instancesList ? instancesList.querySelectorAll('.instance-item') : [];
+        var cityGroups = instancesList ? instancesList.querySelectorAll('[data-city-group]') : [];
+        var totalCount = items.length;
+
+        function readUrlFilters() {
+            var params = new URLSearchParams(window.location.search);
+            if (locationSelect && params.get('location')) {
+                locationSelect.value = params.get('location');
+            }
+            if (dateFrom && params.get('from')) {
+                dateFrom.value = params.get('from');
+            }
+            if (dateTo && params.get('to')) {
+                dateTo.value = params.get('to');
+            }
+        }
+
+        function syncUrl() {
+            var params = new URLSearchParams(window.location.search);
+            if (locationSelect) {
+                if (locationSelect.value) {
+                    params.set('location', locationSelect.value);
+                } else {
+                    params.delete('location');
+                }
+            }
+            if (dateFrom) {
+                if (dateFrom.value) {
+                    params.set('from', dateFrom.value);
+                } else {
+                    params.delete('from');
+                }
+            }
+            if (dateTo) {
+                if (dateTo.value) {
+                    params.set('to', dateTo.value);
+                } else {
+                    params.delete('to');
+                }
+            }
+            var query = params.toString();
+            var newUrl = window.location.pathname + (query ? '?' + query : '') + window.location.hash;
+            window.history.replaceState(null, '', newUrl);
+        }
+
+        function syncDateBounds() {
+            if (dateFrom && dateTo) {
+                if (dateFrom.value) {
+                    dateTo.min = dateFrom.value;
+                } else if (dateFrom.hasAttribute('min')) {
+                    dateTo.min = dateFrom.getAttribute('min');
+                }
+                if (dateTo.value) {
+                    dateFrom.max = dateTo.value;
+                } else if (dateFrom.hasAttribute('max')) {
+                    dateFrom.max = dateFrom.getAttribute('max');
+                }
+            }
+        }
+
+        function applyFilters() {
+            var location = locationSelect ? locationSelect.value : '';
+            var from = dateFrom ? dateFrom.value : '';
+            var to = dateTo ? dateTo.value : '';
+            if (from && to && from > to) {
+                dateTo.value = from;
+                to = from;
+            }
+            syncDateBounds();
+            var visible = 0;
+            var dateFilterActive = Boolean(from || to);
+
+            items.forEach(function (item) {
+                var show = true;
+                if (location && item.getAttribute('data-venue-slug') !== location) {
+                    show = false;
+                }
+                var instanceDate = (item.getAttribute('data-instance-date') || '').trim();
+                if (dateFilterActive) {
+                    if (!instanceDate) {
+                        show = false;
+                    } else {
+                        if (from && instanceDate < from) {
+                            show = false;
+                        }
+                        if (to && instanceDate > to) {
+                            show = false;
+                        }
+                    }
+                }
+                item.hidden = !show;
+                if (show) {
+                    visible += 1;
+                }
+            });
+
+            cityGroups.forEach(function (group) {
+                var groupVisible = group.querySelectorAll('.instance-item:not([hidden])').length > 0;
+                group.hidden = !groupVisible;
+            });
+
+            if (noMatchesEl) {
+                noMatchesEl.hidden = visible > 0;
+            }
+            if (instancesList) {
+                instancesList.hidden = visible === 0;
+            }
+            if (summaryEl) {
+                summaryEl.textContent = visible === totalCount
+                    ? totalCount + ' upcoming date' + (totalCount === 1 ? '' : 's')
+                    : visible + ' of ' + totalCount + ' dates shown';
+            }
+            if (clearBtn) {
+                clearBtn.hidden = !location && !from && !to;
+            }
+            syncUrl();
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                if (locationSelect) {
+                    locationSelect.value = '';
+                }
+                if (dateFrom) {
+                    dateFrom.value = '';
+                }
+                if (dateTo) {
+                    dateTo.value = '';
+                }
+                applyFilters();
+            });
+        }
+        if (locationSelect) {
+            locationSelect.addEventListener('change', applyFilters);
+        }
+        [dateFrom, dateTo].forEach(function (input) {
+            if (!input) {
+                return;
+            }
+            input.addEventListener('change', applyFilters);
+            input.addEventListener('input', applyFilters);
+        });
+
+        readUrlFilters();
+        syncDateBounds();
+        applyFilters();
+    }
+
     document.querySelectorAll('[data-byline-expandable]').forEach(function (block) {
         var toggle = block.querySelector('.instance-byline-toggle');
         var preview = block.querySelector('.instance-byline-preview');
@@ -425,16 +663,46 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var slides = document.querySelectorAll('.course-header-slide');
+    var thumbs = document.querySelectorAll('.course-header-thumb');
     if (slides.length < 2) return;
+
     var current = 0;
+    var timer = null;
+
     function showSlide(i) {
-        slides.forEach(function(s, idx) {
-            s.classList.toggle('active', idx === i);
+        current = (i + slides.length) % slides.length;
+        slides.forEach(function(slide, idx) {
+            slide.classList.toggle('active', idx === current);
         });
-        current = i;
+        thumbs.forEach(function(thumb, idx) {
+            var isActive = idx === current;
+            thumb.classList.toggle('active', isActive);
+            thumb.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
     }
-    function next() { showSlide((current + 1) % slides.length); }
-    setInterval(next, 3000);
+
+    thumbs.forEach(function(thumb) {
+        thumb.addEventListener('click', function() {
+            var index = parseInt(thumb.getAttribute('data-slide-index'), 10);
+            if (!Number.isNaN(index)) {
+                showSlide(index);
+                resetTimer();
+            }
+        });
+    });
+
+    function next() {
+        showSlide(current + 1);
+    }
+
+    function resetTimer() {
+        if (timer) {
+            clearInterval(timer);
+        }
+        timer = setInterval(next, 5000);
+    }
+
+    resetTimer();
 });
 </script>
 {% endif %}

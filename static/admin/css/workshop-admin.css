@@ -178,7 +178,9 @@ body.app-courses.model-workshop.add-form .field-byline .gd-byline-help-highlight
 
 /* Existing image picker — thumbnail previews */
 body.app-courses.model-workshop.change-form .field-image .flex-container,
-body.app-courses.model-workshop.add-form .field-image .flex-container {
+body.app-courses.model-workshop.add-form .field-image .flex-container,
+body.app-courses.model-workshop.change-form .field-images .flex-container,
+body.app-courses.model-workshop.add-form .field-images .flex-container {
     flex-direction: column;
     align-items: stretch;
 }
@@ -223,7 +225,9 @@ body.app-courses.model-workshop.add-form ul.gd-workshop-image-picker label:hover
 }
 
 body.app-courses.model-workshop.change-form ul.gd-workshop-image-picker input[type="radio"],
-body.app-courses.model-workshop.add-form ul.gd-workshop-image-picker input[type="radio"] {
+body.app-courses.model-workshop.add-form ul.gd-workshop-image-picker input[type="radio"],
+body.app-courses.model-workshop.change-form ul.gd-workshop-image-picker input[type="checkbox"],
+body.app-courses.model-workshop.add-form ul.gd-workshop-image-picker input[type="checkbox"] {
     margin: 0 0 0.15rem;
 }
 
@@ -235,12 +239,16 @@ body.app-courses.model-workshop.add-form ul.gd-workshop-image-picker input[type=
 }
 
 body.app-courses.model-workshop.change-form ul.gd-workshop-image-picker input[type="radio"]:checked,
-body.app-courses.model-workshop.add-form ul.gd-workshop-image-picker input[type="radio"]:checked {
+body.app-courses.model-workshop.add-form ul.gd-workshop-image-picker input[type="radio"]:checked,
+body.app-courses.model-workshop.change-form ul.gd-workshop-image-picker input[type="checkbox"]:checked,
+body.app-courses.model-workshop.add-form ul.gd-workshop-image-picker input[type="checkbox"]:checked {
     accent-color: #007bff;
 }
 
 body.app-courses.model-workshop.change-form ul.gd-workshop-image-picker li:has(input[type="radio"]:checked) label,
-body.app-courses.model-workshop.add-form ul.gd-workshop-image-picker li:has(input[type="radio"]:checked) label {
+body.app-courses.model-workshop.add-form ul.gd-workshop-image-picker li:has(input[type="radio"]:checked) label,
+body.app-courses.model-workshop.change-form ul.gd-workshop-image-picker li:has(input[type="checkbox"]:checked) label,
+body.app-courses.model-workshop.add-form ul.gd-workshop-image-picker li:has(input[type="checkbox"]:checked) label {
     border-color: #007bff;
     box-shadow: 0 0 0 0.12rem rgba(0, 123, 255, 0.2);
 }

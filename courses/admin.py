@@ -2,7 +2,7 @@ from django import forms
 from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import path
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_GET
 
@@ -226,7 +226,10 @@ class CourseAdmin(admin.ModelAdmin):
     inlines = [CourseMediaInline]
 
     class Media:
-        js = ('courses/js/admin-course-media.js',)
+        js = (
+            'courses/js/admin-course-media.js',
+            'courses/js/admin-course-card-image.js',
+        )
         css = {'all': ('admin/css/course-admin.css',)}
     list_display = ['course_name', 'course_skill_level', 'course_category', 'active', 'created_at']
 
@@ -244,8 +247,24 @@ class CourseAdmin(admin.ModelAdmin):
     list_filter = ['active', 'course_skill_level', 'course_category', 'created_at']
     search_fields = ['course_name', 'course_description', 'description_for_workshop', 'slug']
     prepopulated_fields = {'slug': ('course_name',)}
-    readonly_fields = ['createdby_id', 'updatedby_id', 'created_at', 'updated_at']
+    readonly_fields = [
+        'createdby_id', 'updatedby_id', 'created_at', 'updated_at',
+        'card_list_image_preview',
+    ]
     list_editable = ['active']
+
+    READONLY_FORM_FIELD_DISPLAY = {
+        'course_url': 'display_course_url',
+        'region': 'display_region',
+        'status': 'display_status',
+        'content_title': 'display_content_title',
+        'strapline': 'display_strapline',
+        'main_content': 'display_main_content',
+        'sub_content': 'display_sub_content',
+        'meta_title': 'display_meta_title',
+        'meta_description': 'display_meta_description',
+        'meta_keywords': 'display_meta_keywords',
+    }
 
     def _course_field_names(self):
         names = []
@@ -253,9 +272,136 @@ class CourseAdmin(admin.ModelAdmin):
             names.extend(opts['fields'])
         return names
 
+    @classmethod
+    def _swap_readonly_field_names(cls, field_names):
+        return [
+            cls.READONLY_FORM_FIELD_DISPLAY.get(name, name)
+            for name in field_names
+        ]
+
+    def _readonly_fieldsets_for_viewer(self, fieldsets):
+        updated = []
+        for title, opts in fieldsets:
+            fields = self._swap_readonly_field_names(opts.get('fields', ()))
+            updated.append((title, {**opts, 'fields': tuple(fields)}))
+        return updated
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = list(super().get_fieldsets(request, obj))
+        if obj and not user_has_full_region_access(request.user):
+            return self._readonly_fieldsets_for_viewer(fieldsets)
+        return fieldsets
+
+    def _course_content_value(self, obj, attr, *, allow_html=False, empty='—'):
+        if not obj:
+            return empty
+        content = obj.content
+        if not content:
+            return empty
+        value = getattr(content, attr, None) or ''
+        if not value:
+            return empty
+        if allow_html:
+            return mark_safe(value)
+        return value
+
+    @admin.display(description='Course URL')
+    def display_course_url(self, obj):
+        if not obj or not (obj.slug or '').strip():
+            return '—'
+        path = CourseAdminForm.course_url_path(obj.slug)
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener">{}</a>',
+            path,
+            path,
+        )
+
+    @admin.display(description='Region', ordering='region_id')
+    def display_region(self, obj):
+        return obj.get_region_display() or '—'
+
+    @admin.display(description='Status', ordering='status_id')
+    def display_status(self, obj):
+        return obj.get_status_display()
+
+    @admin.display(description='Content title')
+    def display_content_title(self, obj):
+        return self._course_content_value(obj, 'content_title')
+
+    @admin.display(description='Strapline')
+    def display_strapline(self, obj):
+        return self._course_content_value(obj, 'strapline')
+
+    @admin.display(description='Main content')
+    def display_main_content(self, obj):
+        return self._course_content_value(obj, 'main_content', allow_html=True)
+
+    @admin.display(description='Sub content')
+    def display_sub_content(self, obj):
+        return self._course_content_value(obj, 'sub_content', allow_html=True)
+
+    @admin.display(description='Meta title')
+    def display_meta_title(self, obj):
+        return self._course_content_value(obj, 'meta_title')
+
+    @admin.display(description='Meta description')
+    def display_meta_description(self, obj):
+        return self._course_content_value(obj, 'meta_description')
+
+    @admin.display(description='Meta keywords')
+    def display_meta_keywords(self, obj):
+        return self._course_content_value(obj, 'meta_keywords')
+
+    @admin.display(description='List card preview')
+    def card_list_image_preview(self, obj):
+        if not obj or not obj.pk:
+            return 'Save the course and choose an image to adjust the list card preview.'
+        image_url = obj.list_card_thumbnail_url()
+        if not image_url:
+            return (
+                'No list image yet — set Classification → Image or add a course media image.'
+            )
+        x = 50 if obj.card_image_focus_x is None else int(obj.card_image_focus_x)
+        y = 50 if obj.card_image_focus_y is None else int(obj.card_image_focus_y)
+        zoom = 100 if obj.card_image_zoom is None else int(obj.card_image_zoom)
+        image_style = obj.list_card_thumbnail_style()
+        return format_html(
+            '<div class="course-card-admin-preview" id="course-card-admin-preview" '
+            'data-image-url="{}" data-focus-x="{}" data-focus-y="{}" data-zoom="{}">'
+            '<div class="course-card-admin-preview-frame" data-preview-frame>'
+            '<div class="course-card-admin-preview-stage" data-preview-stage>'
+            '<div class="course-card-admin-preview-viewport" data-preview-viewport>'
+            '<img src="{}" alt="" class="course-card-admin-preview-img" '
+            'data-preview-img style="{}">'
+            '<div class="course-card-admin-preview-viewport-ui" aria-hidden="true">'
+            '<div class="course-card-admin-preview-scrim"></div>'
+            '<span class="course-card-admin-preview-viewport-label">'
+            'Visible on listing</span>'
+            '<span class="course-card-admin-preview-sample">Course title</span>'
+            '</div>'
+            '<span class="course-card-admin-preview-focus" data-preview-focus '
+            'title="Drag to set focal point" style="left:{}%;top:{}%;"></span>'
+            '</div>'
+            '</div>'
+            '</div>'
+            '<p class="course-card-admin-preview-hint">'
+            'The framed area matches the list card. Zoomed-in areas outside the '
+            'frame are cropped on the site. Drag the blue circle or use the sliders.</p>'
+            '</div>',
+            image_url,
+            x,
+            y,
+            zoom,
+            image_url,
+            image_style,
+            x,
+            y,
+        )
+
     def get_readonly_fields(self, request, obj=None):
         if obj and not user_has_full_region_access(request.user):
-            return list(dict.fromkeys(self._course_field_names() + list(self.readonly_fields)))
+            names = self._swap_readonly_field_names(self._course_field_names())
+            return list(dict.fromkeys(names + list(self.readonly_fields)))
         return self.readonly_fields
 
     fieldsets = [
@@ -269,6 +415,18 @@ class CourseAdmin(admin.ModelAdmin):
         }),
         ('Classification', {
             'fields': ('content', 'image')
+        }),
+        ('Course list card image', {
+            'fields': (
+                'card_list_image_preview',
+                'card_image_focus_x',
+                'card_image_focus_y',
+                'card_image_zoom',
+            ),
+            'description': (
+                'Controls how this course image appears on the photography courses listing. '
+                'Drag the focal point in the preview or use the sliders, then save.'
+            ),
         }),
         ('Page Content', {
             'fields': (
@@ -354,7 +512,9 @@ class WorkshopAdmin(RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
         return super().change_view(request, object_id, form_url, extra_context)
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related('course', 'venue')
+        return super().get_queryset(request).select_related(
+            'course', 'venue',
+        ).prefetch_related('gallery_images__image')
 
     def save_model(self, request, obj, form, change):
         from django.utils import timezone
@@ -368,18 +528,24 @@ class WorkshopAdmin(RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
         obj.updatedby_id = request.user.id
         obj.updated_at = now
         super().save_model(request, obj, form, change)
+        if hasattr(form, 'sync_gallery'):
+            form.sync_gallery(obj)
 
-    @admin.display(description='Current image')
+    @admin.display(description='Selected images')
     def image_preview(self, obj):
-        if not obj or not obj.image_id:
+        if not obj or not obj.pk:
             return '—'
-        image = Image.objects.filter(pk=obj.image_id).first()
-        if not image or not image.url:
+        from courses.display_images import workshop_gallery_images
+
+        images = workshop_gallery_images(obj)
+        if not images:
             return '—'
-        return format_html(
-            '<img src="{}" alt="" style="max-height:50px;max-width:100%;">',
-            image.url,
+        thumbs = format_html_join(
+            '',
+            '<img src="{}" alt="" style="max-height:50px;max-width:80px;margin-right:0.5rem;border-radius:4px;">',
+            ((image.url,) for image in images if image.url),
         )
+        return thumbs or '—'
 
     @admin.display(description='User')
     def user_display(self, obj):

@@ -26,6 +26,16 @@ SESSION_KEY = 'workshop_basket'
 MAX_QUANTITY_PER_LINE = 10
 
 
+def places_available_message(available, existing_in_basket=0):
+    """User-facing message when requested places exceed workshop availability."""
+    place_word = 'place' if available == 1 else 'places'
+    message = f'Only {available} {place_word} available on this course.'
+    if existing_in_basket:
+        basket_word = 'place' if existing_in_basket == 1 else 'places'
+        message += f' ({existing_in_basket} {basket_word} already in your basket.)'
+    return message
+
+
 def _empty_basket():
     return {
         'items': [],
@@ -75,11 +85,17 @@ def basket_amount_due(basket, workshops_by_id=None):
 
 
 def load_workshops_for_basket(basket):
+    from courses.display_images import attach_gd_images_to_workshops
+
     ids = {item['workshop_id'] for item in basket.get('items', [])}
     if not ids:
         return {}
-    workshops = Workshop.objects.filter(pk__in=ids, active=1).select_related('course', 'venue')
-    return {w.pk: w for w in workshops}
+    workshops = Workshop.objects.filter(pk__in=ids, active=1).select_related(
+        'course', 'course__image', 'venue',
+    ).prefetch_related('course__media', 'gallery_images__image')
+    workshop_list = list(workshops)
+    attach_gd_images_to_workshops(workshop_list)
+    return {w.pk: w for w in workshop_list}
 
 
 def get_basket_lines(request):
@@ -125,8 +141,7 @@ def _validate_quantity_for_workshop(workshop, quantity, existing_in_basket=0):
     available = workshop.spaces_available
     if available is not None and quantity + existing_in_basket > available:
         raise ValidationError(
-            f'Only {available} place(s) available on this course '
-            f'({existing_in_basket} already in your basket).'
+            places_available_message(available, existing_in_basket=existing_in_basket)
         )
 
 

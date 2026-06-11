@@ -20,9 +20,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Course, Workshop, Venue, CourseCategory, LEVEL_NAME_TO_ID, LEVEL_DISPLAY_NAMES
 from .forms import ContactForm, GiftVoucherRequestForm, CONTACT_REGION_CHOICES, VOUCHER_AMOUNT_CHOICES
-from .utils import get_promoted_occasions
+from .utils import get_promoted_occasions, workshop_calendar_date
 from website.models import GiftVoucherPageImage, HeroImage, Testimonial, BeforeAfterImage, FAQ
 from .serializers import WorkshopSerializer
+from .display_images import attach_gd_images_to_workshops, collect_header_images, primary_image_url
 
 # Fallback when no admin image: optional legacy file in MEDIA_ROOT, then bundled static SVG.
 _GIFT_VOUCHER_LEGACY_MEDIA_REL = 'gd_images/im-t8-f1-0a11ba8c74817bc2c7008aa89413e39b.jpg'
@@ -210,6 +211,7 @@ class CourseListView(ListView):
             )
             locations = [loc for loc in locations if loc]
             
+            list_video = course.list_card_video()
             courses_data.append({
                 'id': course.id,
                 'title': course.title,
@@ -221,6 +223,8 @@ class CourseListView(ListView):
                 'duration_hours': course.duration_hours,
                 'min_price': str(course.min_price),
                 'image_url': img_url,
+                'card_image_style': course.list_card_thumbnail_style(),
+                'video': list_video,
                 'locations': locations[:5],
                 'detail_url': reverse('courses:course_detail', kwargs={'slug': course.slug}),
             })
@@ -272,13 +276,19 @@ class CourseListView(ListView):
         if level and level in LEVEL_NAME_TO_ID:
             queryset = queryset.filter(course_skill_level_id=LEVEL_NAME_TO_ID[level])
         
-        # Filter by location/city
-        city = self.request.GET.get('city', '')
-        if city:
-            queryset = queryset.filter(
-                workshops__venue__location__iexact=city,
-                workshops__venue__active=1
-            ).distinct()
+        # Filter by venue (Locations dropdown value is venue slug or pk)
+        venue_filter = self.request.GET.get('city', '').strip()
+        if venue_filter:
+            if venue_filter.isdigit():
+                queryset = queryset.filter(
+                    workshops__venue_id=int(venue_filter),
+                    workshops__venue__active=1,
+                ).distinct()
+            else:
+                queryset = queryset.filter(
+                    workshops__venue__slug=venue_filter,
+                    workshops__venue__active=1,
+                ).distinct()
         
         # Filter by instructor - Workshop has tutor_id (gd_tutor), no instructor FK; skip for now
         
@@ -300,11 +310,18 @@ class CourseListView(ListView):
             workshops__date__gte=timezone.now(),
             workshops__venue__active=1
         ).distinct().count()
-        # Get unique cities from active locations
-        context['cities'] = Venue.objects.filter(
-            workshops__active=1,
-            workshops__date__gte=timezone.now()
-        ).values_list('location', flat=True).distinct().exclude(location__isnull=True).exclude(location='').order_by('location')
+        # Venues with upcoming workshops (for Locations filter)
+        context['filter_venues'] = (
+            Venue.objects.filter(
+                active=1,
+                workshops__active=1,
+                workshops__date__gte=timezone.now(),
+            )
+            .exclude(venue_name='')
+            .distinct()
+            .order_by('venue_name')
+            .values('id', 'slug', 'venue_name')
+        )
         
         # Prepare instance data for map (convert to JSON-safe format)
         # Show all bookable instances, not just one per course
@@ -312,6 +329,11 @@ class CourseListView(ListView):
         from datetime import datetime
         instances_data = []
         
+        all_map_workshops = []
+        for course in context['courses']:
+            all_map_workshops.extend(list(course.workshops.all()))
+        attach_gd_images_to_workshops(all_map_workshops)
+
         # Get all bookable instances from the filtered courses
         for course in context['courses']:
             for instance in course.workshops.all():
@@ -336,13 +358,7 @@ class CourseListView(ListView):
                     # Get price (Workshop has cost)
                     instance_price = instance.price
                     v = instance.venue
-                    image_url = ''
-                    if getattr(course, 'image_id', None) and course.image and getattr(course.image, 'file_name', None):
-                        image_url = course.image.url
-                    else:
-                        fu = course.first_uploaded_image
-                        if fu and fu.image:
-                            image_url = fu.image.url
+                    image_url = primary_image_url(workshop=instance, course=course)
                     card_desc = course.get_card_short_description() or ''
                     if card_desc:
                         words = card_desc.split()
@@ -501,14 +517,14 @@ class CourseDetailView(DetailView):
         """Get course with related data for optimal performance."""
         return Course.objects.prefetch_related(
             Prefetch('workshops', queryset=Workshop.objects.select_related(
-                'venue', 'course'
-            ).filter(
+                'venue', 'course',
+            ).prefetch_related('gallery_images__image').filter(
                 active=1,
                 date__gte=timezone.now()
             ).order_by('date')),
             'faqs',
-            'media'
-        ).select_related()
+            'media',
+        ).select_related('image', 'content')
     
     def get_object(self, queryset=None):
         """Get course by slug, optionally filtered by location_slug (venue-specific page)."""
@@ -560,7 +576,11 @@ class CourseDetailView(DetailView):
         all_locations = []
         seen_location_ids = set()
         prices = []
+        filter_dates = []
         for instance in instances_list:
+            instance.filter_date = workshop_calendar_date(instance.start_date)
+            if instance.filter_date:
+                filter_dates.append(instance.filter_date)
             city = instance.venue.location if instance.venue else 'TBC'
             if city not in instances_by_city:
                 instances_by_city[city] = []
@@ -574,20 +594,23 @@ class CourseDetailView(DetailView):
         context['all_locations'] = all_locations
         context['min_price'] = min(prices) if prices else None
         context['has_multiple_prices'] = len(set(prices)) > 1 if prices else False
+
+        context['instances_date_min'] = min(filter_dates) if filter_dates else None
+        context['instances_date_max'] = max(filter_dates) if filter_dates else None
+        context['show_instance_filters'] = len(instances_list) > 1
         
         context['schema_data'] = self.get_schema_data(course)
         context['meta_title'] = course.meta_title or f"{course.title} - Photography Courses"
         context['meta_description'] = course.meta_description or course.short_description
         context['meta_keywords'] = course.meta_keywords or f"{course.category}, {course.level}, photography course"
         
-        # Header images for course page (gd_image + CourseMedia images) - used for slider when multiple
-        header_images = []
-        if course.image and course.image.url:
-            header_images.append({'url': course.image.url, 'alt': course.title})
-        for m in course.media.all():
-            if m.media_type == 'image' and m.image:
-                header_images.append({'url': m.image.url, 'alt': m.caption or course.title})
-        context['header_images'] = header_images
+        featured = context.get('featured_instance')
+        if featured:
+            attach_gd_images_to_workshops([featured])
+        context['header_images'] = collect_header_images(
+            course,
+            workshop=featured if context.get('is_location_specific') else None,
+        )
         
         return context
     
@@ -685,9 +708,12 @@ class CourseSearchAPIView(APIView):
             date__gte=timezone.now()
         ).select_related('course', 'venue')
         
-        city = request.GET.get('city')
-        if city:
-            queryset = queryset.filter(venue__location__iexact=city)
+        venue_filter = (request.GET.get('city') or '').strip()
+        if venue_filter:
+            if venue_filter.isdigit():
+                queryset = queryset.filter(venue_id=int(venue_filter))
+            else:
+                queryset = queryset.filter(venue__slug=venue_filter)
         
         category = request.GET.get('category')
         if category:

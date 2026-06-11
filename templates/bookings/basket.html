@@ -38,8 +38,8 @@
                 {% for line in lines %}
                 <li class="basket-item">
                     <div class="basket-item-media">
-                        {% if line.workshop.course.image and line.workshop.course.image.url %}
-                        <img src="{{ line.workshop.course.image.url }}"
+                        {% if line.workshop.display_image_url %}
+                        <img src="{{ line.workshop.display_image_url }}"
                              alt=""
                              class="basket-item-image"
                              loading="lazy"

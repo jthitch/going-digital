@@ -80,8 +80,7 @@ class BookingForm(forms.ModelForm):
         if self.workshop:
             available = self.workshop.spaces_available
             if available is not None and quantity > available:
-                raise forms.ValidationError(
-                    f'Only {available} place(s) available on this course.'
-                )
+                from bookings.workshop_basket import places_available_message
+                self.add_error('quantity', places_available_message(available))
 
         return cleaned_data

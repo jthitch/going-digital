@@ -42,8 +42,19 @@ class CreateBookingView(CreateView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_workshop(self):
+        from courses.display_images import attach_gd_images_to_workshops
+
         instance_id = self.kwargs.get('instance_id')
-        return get_object_or_404(Workshop, id=instance_id, active=1)
+        workshop = get_object_or_404(
+            Workshop.objects.select_related('course', 'course__image', 'venue').prefetch_related(
+                'course__media',
+                'gallery_images__image',
+            ),
+            id=instance_id,
+            active=1,
+        )
+        attach_gd_images_to_workshops([workshop])
+        return workshop
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -67,7 +78,8 @@ class CreateBookingView(CreateView):
                 form.cleaned_data['quantity'],
             )
         except ValidationError as exc:
-            form.add_error(None, exc.messages[0] if exc.messages else str(exc))
+            message = exc.messages[0] if exc.messages else str(exc)
+            form.add_error('quantity', message)
             return self.form_invalid(form)
 
         qty = form.cleaned_data['quantity']
