@@ -24,6 +24,7 @@ from .utils import get_promoted_occasions, workshop_calendar_date
 from website.models import GiftVoucherPageImage, HeroImage, Testimonial, BeforeAfterImage, FAQ
 from .serializers import WorkshopSerializer
 from .display_images import attach_gd_images_to_workshops, collect_header_images, primary_image_url
+from .list_card import serialize_list_card
 
 # Fallback when no admin image: optional legacy file in MEDIA_ROOT, then bundled static SVG.
 _GIFT_VOUCHER_LEGACY_MEDIA_REL = 'gd_images/im-t8-f1-0a11ba8c74817bc2c7008aa89413e39b.jpg'
@@ -197,37 +198,10 @@ class CourseListView(ListView):
             page_num = 1
         page = paginator.get_page(page_num)
         
-        courses_data = []
-        for course in page.object_list:
-            img_url = ''
-            if course.image and course.image.url:
-                img_url = course.image.url
-            else:
-                fi = getattr(course, 'first_uploaded_image', None)
-                if fi and getattr(fi, 'image', None):
-                    img_url = fi.image.url
-            locations = list(
-                course.workshops.values_list('venue__venue_name', flat=True).distinct()
-            )
-            locations = [loc for loc in locations if loc]
-            
-            list_video = course.list_card_video()
-            courses_data.append({
-                'id': course.id,
-                'title': course.title,
-                'slug': course.slug,
-                'category': course.get_card_category_display(),
-                'short_description': (course.get_card_short_description() or '')[:200],
-                'level': course.level,
-                'level_display': course.get_level_display(),
-                'duration_hours': course.duration_hours,
-                'min_price': str(course.min_price),
-                'image_url': img_url,
-                'card_image_style': course.list_card_thumbnail_style(),
-                'video': list_video,
-                'locations': locations[:5],
-                'detail_url': reverse('courses:course_detail', kwargs={'slug': course.slug}),
-            })
+        courses_data = [
+            serialize_list_card(course)
+            for course in page.object_list
+        ]
         
         return JsonResponse({
             'courses': courses_data,

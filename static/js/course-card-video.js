@@ -38,7 +38,14 @@
         }
         if (video.tagName === 'IFRAME') {
             var src = video.getAttribute('data-video-src');
-            if (src && video.src !== src) {
+            if (
+                src
+                && (
+                    src.indexOf('https://www.youtube.com/embed/') === 0
+                    || src.indexOf('https://player.vimeo.com/video/') === 0
+                )
+                && video.src !== src
+            ) {
                 video.src = src;
             }
         }

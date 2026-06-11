@@ -1,0 +1,29 @@
+<div class="course-image-wrapper{% if list_video %} course-image-wrapper--has-video{% endif %}">
+    {% if course.image %}
+    <img src="{{ course.image.url }}" alt="" class="course-thumbnail course-card-poster" loading="lazy" decoding="async"
+         style="{{ course.list_card_thumbnail_style }}">
+    {% elif course.first_uploaded_image %}
+    <img src="{{ course.first_uploaded_image.image.url }}" alt="" class="course-thumbnail course-card-poster" loading="lazy" decoding="async"
+         style="{{ course.list_card_thumbnail_style }}">
+    {% else %}
+    <div class="course-placeholder course-card-poster" aria-hidden="true">📷</div>
+    {% endif %}
+    {% if list_video %}
+        {% if list_video.kind == 'file' %}
+        <video class="course-card-video" muted loop playsinline preload="none"
+               {% if list_video.poster %}poster="{{ list_video.poster }}"{% endif %}
+               style="{{ list_video.style }}">
+            <source src="{{ list_video.src }}">
+        </video>
+        {% elif list_video.kind == 'embed' %}
+        <iframe class="course-card-video course-card-video--embed"
+                data-video-src="{{ list_video.src }}"
+                title=""
+                loading="lazy"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allow="autoplay; encrypted-media; picture-in-picture"
+                tabindex="-1"></iframe>
+        {% endif %}
+    {% endif %}
+    <div class="course-card-scrim" aria-hidden="true"></div>
+</div>

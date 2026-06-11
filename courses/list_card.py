@@ -1,0 +1,97 @@
+"""Shared helpers for photography-courses list cards (template + JSON API)."""
+
+from django.urls import reverse
+
+from .models import CourseMedia
+
+
+def card_focal_point(course):
+    """Return (x, y, zoom_percent) for list card image positioning."""
+    x = 50 if course.card_image_focus_x is None else int(course.card_image_focus_x)
+    y = 50 if course.card_image_focus_y is None else int(course.card_image_focus_y)
+    zoom_pct = 100 if course.card_image_zoom is None else int(course.card_image_zoom)
+    zoom_pct = max(100, min(200, zoom_pct))
+    return x, y, zoom_pct
+
+
+def card_thumbnail_style(course):
+    x, y, zoom_pct = card_focal_point(course)
+    scale = zoom_pct / 100
+    return (
+        f'object-position:{x}% {y}%;'
+        f'transform:scale({scale});'
+        f'transform-origin:{x}% {y}%;'
+    )
+
+
+def card_object_position_style(course):
+    x, y, _zoom = card_focal_point(course)
+    return f'object-position:{x}% {y}%;'
+
+
+def list_card_thumbnail_url(course):
+    try:
+        if course.image_id and course.image and course.image.url:
+            return course.image.url
+    except (ValueError, OSError):
+        pass
+    first = course.first_uploaded_image
+    if first and getattr(first, 'image', None):
+        try:
+            return first.image.url
+        except (ValueError, OSError):
+            return ''
+    return ''
+
+
+def list_card_video_data(course):
+    """First CourseMedia video payload for list card hover / in-view playback."""
+    for media in course.media.all():
+        if media.media_type != CourseMedia.MEDIA_TYPE_VIDEO:
+            continue
+        poster = list_card_thumbnail_url(course)
+        position_style = card_object_position_style(course)
+        if media.video_file:
+            try:
+                src = media.video_file.url
+            except (ValueError, OSError):
+                src = ''
+            if src:
+                return {
+                    'kind': 'file',
+                    'src': src,
+                    'poster': poster,
+                    'style': position_style,
+                }
+        embed = media.list_card_autoplay_embed_url()
+        if embed:
+            return {
+                'kind': 'embed',
+                'src': embed,
+                'poster': poster,
+                'style': position_style,
+            }
+    return None
+
+
+def serialize_list_card(course, *, locations=None):
+    """JSON-serializable dict for infinite-scroll course cards."""
+    if locations is None:
+        locations = [
+            loc for loc in course.workshops.values_list('venue__venue_name', flat=True).distinct()
+            if loc
+        ]
+    return {
+        'id': course.id,
+        'title': course.title,
+        'slug': course.slug,
+        'category': course.get_card_category_display(),
+        'level': course.level,
+        'level_display': course.get_level_display(),
+        'min_price': str(course.min_price),
+        'image_url': list_card_thumbnail_url(course),
+        'card_image_style': card_thumbnail_style(course),
+        'video': list_card_video_data(course),
+        'locations': locations[:5],
+        'detail_url': reverse('courses:course_detail', kwargs={'slug': course.slug}),
+    }

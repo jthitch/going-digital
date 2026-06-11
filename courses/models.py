@@ -1133,64 +1133,23 @@ class Course(models.Model):
 
     def list_card_thumbnail_url(self):
         """Image used on the photography-courses listing card."""
-        try:
-            if self.image_id and self.image and self.image.url:
-                return self.image.url
-        except Exception:
-            pass
-        first = self.first_uploaded_image
-        if first and getattr(first, 'image', None):
-            return first.image.url
-        return ''
+        from .list_card import list_card_thumbnail_url
+        return list_card_thumbnail_url(self)
 
     def list_card_thumbnail_style(self):
         """Inline CSS for object-position and zoom on course list cards."""
-        x = 50 if self.card_image_focus_x is None else int(self.card_image_focus_x)
-        y = 50 if self.card_image_focus_y is None else int(self.card_image_focus_y)
-        zoom_pct = 100 if self.card_image_zoom is None else int(self.card_image_zoom)
-        zoom_pct = max(100, min(200, zoom_pct))
-        scale = zoom_pct / 100
-        return (
-            f'object-position:{x}% {y}%;'
-            f'transform:scale({scale});'
-            f'transform-origin:{x}% {y}%;'
-        )
+        from .list_card import card_thumbnail_style
+        return card_thumbnail_style(self)
 
     def list_card_object_position_style(self):
         """Object-position only (for video elements that should not use CSS transform)."""
-        x = 50 if self.card_image_focus_x is None else int(self.card_image_focus_x)
-        y = 50 if self.card_image_focus_y is None else int(self.card_image_focus_y)
-        return f'object-position:{x}% {y}%;'
+        from .list_card import card_object_position_style
+        return card_object_position_style(self)
 
     def list_card_video(self):
         """First CourseMedia video for photography-courses list card playback."""
-        for media in self.media.all():
-            if media.media_type != CourseMedia.MEDIA_TYPE_VIDEO:
-                continue
-            poster = self.list_card_thumbnail_url()
-            position_style = self.list_card_object_position_style()
-            if media.video_file:
-                try:
-                    src = media.video_file.url
-                except Exception:
-                    src = ''
-                if src:
-                    return {
-                        'kind': 'file',
-                        'src': src,
-                        'poster': poster,
-                        'style': position_style,
-                    }
-            if media.video_url:
-                embed = media.list_card_autoplay_embed_url()
-                if embed:
-                    return {
-                        'kind': 'embed',
-                        'src': embed,
-                        'poster': poster,
-                        'style': position_style,
-                    }
-        return None
+        from .list_card import list_card_video_data
+        return list_card_video_data(self)
 
     def get_absolute_url(self, location=None, location_slug=None):
         """Generate SEO-friendly URL: /photography-courses/<course-slug>/<location-slug>/ or overview."""
@@ -1247,22 +1206,34 @@ class CourseMedia(models.Model):
 
     @property
     def video_embed_url(self):
-        """Convert YouTube/Vimeo URL to embed URL."""
+        """Convert YouTube/Vimeo URL to a whitelisted embed URL."""
         if not self.video_url:
             return None
-        url = self.video_url.strip()
-        # YouTube: https://www.youtube.com/watch?v=VIDEO_ID -> https://www.youtube.com/embed/VIDEO_ID
-        if 'youtube.com/watch' in url:
-            from urllib.parse import parse_qs, urlparse
-            parsed = urlparse(url)
-            return f"https://www.youtube.com/embed/{parse_qs(parsed.query).get('v', [None])[0]}"
-        if 'youtu.be/' in url:
-            return f"https://www.youtube.com/embed/{url.split('youtu.be/')[-1].split('?')[0]}"
-        # Vimeo: https://vimeo.com/123 -> https://player.vimeo.com/video/123
-        if 'vimeo.com/' in url:
-            vid = url.rstrip('/').split('/')[-1]
-            return f"https://player.vimeo.com/video/{vid}"
-        return url
+        from urllib.parse import parse_qs, urlparse
+        import re
+
+        parsed = urlparse(self.video_url.strip())
+        if parsed.scheme not in ('http', 'https') or not parsed.netloc:
+            return None
+        host = parsed.netloc.lower().removeprefix('www.')
+        path = parsed.path or ''
+
+        if host in ('youtube.com', 'm.youtube.com') and path == '/watch':
+            video_id = parse_qs(parsed.query).get('v', [None])[0]
+            if not video_id or not re.fullmatch(r'[\w-]{6,}', video_id):
+                return None
+            return f'https://www.youtube.com/embed/{video_id}'
+        if host == 'youtu.be':
+            video_id = path.strip('/').split('/')[0]
+            if not video_id or not re.fullmatch(r'[\w-]{6,}', video_id):
+                return None
+            return f'https://www.youtube.com/embed/{video_id}'
+        if host in ('vimeo.com', 'player.vimeo.com'):
+            video_id = path.rstrip('/').split('/')[-1]
+            if not video_id or not re.fullmatch(r'\d+', video_id):
+                return None
+            return f'https://player.vimeo.com/video/{video_id}'
+        return None
 
     @property
     def list_card_autoplay_embed_url(self):
@@ -1280,7 +1251,6 @@ class CourseMedia(models.Model):
         if 'player.vimeo.com/video/' in embed:
             join = '&' if '?' in embed else '?'
             return f'{embed}{join}autoplay=1&muted=1&background=1&loop=1&autopause=0'
-        join = '&' if '?' in embed else '?'
-        return f'{embed}{join}autoplay=1&mute=1'
+        return None
 
 

@@ -162,34 +162,7 @@
             {% with list_video=course.list_card_video %}
             <article class="course-card course-card--overlay{% if list_video %} course-card--has-video{% endif %}"{% if list_video %} data-has-video{% endif %}>
                 <a href="{% url 'courses:course_detail' slug=course.slug %}" class="course-card-link">
-                    <div class="course-image-wrapper{% if list_video %} course-image-wrapper--has-video{% endif %}">
-                        {% if course.image %}
-                        <img src="{{ course.image.url }}" alt="" class="course-thumbnail course-card-poster" loading="lazy" decoding="async"
-                             style="{{ course.list_card_thumbnail_style }}">
-                        {% elif course.first_uploaded_image %}
-                        <img src="{{ course.first_uploaded_image.image.url }}" alt="" class="course-thumbnail course-card-poster" loading="lazy" decoding="async"
-                             style="{{ course.list_card_thumbnail_style }}">
-                        {% else %}
-                        <div class="course-placeholder course-card-poster" aria-hidden="true">📷</div>
-                        {% endif %}
-                        {% if list_video %}
-                            {% if list_video.kind == 'file' %}
-                            <video class="course-card-video" muted loop playsinline webkit-playsinline preload="none"
-                                   {% if list_video.poster %}poster="{{ list_video.poster }}"{% endif %}
-                                   style="{{ list_video.style }}">
-                                <source src="{{ list_video.src }}">
-                            </video>
-                            {% else %}
-                            <iframe class="course-card-video course-card-video--embed"
-                                    data-video-src="{{ list_video.src }}"
-                                    title=""
-                                    loading="lazy"
-                                    allow="autoplay; encrypted-media; picture-in-picture"
-                                    tabindex="-1"></iframe>
-                            {% endif %}
-                        {% endif %}
-                        <div class="course-card-scrim" aria-hidden="true"></div>
-                    </div>
+                    {% include 'courses/partials/course_list_card_media.html' with list_video=list_video course=course %}
                     <div class="course-level-badge" data-level="{{ course.level }}">{{ course.get_level_display }}</div>
                     <div class="course-card-content">
                         <div class="course-header">
@@ -733,26 +706,74 @@ function initializeMap() {
     var nextPage = parseInt(grid.dataset.nextPage || '0', 10);
     var hasNext = grid.dataset.hasNext === 'true';
     var loading = false;
-    
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function safePathUrl(url, fallback) {
+        var value = String(url || '');
+        if (!value.startsWith('/') || value.startsWith('//')) {
+            return fallback || '/';
+        }
+        return value;
+    }
+
+    function safeMediaUrl(url) {
+        var value = String(url || '');
+        if (!value.startsWith('/') || value.startsWith('//')) {
+            return '';
+        }
+        return value;
+    }
+
+    function safeEmbedUrl(url) {
+        var value = String(url || '');
+        if (value.indexOf('https://www.youtube.com/embed/') === 0) {
+            return value;
+        }
+        if (value.indexOf('https://player.vimeo.com/video/') === 0) {
+            return value;
+        }
+        return '';
+    }
+
     function buildCardMedia(c) {
-        var cardStyle = (c.card_image_style || '').replace(/"/g, '&quot;');
-        var posterHtml = c.image_url
-            ? '<img src="' + c.image_url + '" alt="" class="course-thumbnail course-card-poster" loading="lazy" decoding="async"'
+        var cardStyle = escapeHtml(c.card_image_style || '');
+        var imageUrl = safeMediaUrl(c.image_url);
+        var posterHtml = imageUrl
+            ? '<img src="' + escapeHtml(imageUrl) + '" alt="" class="course-thumbnail course-card-poster" loading="lazy" decoding="async"'
               + (cardStyle ? ' style="' + cardStyle + '"' : '') + '>'
             : '<div class="course-placeholder course-card-poster" aria-hidden="true">📷</div>';
         var videoHtml = '';
-        var hasVideo = c.video && c.video.src;
+        var hasVideo = c.video && c.video.src && (c.video.kind === 'file' || c.video.kind === 'embed');
         if (hasVideo) {
             if (c.video.kind === 'file') {
-                var videoStyle = (c.video.style || '').replace(/"/g, '&quot;');
-                videoHtml = '<video class="course-card-video" muted loop playsinline webkit-playsinline preload="none"'
-                    + (c.video.poster ? ' poster="' + String(c.video.poster).replace(/"/g, '&quot;') + '"' : '')
-                    + (videoStyle ? ' style="' + videoStyle + '"' : '') + '>'
-                    + '<source src="' + String(c.video.src).replace(/"/g, '&quot;') + '"></video>';
+                var fileSrc = safeMediaUrl(c.video.src);
+                if (fileSrc) {
+                    var videoStyle = escapeHtml(c.video.style || '');
+                    var poster = safeMediaUrl(c.video.poster);
+                    videoHtml = '<video class="course-card-video" muted loop playsinline preload="none"'
+                        + (poster ? ' poster="' + escapeHtml(poster) + '"' : '')
+                        + (videoStyle ? ' style="' + videoStyle + '"' : '') + '>'
+                        + '<source src="' + escapeHtml(fileSrc) + '"></video>';
+                } else {
+                    hasVideo = false;
+                }
             } else {
-                videoHtml = '<iframe class="course-card-video course-card-video--embed" data-video-src="'
-                    + String(c.video.src).replace(/"/g, '&quot;') + '" title="" loading="lazy"'
-                    + ' allow="autoplay; encrypted-media; picture-in-picture" tabindex="-1"></iframe>';
+                var embedSrc = safeEmbedUrl(c.video.src);
+                if (embedSrc) {
+                    videoHtml = '<iframe class="course-card-video course-card-video--embed" data-video-src="'
+                        + escapeHtml(embedSrc) + '" title="" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"'
+                        + ' allow="autoplay; encrypted-media; picture-in-picture" tabindex="-1"></iframe>';
+                } else {
+                    hasVideo = false;
+                }
             }
         }
         var wrapperClass = 'course-image-wrapper' + (hasVideo ? ' course-image-wrapper--has-video' : '');
@@ -761,21 +782,23 @@ function initializeMap() {
     }
 
     function buildCard(c) {
-        var hasVideo = c.video && c.video.src;
+        var hasVideo = c.video && c.video.src && (c.video.kind === 'file' || c.video.kind === 'embed');
         var locs = (c.locations || []).slice(0, 5).map(function(l) {
-            return '<span class="location-item">' + (l || 'TBC') + '</span>';
+            return '<span class="location-item">' + escapeHtml(l || 'TBC') + '</span>';
         }).join('');
         var locsHtml = locs ? '<div class="course-locations"><div class="course-locations-list">' + locs + '</div></div>' : '';
+        var detailUrl = safePathUrl(c.detail_url, '/photography-courses/' + String(c.slug || '') + '/');
+        var level = escapeHtml(c.level || 'beginner');
         return '<article class="course-card course-card--overlay' + (hasVideo ? ' course-card--has-video' : '') + '"'
             + (hasVideo ? ' data-has-video' : '') + '>' +
-            '<a href="' + (c.detail_url || '/photography-courses/' + c.slug + '/') + '" class="course-card-link">' +
+            '<a href="' + escapeHtml(detailUrl) + '" class="course-card-link">' +
             buildCardMedia(c) +
-            '<div class="course-level-badge" data-level="' + (c.level || 'beginner') + '">' + (c.level_display || '') + '</div>' +
+            '<div class="course-level-badge" data-level="' + level + '">' + escapeHtml(c.level_display || '') + '</div>' +
             '<div class="course-card-content">' +
-            '<div class="course-header"><h2 class="course-title">' + (c.title || '').replace(/</g, '&lt;') + '</h2></div>' +
+            '<div class="course-header"><h2 class="course-title">' + escapeHtml(c.title || '') + '</h2></div>' +
             locsHtml +
             '<div class="course-footer">' +
-            '<div class="course-price">From £' + (c.min_price || '0') + '</div>' +
+            '<div class="course-price">From £' + escapeHtml(c.min_price || '0') + '</div>' +
             '<span class="btn-view">View course</span></div></div></a></article>';
     }
     
@@ -835,5 +858,5 @@ function initializeMap() {
     observer.observe(sentinel);
 })();
 </script>
-<script src="{% static 'js/course-card-video.js' %}?v=2" defer></script>
+<script src="{% static 'js/course-card-video.js' %}?v=3" defer></script>
 {% endblock %}
