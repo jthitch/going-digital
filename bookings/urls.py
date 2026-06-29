@@ -11,6 +11,7 @@ urlpatterns = [
     path('basket/', views.BookingBasketView.as_view(), name='basket'),
     path('basket/remove/<str:item_id>/', views.BookingBasketRemoveView.as_view(), name='basket_remove'),
     path('basket/update/<str:item_id>/', views.BookingBasketUpdateView.as_view(), name='basket_update'),
+    path('basket/voucher/', views.BookingBasketVoucherView.as_view(), name='basket_voucher'),
     path('basket/checkout/', views.BookingBasketCheckoutView.as_view(), name='basket_checkout'),
     path('confirm/<str:booking_ref>/', views.BookingConfirmationView.as_view(), name='confirm'),
     

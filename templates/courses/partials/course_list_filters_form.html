@@ -1,0 +1,100 @@
+{% comment %}
+Filter modal form (level, category, dates, instructor).
+Optional id_prefix avoids duplicate HTML ids when multiple forms are in the DOM.
+{% endcomment %}
+<form method="get" action="{% url 'courses:course_list' %}" class="filters-form filters-form--modal" id="{% if id_prefix %}{{ id_prefix }}{% endif %}course-filters-form">
+    {% if map_view_active %}<input type="hidden" name="view" value="map">{% endif %}
+    <input type="hidden" name="category" value="{{ current_category }}">
+    <input type="hidden" name="level" value="{{ current_level }}">
+
+    <div class="filter-modal-scroll">
+        <section class="filter-modal-section filter-modal-section--level" aria-labelledby="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-level-heading">
+            <h3 class="filter-modal-section__title" id="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-level-heading">Skill level</h3>
+            <p class="filter-modal-section__hint">Choose your experience level</p>
+            <div class="category-filter-wrap" aria-label="Filter by skill level">
+                <div class="category-filter-buttons category-filter-buttons-level">
+                    <a href="{% url 'courses:course_list' %}{% if filter_other_params_for_level_query %}?{{ filter_other_params_for_level_query }}{% endif %}"
+                       class="category-filter-btn {% if not current_level %}active{% endif %}">All levels</a>
+                    {% for value, label in levels %}
+                    <a href="{% url 'courses:course_list' %}?level={{ value }}{% if filter_other_params_for_level_query %}&amp;{{ filter_other_params_for_level_query }}{% endif %}"
+                       class="category-filter-btn {% if current_level == value %}active{% endif %}">{{ label }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="filter-modal-section filter-modal-section--category" aria-labelledby="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-category-heading">
+            <h3 class="filter-modal-section__title" id="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-category-heading">Course category</h3>
+            <p class="filter-modal-section__hint">Browse by photography subject</p>
+            <div class="category-filter-wrap" aria-label="Filter by category">
+                <div class="category-filter-buttons category-filter-buttons-category" id="{% if id_prefix %}{{ id_prefix }}{% endif %}category-filter-buttons-main">
+                    <a href="{% url 'courses:course_list' %}{% if filter_other_params_query %}?{{ filter_other_params_query }}{% endif %}"
+                       class="category-filter-btn {% if not current_category %}active{% endif %}">All categories</a>
+                    {% for value, label in categories %}
+                    {% if forloop.counter <= 9 %}
+                    <a href="{% url 'courses:course_list' %}?category={{ value }}{% if filter_other_params_query %}&amp;{{ filter_other_params_query }}{% endif %}"
+                       class="category-filter-btn {% if current_category == value %}active{% endif %}">{{ label }}</a>
+                    {% endif %}
+                    {% endfor %}
+                    {% if categories|length > 9 %}
+                    <button type="button" class="category-filter-btn category-filter-more" id="{% if id_prefix %}{{ id_prefix }}{% endif %}category-filter-more"
+                            aria-expanded="false" aria-controls="{% if id_prefix %}{{ id_prefix }}{% endif %}category-filter-extra" aria-label="Show more categories">Show more</button>
+                    {% endif %}
+                </div>
+                {% if categories|length > 9 %}
+                <div class="category-filter-buttons category-filter-buttons-category category-filter-extra" id="{% if id_prefix %}{{ id_prefix }}{% endif %}category-filter-extra" hidden>
+                    {% for value, label in categories %}
+                    {% if forloop.counter > 9 %}
+                    <a href="{% url 'courses:course_list' %}?category={{ value }}{% if filter_other_params_query %}&amp;{{ filter_other_params_query }}{% endif %}"
+                       class="category-filter-btn {% if current_category == value %}active{% endif %}">{{ label }}</a>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        {% if not map_view_active %}
+        <section class="filter-modal-section filter-modal-section--location" aria-labelledby="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-location-heading">
+            <h3 class="filter-modal-section__title" id="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-location-heading">Location</h3>
+            <p class="filter-modal-section__hint">Show courses at a specific venue</p>
+            <div class="filter-group filter-group--compact">
+                <label for="{% if id_prefix %}{{ id_prefix }}{% endif %}city" class="filter-label">Venue</label>
+                <select id="{% if id_prefix %}{{ id_prefix }}{% endif %}city" name="city" class="filter-select">
+                    <option value="">All locations</option>
+                    {% for venue in filter_venues %}
+                    <option value="{{ venue.id }}" {% if current_city == venue.id|stringformat:"s" %}selected{% endif %}>{{ venue.venue_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </section>
+        {% elif current_city %}
+        <input type="hidden" name="city" value="">
+        {% endif %}
+
+        <section class="filter-modal-section filter-modal-section--dates" aria-labelledby="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-dates-heading">
+            <h3 class="filter-modal-section__title" id="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-dates-heading">Workshop dates</h3>
+            <p class="filter-modal-section__hint">Show workshops within a date range</p>
+            <div class="filter-date-range map-date-range-wrap" data-auto-submit="false" role="button" tabindex="0" aria-label="Select workshop dates"{% if date_range_display %} data-has-value="true"{% endif %}>
+                <span class="filter-date-range-display" data-placeholder="Select start and end dates">{% if date_range_display %}{{ date_range_display }}{% else %}Select start and end dates{% endif %}</span>
+                <input type="hidden" name="date_from" id="{% if id_prefix %}{{ id_prefix }}{% endif %}date_from" value="{{ current_date_from }}">
+                <input type="hidden" name="date_to" id="{% if id_prefix %}{{ id_prefix }}{% endif %}date_to" value="{{ current_date_to }}">
+            </div>
+        </section>
+
+        <section class="filter-modal-section filter-modal-section--more" aria-labelledby="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-more-heading">
+            <h3 class="filter-modal-section__title" id="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-more-heading">More options</h3>
+            <div class="filter-group filter-group--compact">
+                <label for="{% if id_prefix %}{{ id_prefix }}{% endif %}instructor" class="filter-label">Instructor</label>
+                <input type="text" id="{% if id_prefix %}{{ id_prefix }}{% endif %}instructor" name="instructor" value="{{ current_instructor }}" placeholder="Search by instructor name..." class="filter-input">
+            </div>
+            {% if current_search %}
+            <input type="hidden" name="q" value="{{ current_search }}">
+            {% endif %}
+        </section>
+    </div>
+
+    <footer class="filter-modal-footer">
+        <button type="submit" class="filter-submit-btn map-filter-modal__submit">{{ submit_label|default:"Show results" }}</button>
+    </footer>
+</form>

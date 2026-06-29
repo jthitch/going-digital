@@ -18,4 +18,16 @@ urlpatterns = [
     # Payment success/cancel
     path('success/', views.PaymentSuccessView.as_view(), name='success'),
     path('cancel/', views.PaymentCancelView.as_view(), name='cancel'),
+
+    # Gift voucher cards (after successful purchase)
+    path(
+        'gift-voucher/<int:basket_id>/card/download/',
+        views.GiftVoucherCardDownloadView.as_view(),
+        name='gift_voucher_card_download',
+    ),
+    path(
+        'gift-voucher/<int:basket_id>/card/email/',
+        views.GiftVoucherCardEmailView.as_view(),
+        name='gift_voucher_card_email',
+    ),
 ]

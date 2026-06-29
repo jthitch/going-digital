@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Join our community - Photography Courses{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/booking.css' %}?v=36">
+{% endblock %}
+
+{% block content %}
+<div class="booking-container account-page account-page--wide fb-community-page">
+    <div class="fb-community-wizard" data-fb-community-wizard>
+        <nav class="fb-community-wizard__progress" aria-label="Progress">
+            <ol class="fb-community-wizard__steps">
+                <li class="fb-community-wizard__step is-active" data-wizard-step-indicator="1">
+                    <span class="fb-community-wizard__step-num" aria-hidden="true">1</span>
+                    <span class="fb-community-wizard__step-label">Join community</span>
+                </li>
+                <li class="fb-community-wizard__step" data-wizard-step-indicator="2">
+                    <span class="fb-community-wizard__step-num" aria-hidden="true">2</span>
+                    <span class="fb-community-wizard__step-label">Share booking</span>
+                </li>
+            </ol>
+        </nav>
+
+        {# Step 1 — Join Facebook community #}
+        <section
+            class="fb-community-wizard__panel is-active"
+            data-wizard-panel="1"
+            aria-labelledby="fb-community-step-1-heading"
+        >
+            <header class="basket-page-header booking-page-header fb-community-page__header">
+                <div class="fb-community-page__title-row">
+                    <span class="fb-community-page__icon" aria-hidden="true">
+                        {% include 'bookings/partials/facebook_logo.html' %}
+                    </span>
+                    <div>
+                        <h1 id="fb-community-step-1-heading" tabindex="-1">Join our Facebook community</h1>
+                        <p class="basket-page-subtitle">
+                            {% if account_ready %}
+                            Your account is ready. Connect with other students before your workshop.
+                            {% else %}
+                            Your booking is confirmed. Connect with other students and get course updates.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </header>
+
+            <p class="fb-community-page__lead">
+                Stay in touch with other students, see workshop photos, and get tips before your course.
+                Tap a group below to join on Facebook, then continue when you are ready.
+            </p>
+
+            {% include 'bookings/partials/facebook_community_cards.html' %}
+
+            <div class="fb-community-wizard__actions">
+                <button type="button" class="btn-primary fb-community-wizard__next" data-wizard-next>
+                    Next
+                </button>
+            </div>
+        </section>
+
+        {# Step 2 — Share your booking #}
+        <section
+            class="fb-community-wizard__panel"
+            data-wizard-panel="2"
+            hidden
+            aria-labelledby="fb-community-step-2-heading"
+        >
+            <header class="basket-page-header booking-page-header fb-community-page__header">
+                <div class="fb-community-page__title-row">
+                    <span class="fb-community-page__icon" aria-hidden="true">
+                        {% include 'bookings/partials/facebook_logo.html' %}
+                    </span>
+                    <div>
+                        <h1 id="fb-community-step-2-heading" tabindex="-1">Share your booking</h1>
+                        <p class="basket-page-subtitle">
+                            Tell friends you are joining a Going Digital course — they will see the course page when you share.
+                        </p>
+                    </div>
+                </div>
+            </header>
+
+            {% if facebook_share_items %}
+            <ul class="fb-share-grid fb-community-wizard__share-grid" role="list">
+                {% for item in facebook_share_items %}
+                <li class="fb-share-card" role="listitem">
+                    <div class="fb-share-card__media">
+                        {% if item.image %}
+                        <img
+                            src="{{ item.image }}"
+                            alt=""
+                            class="fb-share-card__image"
+                            loading="lazy"
+                            decoding="async"
+                        >
+                        {% else %}
+                        <div class="fb-share-card__placeholder" aria-hidden="true">
+                            {% include 'bookings/partials/facebook_logo.html' %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="fb-share-card__body">
+                        <div class="fb-share-card__brand">
+                            {% include 'bookings/partials/facebook_logo.html' %}
+                            <span>Share on Facebook</span>
+                        </div>
+                        <h2 class="fb-share-card__title">{{ item.course_title }}</h2>
+                        <p class="fb-share-card__meta">{{ item.date_line }} · {{ item.location_line }}</p>
+                        <p class="fb-share-card__blurb">{{ item.share_blurb }}</p>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+
+            <div class="fb-community-wizard__actions">
+                <a
+                    href="{{ facebook_share_items.0.facebook_share_url }}"
+                    class="btn-primary fb-community-wizard__share"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    {% include 'bookings/partials/facebook_logo.html' %}
+                    Share on Facebook
+                </a>
+            </div>
+            {% else %}
+            <p class="fb-community-page__lead">
+                You are all set. Continue to view your booking details.
+            </p>
+            <div class="fb-community-wizard__actions">
+                {% if account_ready %}
+                <a href="{% url 'account:my_bookings' %}" class="btn-primary">Continue to my bookings</a>
+                {% else %}
+                <a href="{% url 'courses:homepage' %}" class="btn-primary">Continue</a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if facebook_share_items %}
+            <div class="fb-community-wizard__finish">
+                {% if account_ready %}
+                <a href="{% url 'account:my_bookings' %}" class="fb-community-wizard__skip">Continue to my bookings</a>
+                {% else %}
+                <a href="{% url 'courses:homepage' %}" class="fb-community-wizard__skip">Continue</a>
+                {% if booking_reference %}
+                <span class="fb-community-wizard__finish-sep" aria-hidden="true">·</span>
+                <a href="{% url 'account:complete_setup' %}?ref={{ booking_reference }}" class="fb-community-wizard__skip">Create an account</a>
+                {% endif %}
+                {% endif %}
+            </div>
+            {% endif %}
+        </section>
+    </div>
+
+    <p class="account-switch post-booking-community-note">
+        You can also find these links in your booking confirmation email.
+    </p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var root = document.querySelector('[data-fb-community-wizard]');
+    if (!root) {
+        return;
+    }
+
+    var panels = root.querySelectorAll('[data-wizard-panel]');
+    var indicators = root.querySelectorAll('[data-wizard-step-indicator]');
+    var nextBtn = root.querySelector('[data-wizard-next]');
+
+    function showStep(step) {
+        panels.forEach(function (panel) {
+            var isActive = panel.getAttribute('data-wizard-panel') === String(step);
+            panel.classList.toggle('is-active', isActive);
+            panel.hidden = !isActive;
+        });
+        indicators.forEach(function (indicator) {
+            var isActive = indicator.getAttribute('data-wizard-step-indicator') === String(step);
+            indicator.classList.toggle('is-active', isActive);
+        });
+        var activePanel = root.querySelector('[data-wizard-panel="' + step + '"]');
+        if (activePanel) {
+            var heading = activePanel.querySelector('h1');
+            if (heading) {
+                heading.focus({ preventScroll: true });
+            }
+            activePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function () {
+            showStep(2);
+        });
+    }
+})();
+</script>
+{% endblock %}

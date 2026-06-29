@@ -13,7 +13,9 @@ from django.http import HttpResponsePermanentRedirect, JsonResponse
 from django.urls import reverse
 from django.contrib import messages
 from django.views.generic import ListView, DetailView, TemplateView, FormView
-from django.db.models import Q, Prefetch
+from django.db.models import Exists, OuterRef, Prefetch, Q
+from django.utils.dateparse import parse_date
+from datetime import datetime, time
 from django.utils import timezone
 from django.utils.html import strip_tags
 from rest_framework.views import APIView
@@ -21,14 +23,161 @@ from rest_framework.response import Response
 from .models import Course, Workshop, Venue, CourseCategory, LEVEL_NAME_TO_ID, LEVEL_DISPLAY_NAMES
 from .forms import ContactForm, GiftVoucherRequestForm, CONTACT_REGION_CHOICES, VOUCHER_AMOUNT_CHOICES
 from .utils import get_promoted_occasions, workshop_calendar_date
-from website.models import GiftVoucherPageImage, HeroImage, Testimonial, BeforeAfterImage, FAQ
+from website.models import GiftVoucherPageImage, HeroImage, BeforeAfterImage, FAQ
 from .serializers import WorkshopSerializer
 from .display_images import attach_gd_images_to_workshops, collect_header_images, primary_image_url
-from .list_card import serialize_list_card
+from .list_card import list_card_workshops, serialize_list_card
 
 # Fallback when no admin image: optional legacy file in MEDIA_ROOT, then bundled static SVG.
 _GIFT_VOUCHER_LEGACY_MEDIA_REL = 'gd_images/im-t8-f1-0a11ba8c74817bc2c7008aa89413e39b.jpg'
 _GIFT_VOUCHER_DEFAULT_STATIC = 'img/gift-vouchers/hero-default.svg'
+
+
+def parse_course_list_date_range(request):
+    """Return (date_from, date_to, dt_from, dt_to) for course list date filters."""
+    raw_from = (request.GET.get('date_from') or '').strip()
+    raw_to = (request.GET.get('date_to') or '').strip()
+    date_from = parse_date(raw_from) if raw_from else None
+    date_to = parse_date(raw_to) if raw_to else None
+    if date_from and date_to and date_from > date_to:
+        date_from, date_to = date_to, date_from
+    tz = timezone.get_current_timezone()
+    dt_from = (
+        timezone.make_aware(datetime.combine(date_from, time.min), tz)
+        if date_from else None
+    )
+    dt_to = (
+        timezone.make_aware(datetime.combine(date_to, time.max), tz)
+        if date_to else None
+    )
+    return date_from, date_to, dt_from, dt_to
+
+
+def format_date_range_label(date_from, date_to):
+    fmt = '%d %b %Y'
+    if date_from and date_to:
+        if date_from == date_to:
+            return date_from.strftime(fmt)
+        return f"{date_from.strftime(fmt)} – {date_to.strftime(fmt)}"
+    if date_from:
+        return f"From {date_from.strftime(fmt)}"
+    if date_to:
+        return f"Until {date_to.strftime(fmt)}"
+    return ''
+
+
+def parse_venue_filter(raw):
+    """
+    Parse ?city= into a venue id, list of ids (duplicate slugs), None, or -1 (no match).
+    Prefer numeric venue ids in URLs; slugs are supported for legacy links.
+    """
+    raw = (raw or '').strip()
+    if not raw:
+        return None
+    if raw.isdigit():
+        return int(raw)
+    ids = list(Venue.objects.filter(slug=raw).values_list('id', flat=True))
+    if not ids:
+        return -1
+    if len(ids) == 1:
+        return ids[0]
+    return ids
+
+
+def apply_venue_filter_to_workshop_qs(queryset, raw_filter):
+    """Restrict workshops to a single venue (or matching slug ids)."""
+    parsed = parse_venue_filter(raw_filter)
+    if parsed is None:
+        return queryset
+    if parsed == -1:
+        return queryset.none()
+    if isinstance(parsed, list):
+        return queryset.filter(venue_id__in=parsed)
+    return queryset.filter(venue_id=parsed)
+
+
+def filter_instances_by_location(instances, raw_filter):
+    """Filter workshop instances to a venue id or slug (?location= / path segment)."""
+    parsed = parse_venue_filter(raw_filter)
+    if parsed is None:
+        return instances
+    if parsed == -1:
+        return []
+    if isinstance(parsed, list):
+        id_set = set(parsed)
+        return [inst for inst in instances if inst.venue_id in id_set]
+    return [inst for inst in instances if inst.venue_id == parsed]
+
+
+def bookable_workshops_for_request(request, *, apply_location_filter=True):
+    """
+    Upcoming bookable workshops for the course list.
+    All workshop-level filters are applied on one queryset so a course only matches
+    when the same workshop satisfies date, venue, and status constraints.
+    """
+    date_from, date_to, dt_from, dt_to = parse_course_list_date_range(request)
+    queryset = Workshop.objects.filter(
+        active=1,
+        date__gte=timezone.now(),
+        course__active=True,
+    )
+    if dt_from:
+        queryset = queryset.filter(date__gte=dt_from)
+    if dt_to:
+        queryset = queryset.filter(date__lte=dt_to)
+    is_map_view = request.GET.get('view') == 'map'
+    if apply_location_filter and not is_map_view:
+        queryset = apply_venue_filter_to_workshop_qs(
+            queryset, request.GET.get('city', ''),
+        )
+    return queryset, (date_from, date_to)
+
+
+def normalize_city_param(raw):
+    """Canonical ?city= value for templates (numeric venue id as string)."""
+    parsed = parse_venue_filter(raw)
+    if parsed is None or parsed == -1:
+        return ''
+    if isinstance(parsed, list):
+        return str(parsed[0])
+    return str(parsed)
+
+
+def filter_venues_for_course_list():
+    """Venues that have at least one upcoming bookable workshop."""
+    venue_ids = (
+        Workshop.objects.filter(
+            active=1,
+            date__gte=timezone.now(),
+            course__active=True,
+        )
+        .exclude(venue_id__isnull=True)
+        .values_list('venue_id', flat=True)
+        .distinct()
+    )
+    return (
+        Venue.objects.filter(id__in=venue_ids)
+        .exclude(venue_name='')
+        .order_by('venue_name')
+        .values('id', 'slug', 'venue_name')
+    )
+
+
+def venue_label_for_filter(raw_filter, venues):
+    """Human-readable venue name for active filter chips."""
+    parsed = parse_venue_filter(raw_filter)
+    if parsed is None or parsed == -1:
+        return ''
+    ids = parsed if isinstance(parsed, list) else [parsed]
+    id_set = {str(i) for i in ids}
+    for venue in venues:
+        if str(venue['id']) in id_set:
+            return venue['venue_name']
+    try:
+        venue = Venue.objects.filter(pk=ids[0]).values_list('venue_name', flat=True).first()
+        return venue or ''
+    except (IndexError, TypeError):
+        return ''
 
 
 def gift_voucher_page_image_url():
@@ -58,11 +207,6 @@ class HomePageView(TemplateView):
         
         # Get hero images from database (managed by platform admins)
         context['hero_images'] = self.get_hero_images()
-        
-        # Get active testimonials (managed by platform admins)
-        context['testimonials'] = Testimonial.objects.filter(
-            is_active=True
-        ).order_by('order', 'created_at')
 
         now = timezone.now()
         workshop_prefetch = Prefetch(
@@ -210,24 +354,29 @@ class CourseListView(ListView):
         })
     
     def get_queryset(self):
-        # Only show courses that have at least one valid instance
-        # (enrollment_open=True, start_date in future, location is active)
+        workshop_qs, _ = bookable_workshops_for_request(self.request)
+        prefetch_qs = workshop_qs.select_related('venue', 'course').order_by('date')
+
         queryset = Course.objects.filter(
             active=True,
-            workshops__active=1,
-            workshops__date__gte=timezone.now(),
-            workshops__venue__active=1
+        ).filter(
+            Exists(workshop_qs.filter(course_id=OuterRef('pk')))
         ).distinct().select_related(
             'course_category', 'course_skill_level', 'image',
         ).prefetch_related(
-            Prefetch('workshops', queryset=Workshop.objects.filter(
-                active=1,
-                date__gte=timezone.now()
-            ).select_related('venue', 'course').order_by('date')),
-            'media'
-        ).order_by('course_category__display_order', 'course_skill_level__display_order', 'display_order', 'course_name')
-        
-        # Search by query parameter
+            Prefetch(
+                'workshops',
+                queryset=prefetch_qs,
+                to_attr='list_workshops',
+            ),
+            'media',
+        ).order_by(
+            'course_category__display_order',
+            'course_skill_level__display_order',
+            'display_order',
+            'course_name',
+        )
+
         search = self.request.GET.get('q', '')
         if search:
             queryset = queryset.filter(
@@ -235,8 +384,7 @@ class CourseListView(ListView):
                 Q(course_description__icontains=search) |
                 Q(description_for_workshop__icontains=search)
             )
-        
-        # Filter by category (course_category_id from database)
+
         category = self.request.GET.get('category', '')
         if category:
             try:
@@ -244,28 +392,11 @@ class CourseListView(ListView):
                 queryset = queryset.filter(course_category_id=cat_id)
             except (ValueError, TypeError):
                 pass
-        
-        # Filter by level (legacy course_skill_level_id)
+
         level = self.request.GET.get('level', '')
         if level and level in LEVEL_NAME_TO_ID:
             queryset = queryset.filter(course_skill_level_id=LEVEL_NAME_TO_ID[level])
-        
-        # Filter by venue (Locations dropdown value is venue slug or pk)
-        venue_filter = self.request.GET.get('city', '').strip()
-        if venue_filter:
-            if venue_filter.isdigit():
-                queryset = queryset.filter(
-                    workshops__venue_id=int(venue_filter),
-                    workshops__venue__active=1,
-                ).distinct()
-            else:
-                queryset = queryset.filter(
-                    workshops__venue__slug=venue_filter,
-                    workshops__venue__active=1,
-                ).distinct()
-        
-        # Filter by instructor - Workshop has tutor_id (gd_tutor), no instructor FK; skip for now
-        
+
         return queryset
     
     def get_context_data(self, **kwargs):
@@ -280,22 +411,17 @@ class CourseListView(ListView):
         # Course stats for copy
         context['total_course_count'] = Course.objects.filter(
             active=True,
-            workshops__active=1,
-            workshops__date__gte=timezone.now(),
-            workshops__venue__active=1
-        ).distinct().count()
-        # Venues with upcoming workshops (for Locations filter)
-        context['filter_venues'] = (
-            Venue.objects.filter(
-                active=1,
-                workshops__active=1,
-                workshops__date__gte=timezone.now(),
+        ).filter(
+            Exists(
+                Workshop.objects.filter(
+                    active=1,
+                    date__gte=timezone.now(),
+                    course__active=True,
+                    course_id=OuterRef('pk'),
+                )
             )
-            .exclude(venue_name='')
-            .distinct()
-            .order_by('venue_name')
-            .values('id', 'slug', 'venue_name')
-        )
+        ).distinct().count()
+        context['filter_venues'] = filter_venues_for_course_list()
         
         # Prepare instance data for map (convert to JSON-safe format)
         # Show all bookable instances, not just one per course
@@ -305,16 +431,15 @@ class CourseListView(ListView):
         
         all_map_workshops = []
         for course in context['courses']:
-            all_map_workshops.extend(list(course.workshops.all()))
+            all_map_workshops.extend(list_card_workshops(course))
         attach_gd_images_to_workshops(all_map_workshops)
 
         # Get all bookable instances from the filtered courses
         for course in context['courses']:
-            for instance in course.workshops.all():
+            for instance in list_card_workshops(course):
                 if (instance.enrollment_open and 
                     instance.start_date >= timezone.now() and 
                     instance.venue and 
-                    instance.venue.is_active and
                     instance.venue.latitude and 
                     instance.venue.longitude):
                     
@@ -367,23 +492,96 @@ class CourseListView(ListView):
                     })
         
         context['instances_data'] = json.dumps(instances_data)
+        context['map_workshop_count'] = len(instances_data)
         
         # Current filters
         context['current_category'] = self.request.GET.get('category', '')
         context['current_level'] = self.request.GET.get('level', '')
-        context['current_city'] = self.request.GET.get('city', '')
+        context['current_city'] = normalize_city_param(self.request.GET.get('city', ''))
         context['current_search'] = self.request.GET.get('q', '')
         context['current_instructor'] = self.request.GET.get('instructor', '')
+        date_from, date_to, _, _ = parse_course_list_date_range(self.request)
+        context['current_date_from'] = date_from.isoformat() if date_from else ''
+        context['current_date_to'] = date_to.isoformat() if date_to else ''
+        context['date_range_display'] = format_date_range_label(date_from, date_to)
+        context['map_view_active'] = self.request.GET.get('view') == 'map'
+        is_map_view = context['map_view_active']
         
         # Query string for category buttons (preserves other filters, excludes category & page)
         from urllib.parse import urlencode
-        other_params = {k: v for k, v in self.request.GET.items() if k not in ('category', 'page')}
-        context['other_params_query'] = urlencode(other_params) if other_params else ''
-        # Level buttons: preserve category etc., exclude level so links are not duplicated
-        other_params_no_level = {k: v for k, v in self.request.GET.items() if k not in ('level', 'page')}
-        context['other_params_for_level_query'] = (
-            urlencode(other_params_no_level) if other_params_no_level else ''
+
+        def _filter_params(exclude=(), force_map=False):
+            skip = set(exclude) | {'page'}
+            params = {k: v for k, v in self.request.GET.items() if k not in skip and v}
+            if force_map:
+                params['view'] = 'map'
+                params.pop('city', None)
+            return params
+
+        def _filter_url(exclude=(), force_map=False):
+            params = _filter_params(exclude, force_map)
+            base = reverse('courses:course_list')
+            qs = urlencode(params)
+            return f'{base}?{qs}' if qs else base
+
+        filter_other_params = _filter_params(exclude=('category',), force_map=is_map_view)
+        context['filter_other_params_query'] = urlencode(filter_other_params) if filter_other_params else ''
+        filter_other_params_no_level = _filter_params(exclude=('level',), force_map=is_map_view)
+        context['filter_other_params_for_level_query'] = (
+            urlencode(filter_other_params_no_level) if filter_other_params_no_level else ''
         )
+        context['clear_filters_url'] = _filter_url(
+            exclude=('category', 'level', 'city', 'q', 'instructor', 'date_from', 'date_to'),
+            force_map=is_map_view,
+        )
+
+        category_labels = dict(context['categories'])
+        level_labels = dict(context['levels'])
+        filter_venues = list(context['filter_venues'])
+        active_filter_chips = []
+        if context['current_search']:
+            active_filter_chips.append({
+                'type': 'Search',
+                'label': context['current_search'],
+                'url': _filter_url(exclude=('q',), force_map=is_map_view),
+            })
+        if context['current_city'] and not is_map_view:
+            location_label = venue_label_for_filter(context['current_city'], filter_venues)
+            if location_label:
+                active_filter_chips.append({
+                    'type': 'Location',
+                    'label': location_label,
+                    'url': _filter_url(exclude=('city',), force_map=is_map_view),
+                })
+        if context['current_category']:
+            active_filter_chips.append({
+                'type': 'Category',
+                'label': category_labels.get(context['current_category'], context['current_category']),
+                'url': _filter_url(exclude=('category',), force_map=is_map_view),
+            })
+        if context['current_level']:
+            active_filter_chips.append({
+                'type': 'Level',
+                'label': level_labels.get(context['current_level'], context['current_level']),
+                'url': _filter_url(exclude=('level',), force_map=is_map_view),
+            })
+        if date_from or date_to:
+            active_filter_chips.append({
+                'type': 'Dates',
+                'label': format_date_range_label(date_from, date_to),
+                'url': _filter_url(exclude=('date_from', 'date_to'), force_map=is_map_view),
+            })
+        if context['current_instructor']:
+            active_filter_chips.append({
+                'type': 'Instructor',
+                'label': context['current_instructor'],
+                'url': _filter_url(exclude=('instructor',), force_map=is_map_view),
+            })
+        context['active_filter_chips'] = active_filter_chips
+        context['active_filter_count'] = len(active_filter_chips)
+
+        paginator = context.get('paginator')
+        context['filter_results_count'] = paginator.count if paginator else len(context.get('courses', []))
         
         # Base URL for infinite scroll (preserve filters, JS adds format=json&page=N)
         params = {k: v for k, v in self.request.GET.items() if k != 'page'}
@@ -504,30 +702,40 @@ class CourseDetailView(DetailView):
         """Get course by slug, optionally filtered by location_slug (venue-specific page)."""
         slug = self.kwargs.get('slug')
         location_slug = self.kwargs.get('location_slug', '')
-        
+        location_query = self.request.GET.get('location', '').strip()
+
         if queryset is None:
             queryset = self.get_queryset()
-        
+
         course = get_object_or_404(queryset, slug=slug, active=True)
-        
-        # Get all workshops and convert to list for easier handling
+
         all_instances = list(course.workshops.all())
-        
-        # If location_slug is provided, filter to that venue
+        course._all_instances = all_instances
+
         if location_slug:
             course._filtered_location_slug = location_slug
-            course._filtered_instances = [
-                inst for inst in all_instances
-                if inst.venue and inst.venue.slug == location_slug
-            ]
-            course._filtered_location = (
-                course._filtered_instances[0].venue.location if course._filtered_instances and course._filtered_instances[0].venue else None
+            course._filtered_instances = filter_instances_by_location(
+                all_instances, location_slug,
             )
+            course._filtered_location = (
+                course._filtered_instances[0].venue.location
+                if course._filtered_instances and course._filtered_instances[0].venue
+                else None
+            )
+            course._current_location_filter = ''
+        elif location_query:
+            course._filtered_location_slug = None
+            course._filtered_location = None
+            course._filtered_instances = filter_instances_by_location(
+                all_instances, location_query,
+            )
+            course._current_location_filter = normalize_city_param(location_query)
         else:
             course._filtered_location = None
             course._filtered_location_slug = None
             course._filtered_instances = all_instances
-        
+            course._current_location_filter = ''
+
         return course
     
     def get_context_data(self, **kwargs):
@@ -539,18 +747,27 @@ class CourseDetailView(DetailView):
             instances_list = course._filtered_instances
         else:
             instances_list = list(course.workshops.all())
-        
+
+        all_instances = getattr(course, '_all_instances', instances_list)
+
         context['featured_instance'] = instances_list[0] if instances_list else None
-        
+
         # Check if this is a location-specific page (URL has location_slug, not venue.location which can be empty)
         context['is_location_specific'] = bool(getattr(course, '_filtered_location_slug', None) and instances_list)
-        
-        # Group instances by location/city
-        instances_by_city = {}
-        all_locations = []
-        seen_location_ids = set()
+
+        filter_location_venues = []
+        seen_filter_venue_ids = set()
+        for instance in all_instances:
+            if instance.venue_id and instance.venue_id not in seen_filter_venue_ids:
+                seen_filter_venue_ids.add(instance.venue_id)
+                if instance.venue:
+                    filter_location_venues.append(instance.venue)
+
+        display_locations = []
+        seen_display_venue_ids = set()
         prices = []
         filter_dates = []
+        instances_by_city = {}
         for instance in instances_list:
             instance.filter_date = workshop_calendar_date(instance.start_date)
             if instance.filter_date:
@@ -559,19 +776,21 @@ class CourseDetailView(DetailView):
             if city not in instances_by_city:
                 instances_by_city[city] = []
             instances_by_city[city].append(instance)
-            if instance.venue_id and instance.venue_id not in seen_location_ids:
-                seen_location_ids.add(instance.venue_id)
+            if instance.venue_id and instance.venue_id not in seen_display_venue_ids:
+                seen_display_venue_ids.add(instance.venue_id)
                 if instance.venue:
-                    all_locations.append(instance.venue)
+                    display_locations.append(instance.venue)
             prices.append(instance.price)
         context['instances_by_city'] = instances_by_city
-        context['all_locations'] = all_locations
+        context['all_locations'] = filter_location_venues
+        context['display_locations'] = display_locations
+        context['current_location_filter'] = getattr(course, '_current_location_filter', '')
         context['min_price'] = min(prices) if prices else None
         context['has_multiple_prices'] = len(set(prices)) > 1 if prices else False
 
         context['instances_date_min'] = min(filter_dates) if filter_dates else None
         context['instances_date_max'] = max(filter_dates) if filter_dates else None
-        context['show_instance_filters'] = len(instances_list) > 1
+        context['show_instance_filters'] = len(all_instances) > 1
         
         context['schema_data'] = self.get_schema_data(course)
         context['meta_title'] = course.meta_title or f"{course.title} - Photography Courses"
@@ -676,19 +895,9 @@ class CourseDetailView(DetailView):
 class CourseSearchAPIView(APIView):
     """API endpoint for React search/filter components."""
     def get(self, request):
-        queryset = Workshop.objects.filter(
-            course__active=True,
-            active=1,
-            date__gte=timezone.now()
-        ).select_related('course', 'venue')
-        
-        venue_filter = (request.GET.get('city') or '').strip()
-        if venue_filter:
-            if venue_filter.isdigit():
-                queryset = queryset.filter(venue_id=int(venue_filter))
-            else:
-                queryset = queryset.filter(venue__slug=venue_filter)
-        
+        queryset, _ = bookable_workshops_for_request(request)
+        queryset = queryset.select_related('course', 'venue')
+
         category = request.GET.get('category')
         if category:
             try:
@@ -696,19 +905,13 @@ class CourseSearchAPIView(APIView):
                 queryset = queryset.filter(course__course_category_id=cat_id)
             except (ValueError, TypeError):
                 pass
-        
+
         level = request.GET.get('level')
         if level and level in LEVEL_NAME_TO_ID:
-            queryset = queryset.filter(course__course_skill_level_id=LEVEL_NAME_TO_ID[level])
-        
-        date_from = request.GET.get('date_from')
-        if date_from:
-            queryset = queryset.filter(date__gte=date_from)
-        
-        date_to = request.GET.get('date_to')
-        if date_to:
-            queryset = queryset.filter(date__lte=date_to)
-        
+            queryset = queryset.filter(
+                course__course_skill_level_id=LEVEL_NAME_TO_ID[level],
+            )
+
         serializer = WorkshopSerializer(queryset[:50], many=True)
         return Response(serializer.data)
 
@@ -839,6 +1042,32 @@ class FAQView(TemplateView):
     template_name = 'courses/faq.html'
 
 
+class TermsAndConditionsView(TemplateView):
+    """Terms and conditions for workshop bookings and gift vouchers."""
+    template_name = 'courses/legal_page.html'
+
+    def get_context_data(self, **kwargs):
+        from website.models import LegalPage
+        from website.legal_pages import get_legal_page_context
+
+        context = super().get_context_data(**kwargs)
+        context.update(get_legal_page_context(LegalPage.TERMS))
+        return context
+
+
+class PrivacyPolicyView(TemplateView):
+    """Privacy policy and cookie statement."""
+    template_name = 'courses/legal_page.html'
+
+    def get_context_data(self, **kwargs):
+        from website.models import LegalPage
+        from website.legal_pages import get_legal_page_context
+
+        context = super().get_context_data(**kwargs)
+        context.update(get_legal_page_context(LegalPage.PRIVACY))
+        return context
+
+
 class SiteMapPageView(TemplateView):
     """
     Human-readable site map: clear hierarchy for users, crawlers that follow links,
@@ -855,6 +1084,8 @@ class SiteMapPageView(TemplateView):
             ('Venues', 'courses:venue_list'),
             ('Gift vouchers', 'courses:gift_vouchers'),
             ('FAQ', 'courses:faq'),
+            ('Terms and conditions', 'courses:terms_and_conditions'),
+            ('Privacy policy', 'courses:privacy_policy'),
             ('Contact', 'courses:contact'),
             ('Editing courses', 'courses:editing_course_page'),
         ]

@@ -1,0 +1,19 @@
+<div class="fb-share-modal__card">
+    {% if item.image %}
+    <img src="{{ item.image }}" alt="" class="fb-share-modal__image" loading="lazy" decoding="async">
+    {% endif %}
+    <div class="fb-share-modal__body">
+        <h3 class="fb-share-modal__title">{{ item.course_title }}</h3>
+        <p class="fb-share-modal__meta">{{ item.date_line }} · {{ item.location_line }}</p>
+        <p class="fb-share-modal__blurb">{{ item.share_blurb }}</p>
+        <a
+            href="{{ item.facebook_share_url }}"
+            class="fb-share-modal__cta"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            {% include 'bookings/partials/facebook_logo.html' %}
+            Share on Facebook
+        </a>
+    </div>
+</div>

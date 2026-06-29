@@ -1,0 +1,24 @@
+<section class="facebook-groups-cta" aria-labelledby="facebook-groups-heading">
+    <h2 id="facebook-groups-heading">Join our Facebook community</h2>
+    <p class="facebook-groups-lead">
+        Stay in touch with other students, see workshop photos, and get tips before your course.
+    </p>
+    {% if going_digital_facebook_url or local_facebook_groups %}
+    <div class="facebook-groups-actions">
+        {% if going_digital_facebook_url %}
+        <a href="{{ going_digital_facebook_url }}" class="btn-primary facebook-groups-btn" target="_blank" rel="noopener noreferrer">
+            Join the Going Digital Facebook group
+        </a>
+        {% endif %}
+        {% for group in local_facebook_groups %}
+        <a href="{{ group.url }}" class="btn-secondary facebook-groups-btn" target="_blank" rel="noopener noreferrer">
+            Join {{ group.label }}&rsquo;s local group
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="facebook-groups-note">
+        Community links are not set up yet. Check your booking confirmation email or ask your tutor about local Facebook groups.
+    </p>
+    {% endif %}
+</section>

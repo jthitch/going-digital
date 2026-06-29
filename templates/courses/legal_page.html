@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}{{ browser_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+{% block meta_keywords %}{{ meta_keywords }}{% endblock %}
+
+{% block content %}
+<div class="legal-page">
+    <h1>{{ page_title }}</h1>
+    <div class="legal-page-content course-main-content">
+        {{ body|safe }}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+.legal-page {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+}
+.legal-page > h1 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-primary);
+}
+.legal-page-content .legal-toc {
+    margin-bottom: 2rem;
+}
+.legal-page-content .legal-toc ul {
+    list-style: none;
+    padding: 0;
+}
+.legal-page-content .legal-toc li {
+    margin-bottom: 0.5rem;
+}
+.legal-page-content .legal-toc a {
+    color: var(--primary-color, #4a9eff);
+    text-decoration: none;
+}
+.legal-page-content .legal-toc a:hover {
+    text-decoration: underline;
+}
+.legal-page-content .legal-divider {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 2rem 0;
+}
+.legal-page-content .legal-section {
+    margin-bottom: 2.5rem;
+}
+.legal-page-content .legal-section h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+    letter-spacing: 0.05em;
+}
+.legal-page-content .legal-section h3 {
+    font-size: 1.05rem;
+    margin: 1.25rem 0 0.75rem;
+    color: var(--text-primary);
+}
+.legal-page-content .legal-company {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+.legal-page-content .legal-company:first-of-type {
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+.legal-page-content a {
+    color: var(--primary-color, #4a9eff);
+    text-decoration: none;
+}
+.legal-page-content a:hover {
+    text-decoration: underline;
+}
+</style>
+{% endblock %}

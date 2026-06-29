@@ -6,7 +6,8 @@ from core.student_auth import account_setup_from_bookings
 
 from courses.models import Tutor
 
-from .calendar import build_workshop_calendar
+from .calendar import calendar_data_for_booking
+from .social_media import facebook_groups_context_for_booking, facebook_share_items_for_bookings
 
 
 def _absolute_url(path):
@@ -45,28 +46,7 @@ def booking_confirmation_context(booking):
     static_url = settings.STATIC_URL.rstrip('/')
     logo_url = _absolute_url(f'{static_url}/img/logo/logo-dark.png')
 
-    calendar_location = ', '.join(
-        part for part in [location_name, location_city, location_address] if part
-    )
-    calendar_description = (
-        f'Booking reference: {booking.booking_reference}\n'
-        f'Course: {course_title}\n'
-    )
-    if workshop_url:
-        calendar_description += f'Details: {workshop_url}\n'
-    if tutor_name:
-        calendar_description += f'Tutor: {tutor_name}'
-        if tutor_email:
-            calendar_description += f' ({tutor_email})'
-
-    calendar = build_workshop_calendar(
-        start=start,
-        end=workshop.end_date if workshop else None,
-        title=f'{course_title} — Going Digital',
-        description=calendar_description.strip(),
-        location=calendar_location or 'TBC',
-        uid=f'{booking.booking_reference}@goingdigital.co.uk',
-    )
+    calendar = calendar_data_for_booking(booking)
 
     account_setup_url = ''
     setup = account_setup_from_bookings([booking])
@@ -76,7 +56,7 @@ def booking_confirmation_context(booking):
             + f'?ref={setup["booking_reference"]}'
         )
 
-    return {
+    context = {
         'booking': booking,
         'account_setup_url': account_setup_url,
         'booking_reference': booking.booking_reference,
@@ -103,5 +83,8 @@ def booking_confirmation_context(booking):
         'google_calendar_url': calendar['google_calendar_url'],
         'outlook_calendar_url': calendar['outlook_calendar_url'],
         'calendar_ics': calendar['calendar_ics'],
-        'calendar_ics_filename': f'going-digital-{booking.booking_reference}.ics',
+        'calendar_ics_filename': calendar['calendar_ics_filename'],
     }
+    context.update(facebook_groups_context_for_booking(booking))
+    context['facebook_share_items'] = facebook_share_items_for_bookings([booking])
+    return context

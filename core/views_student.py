@@ -1,15 +1,23 @@
-"""Student sign-in, sign-up, and my bookings."""
+"""Student sign-in, sign-up, and my bookings (gd_customer session auth)."""
 from django.contrib import messages
-from django.contrib.auth import login
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.views import LogoutView
-from django.shortcuts import redirect, render
-from django.urls import reverse, reverse_lazy
-from django.utils.decorators import method_decorator
+from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views import View
 
 from bookings.models import Booking
 
+from bookings.calendar import attach_calendar_to_booking, calendar_data_for_booking
+from bookings.suggested_courses import suggested_courses_for_user_bookings
+from bookings.tutor_contact import attach_tutor_contact_to_booking
+from bookings.social_media import attach_facebook_share_to_booking
+
+from core.customer_auth import (
+    customer_login_required,
+    is_customer_authenticated,
+    login_customer,
+    logout_customer,
+)
 from core.forms_student import (
     CompleteAccountPasswordForm,
     StudentLoginForm,
@@ -17,10 +25,10 @@ from core.forms_student import (
 )
 from core.student_auth import (
     account_setup_from_bookings,
-    bookings_for_user,
-    link_bookings_to_user,
-    resolve_student_user_for_email,
-    user_needs_account_setup,
+    bookings_for_customer,
+    customer_needs_account_setup,
+    link_bookings_to_customer,
+    resolve_customer_for_email,
 )
 
 
@@ -35,7 +43,7 @@ class StudentLoginView(View):
     template_name = 'account/login.html'
 
     def get(self, request):
-        if request.user.is_authenticated:
+        if is_customer_authenticated(request):
             return redirect(_safe_next_url(request, reverse('account:my_bookings')))
         return render(request, self.template_name, {
             'form': StudentLoginForm(),
@@ -43,14 +51,14 @@ class StudentLoginView(View):
         })
 
     def post(self, request):
-        if request.user.is_authenticated:
+        if is_customer_authenticated(request):
             return redirect(_safe_next_url(request, reverse('account:my_bookings')))
 
         form = StudentLoginForm(request, data=request.POST)
         if form.is_valid():
-            user = form.get_user()
-            login(request, user, backend='core.backends.EmailBackend')
-            link_bookings_to_user(user)
+            customer = form.get_customer()
+            login_customer(request, customer)
+            link_bookings_to_customer(customer)
             messages.success(request, 'Welcome back.')
             return redirect(_safe_next_url(request, reverse('account:my_bookings')))
 
@@ -64,18 +72,18 @@ class StudentSignupView(View):
     template_name = 'account/signup.html'
 
     def get(self, request):
-        if request.user.is_authenticated:
+        if is_customer_authenticated(request):
             return redirect(reverse('account:my_bookings'))
         return render(request, self.template_name, {'form': StudentSignupForm()})
 
     def post(self, request):
-        if request.user.is_authenticated:
+        if is_customer_authenticated(request):
             return redirect(reverse('account:my_bookings'))
 
         form = StudentSignupForm(request.POST)
         if form.is_valid():
-            user, created = form.save()
-            login(request, user, backend='core.backends.EmailBackend')
+            customer, created = form.save()
+            login_customer(request, customer)
             if created:
                 messages.success(request, 'Your account has been created.')
             else:
@@ -83,6 +91,8 @@ class StudentSignupView(View):
                     request,
                     'Your account is ready — we linked your previous bookings.',
                 )
+            if bookings_for_customer(customer).filter(status='confirmed').exists():
+                return redirect(reverse('account:post_booking_community'))
             return redirect(reverse('account:my_bookings'))
 
         return render(request, self.template_name, {'form': form})
@@ -121,17 +131,17 @@ class CompleteAccountSetupView(View):
         email = (email or _session_account_setup_email(request) or '').strip().lower()
         if not email or not _authorise_account_setup_email(request, email):
             return None
-        user = resolve_student_user_for_email(email)
-        if not user or not user_needs_account_setup(user):
-            return None
         booking = Booking.objects.filter(student_email__iexact=email).order_by('-created_at').first()
         if booking:
             return account_setup_from_bookings([booking])
+        customer = resolve_customer_for_email(email)
+        if not customer or not customer_needs_account_setup(customer):
+            return None
         return {
             'email': email,
-            'firstname': user.firstname or '',
-            'lastname': user.lastname or '',
-            'user': user,
+            'firstname': customer.firstname or '',
+            'lastname': customer.lastname or '',
+            'customer': customer,
             'booking_reference': '',
         }
 
@@ -145,7 +155,7 @@ class CompleteAccountSetupView(View):
             request.session['account_setup_email'] = booking.student_email.strip().lower()
 
     def get(self, request):
-        if request.user.is_authenticated:
+        if is_customer_authenticated(request):
             return redirect(reverse('account:my_bookings'))
         self._prime_session_from_booking_ref(request)
         setup = self._build_setup(request)
@@ -158,7 +168,7 @@ class CompleteAccountSetupView(View):
         })
 
     def post(self, request):
-        if request.user.is_authenticated:
+        if is_customer_authenticated(request):
             return redirect(reverse('account:my_bookings'))
 
         self._prime_session_from_booking_ref(request)
@@ -170,8 +180,8 @@ class CompleteAccountSetupView(View):
 
         form = CompleteAccountPasswordForm(request.POST, setup=setup)
         if form.is_valid():
-            user = form.save()
-            login(request, user, backend='core.backends.EmailBackend')
+            customer = form.save()
+            login_customer(request, customer)
             request.session.pop('account_setup_email', None)
             from payments.checkout_session_context import clear_checkout_success_context
             clear_checkout_success_context(request)
@@ -179,7 +189,11 @@ class CompleteAccountSetupView(View):
                 request,
                 'Your account is ready. You can view your bookings any time.',
             )
-            return redirect(reverse('account:my_bookings'))
+            community_url = reverse('account:post_booking_community')
+            booking_ref = (setup.get('booking_reference') or '').strip()
+            if booking_ref:
+                community_url = f'{community_url}?ref={booking_ref}'
+            return redirect(community_url)
 
         return render(request, self.template_name, {
             'setup': setup,
@@ -187,21 +201,102 @@ class CompleteAccountSetupView(View):
         })
 
 
-class StudentLogoutView(LogoutView):
-    next_page = reverse_lazy('courses:homepage')
-
-    @method_decorator(login_required)
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, **kwargs)
+def student_logout(request):
+    logout_customer(request)
+    messages.success(request, 'You have been signed out.')
+    return redirect('courses:homepage')
 
 
-@login_required(login_url='account:login')
+def _prime_community_session_from_booking_ref(request):
+    ref = (request.GET.get('ref') or '').strip()
+    if not ref:
+        return
+    booking = Booking.objects.filter(booking_reference=ref).first()
+    if booking and booking.student_email:
+        request.session['account_setup_email'] = booking.student_email.strip().lower()
+
+
+def _bookings_for_community_page(request):
+    if is_customer_authenticated(request):
+        customer = request.customer
+        return list(
+            bookings_for_customer(customer)
+            .select_related('workshop', 'workshop__course', 'workshop__venue')
+            .filter(status='confirmed')
+            .order_by('-created_at')[:5]
+        )
+
+    from payments.checkout_session_context import load_bookings_from_checkout_context
+
+    bookings = list(load_bookings_from_checkout_context(request))
+    if bookings:
+        return bookings
+
+    ref = (request.GET.get('ref') or '').strip()
+    if not ref:
+        return []
+    booking = Booking.objects.filter(booking_reference=ref).select_related(
+        'workshop', 'workshop__course', 'workshop__venue',
+    ).first()
+    return [booking] if booking else []
+
+
+def _authorise_post_booking_community(request, bookings):
+    if is_customer_authenticated(request):
+        return True
+    if not bookings:
+        return False
+
+    from payments.checkout_session_context import get_checkout_success_context
+
+    email = (
+        _session_account_setup_email(request)
+        or get_checkout_success_context(request).get('email')
+        or ''
+    ).strip().lower()
+    if not email:
+        return False
+    return any((b.student_email or '').strip().lower() == email for b in bookings)
+
+
+def post_booking_community(request):
+    """Invite students to join Facebook groups after checkout or account setup."""
+    from bookings.social_media import (
+        facebook_community_cards_from_groups_context,
+        facebook_groups_context_for_bookings,
+        facebook_share_items_for_bookings,
+    )
+
+    _prime_community_session_from_booking_ref(request)
+    bookings = _bookings_for_community_page(request)
+    if not _authorise_post_booking_community(request, bookings):
+        messages.info(request, 'Sign in or complete checkout to view this page.')
+        return redirect(reverse('account:login'))
+
+    context = facebook_groups_context_for_bookings(bookings)
+    context['facebook_community_cards'] = facebook_community_cards_from_groups_context(context)
+    context['facebook_share_items'] = facebook_share_items_for_bookings(bookings, request)
+
+    primary = bookings[0] if bookings else None
+    context['account_ready'] = is_customer_authenticated(request)
+    context['booking_reference'] = primary.booking_reference if primary else ''
+    return render(request, 'account/post_booking_community.html', context)
+
+
+@customer_login_required
 def my_bookings(request):
-    all_bookings = list(bookings_for_user(request.user).order_by('-created_at'))
+    customer = request.customer
+    all_bookings = list(bookings_for_customer(customer).order_by('-created_at'))
     upcoming = []
     past = []
     cancelled = []
+    facebook_share_bookings = []
     for booking in all_bookings:
+        attach_calendar_to_booking(booking)
+        attach_tutor_contact_to_booking(booking)
+        attach_facebook_share_to_booking(booking, request)
+        if booking.facebook_share and booking.status != 'cancelled':
+            facebook_share_bookings.append(booking)
         if booking.status == 'cancelled':
             cancelled.append(booking)
             continue
@@ -215,4 +310,31 @@ def my_bookings(request):
         'past_bookings': past,
         'cancelled_bookings': cancelled,
         'booking_count': len(all_bookings),
+        'suggested_courses': suggested_courses_for_user_bookings(all_bookings),
+        'facebook_share_bookings': facebook_share_bookings,
     })
+
+
+@customer_login_required
+def booking_calendar_ics(request, booking_reference):
+    """Download .ics calendar file for a booking."""
+    customer = request.customer
+    booking = get_object_or_404(
+        Booking.objects.select_related('workshop', 'workshop__course', 'workshop__venue'),
+        booking_reference=booking_reference,
+    )
+    if not bookings_for_customer(customer).filter(pk=booking.pk).exists():
+        raise Http404
+
+    calendar = calendar_data_for_booking(booking)
+    if not calendar.get('calendar_ics'):
+        raise Http404
+
+    response = HttpResponse(
+        calendar['calendar_ics'],
+        content_type='text/calendar; charset=utf-8',
+    )
+    response['Content-Disposition'] = (
+        f'attachment; filename="{calendar["calendar_ics_filename"]}"'
+    )
+    return response

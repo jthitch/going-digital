@@ -1,0 +1,94 @@
+{% comment %}
+Unified course list / map filter bar (quick search + dates + filters modal).
+{% endcomment %}
+<div class="map-filter-bar" id="course-filter-bar" role="toolbar" aria-label="Course filters">
+    <div class="map-filter-bar__primary">
+        <form method="get" action="{% url 'courses:course_list' %}" class="map-filter-bar__quick" id="course-filter-quick-form">
+            <div class="map-filter-view-toggle" role="group" aria-label="View mode">
+                <button type="button" class="view-toggle-btn map-filter-view-btn{% if not map_view_active %} active{% endif %}" id="grid-view-btn" onclick="showGridView()" aria-label="View courses in list layout">List</button>
+                <button type="button" class="view-toggle-btn map-filter-view-btn{% if map_view_active %} active{% endif %}" id="map-view-btn" onclick="showMapView()" aria-label="View courses on map">Map</button>
+            </div>
+            {% if map_view_active %}<input type="hidden" name="view" value="map">{% endif %}
+            {% if current_category %}<input type="hidden" name="category" value="{{ current_category }}">{% endif %}
+            {% if current_level %}<input type="hidden" name="level" value="{{ current_level }}">{% endif %}
+            {% if current_instructor %}<input type="hidden" name="instructor" value="{{ current_instructor }}">{% endif %}
+            <label class="map-filter-search-wrap">
+                <span class="visually-hidden">Search courses</span>
+                <svg class="map-filter-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="search" name="q" class="map-filter-search" value="{{ current_search }}" placeholder="Search" autocomplete="off">
+            </label>
+            <div class="map-filter-pill map-filter-pill--dates map-date-range-wrap" data-auto-submit="true" role="button" tabindex="0" aria-label="Select workshop dates"{% if date_range_display %} data-has-value="true"{% endif %}>
+                <svg class="map-filter-pill-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span class="map-filter-date-display" data-placeholder="Add dates">{% if date_range_display %}{{ date_range_display }}{% else %}Add dates{% endif %}</span>
+                <input type="hidden" name="date_from" id="filter-date-from" value="{{ current_date_from }}">
+                <input type="hidden" name="date_to" id="filter-date-to" value="{{ current_date_to }}">
+            </div>
+            {% if not map_view_active %}
+            <label class="map-filter-pill map-filter-pill--location">
+                <svg class="map-filter-pill-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+                <span class="visually-hidden">Location</span>
+                <select name="city" class="map-filter-select" aria-label="Filter by location" onchange="this.form.submit()">
+                    <option value="">All locations</option>
+                    {% for venue in filter_venues %}
+                    <option value="{{ venue.id }}" {% if current_city == venue.id|stringformat:"s" %}selected{% endif %}>{{ venue.venue_name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            {% elif current_city %}
+            <input type="hidden" name="city" value="{{ current_city }}">
+            {% endif %}
+            <button type="button" class="map-filter-pill map-filter-pill--filters" id="course-filters-open" aria-expanded="false" aria-controls="course-filter-modal">
+                <svg class="map-filter-pill-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                <span>Filters</span>
+                {% if active_filter_count %}<span class="map-filter-pill__badge">{{ active_filter_count }}</span>{% endif %}
+            </button>
+        </form>
+        <p class="map-filter-bar__count" id="course-filter-bar-count">
+            {% if map_view_active %}
+                {% if map_workshop_count %}
+                {{ map_workshop_count }} workshop{{ map_workshop_count|pluralize }} on map
+                {% else %}
+                No workshops on map
+                {% endif %}
+            {% else %}
+                {% if filter_results_count %}
+                {{ filter_results_count }} course{{ filter_results_count|pluralize }}
+                {% else %}
+                No courses found
+                {% endif %}
+            {% endif %}
+        </p>
+    </div>
+    {% if active_filter_chips %}
+    <div class="map-filter-chips" role="list" aria-label="Active filters">
+        {% for chip in active_filter_chips %}
+        <a href="{{ chip.url }}" class="map-filter-chip" role="listitem" aria-label="Remove {{ chip.type }} filter: {{ chip.label }}">
+            <span class="map-filter-chip__type">{{ chip.type }}</span>
+            <span class="map-filter-chip__label">{{ chip.label }}</span>
+            <span class="map-filter-chip__remove" aria-hidden="true">&times;</span>
+        </a>
+        {% endfor %}
+        <a href="{{ clear_filters_url }}" class="map-filter-chip map-filter-chip--clear">Clear all</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="map-filter-modal" id="course-filter-modal" hidden aria-hidden="true">
+    <button type="button" class="map-filter-modal__backdrop" id="course-filter-modal-backdrop" tabindex="-1" aria-label="Close filters"></button>
+    <div class="map-filter-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="course-filter-modal-title">
+        <header class="map-filter-modal__header">
+            <button type="button" class="map-filter-modal__close" id="course-filter-modal-close" aria-label="Close filters">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <h2 class="map-filter-modal__title" id="course-filter-modal-title">Filters</h2>
+            {% if active_filter_count %}
+            <a href="{{ clear_filters_url }}" class="map-filter-modal__clear">Clear all</a>
+            {% else %}
+            <span class="map-filter-modal__clear map-filter-modal__clear--placeholder" aria-hidden="true"></span>
+            {% endif %}
+        </header>
+        <div class="map-filter-modal__body">
+            {% include 'courses/partials/course_list_filters_form.html' with id_prefix='filter-modal-' submit_label='Show results' %}
+        </div>
+    </div>
+</div>

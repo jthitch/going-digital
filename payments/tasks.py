@@ -109,3 +109,54 @@ If you have any questions, please contact us.
         fail_silently=False,
     )
     return True
+
+
+def send_gift_voucher_card_email(basket_id, voucher_index, design_id, recipient_email):
+    """Render and email a gift card PNG attachment."""
+    from django.core.mail import EmailMessage
+
+    from core.mail import filter_suppressed_recipients
+    from payments.gift_voucher_cards import render_gift_voucher_card
+
+    recipient_email = (recipient_email or '').strip()
+    recipients = filter_suppressed_recipients([recipient_email])
+    if not recipients:
+        logger.warning('No recipient email for gift card on basket %s', basket_id)
+        return False
+
+    try:
+        png_bytes, code = render_gift_voucher_card(basket_id, voucher_index, design_id)
+    except Exception:
+        logger.exception('Failed to render gift card for basket %s', basket_id)
+        return False
+
+    basket = get_basket(basket_id)
+    data = basket.get('basket_data', {}) if basket else {}
+    recipient_name = (data.get('recipient_name') or '').strip()
+    subject = 'Your Going Digital gift voucher'
+    if recipient_name:
+        subject = f'Gift voucher for {recipient_name}'
+
+    message = f"""
+Your gift voucher is attached as an image you can print or forward.
+
+Voucher code: {code}
+
+The voucher is valid for 9 months and can be used towards any of our photography courses.
+
+If you have any questions, please contact us.
+""".strip()
+
+    msg = EmailMessage(
+        subject,
+        message,
+        settings.DEFAULT_FROM_EMAIL,
+        recipients,
+    )
+    msg.attach(f'gift-voucher-{code}.png', png_bytes, 'image/png')
+    try:
+        msg.send(fail_silently=False)
+        return True
+    except Exception:
+        logger.exception('Failed to email gift card for basket %s', basket_id)
+        return False

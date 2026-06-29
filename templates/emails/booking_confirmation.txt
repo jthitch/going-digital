@@ -27,5 +27,15 @@ Add to your calendar:
 {% endif %}{% if calendar_ics %}Calendar file attached: {{ calendar_ics_filename }}
 {% endif %}{% endif %}{% if workshop_url %}
 Workshop details: {{ workshop_url }}
-{% endif %}
+{% endif %}{% if show_facebook_groups_cta %}
+
+Join our Facebook community
+Connect with other students, share workshop photos, and get course updates.
+{% if going_digital_facebook_url %}Going Digital group: {{ going_digital_facebook_url }}
+{% endif %}{% for group in local_facebook_groups %}{{ group.label }}'s group: {{ group.url }}
+{% endfor %}{% endif %}{% if facebook_share_items %}
+
+Share your booking on Facebook:
+{% for item in facebook_share_items %}Share {{ item.course_title }}: {{ item.facebook_share_url }}
+{% endfor %}{% endif %}
 Questions? Contact us at {{ contact_email }}

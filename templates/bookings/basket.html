@@ -84,6 +84,15 @@
                                 </svg>
                                 <span>{{ line.item.student_first_name }} {{ line.item.student_last_name }} · {{ line.item.student_email }}</span>
                             </li>
+                            {% if line.item.loan_cameras %}
+                            <li>
+                                <svg class="basket-meta-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/>
+                                    <path d="M9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+                                </svg>
+                                <span>{{ line.item.loan_cameras }} loan camera{{ line.item.loan_cameras|pluralize }} requested</span>
+                            </li>
+                            {% endif %}
                         </ul>
 
                         <div class="basket-item-footer">
@@ -114,37 +123,85 @@
 
         <aside class="basket-order-summary" aria-label="Order summary">
             <h2 class="basket-summary-title">Order summary</h2>
-            <dl class="basket-summary-rows">
-                <div class="basket-summary-row">
-                    <dt>Subtotal</dt>
-                    <dd>£{{ list_total|floatformat:2 }}</dd>
-                </div>
-                {% if discount %}
-                <div class="basket-summary-row basket-summary-row--discount">
-                    <dt>Voucher discount</dt>
-                    <dd>−£{{ discount|floatformat:2 }}</dd>
-                </div>
+
+            <div class="basket-summary-section basket-summary-section--totals">
+                <dl class="basket-summary-rows">
+                    <div class="basket-summary-row">
+                        <dt>Subtotal</dt>
+                        <dd>£{{ list_total|floatformat:2 }}</dd>
+                    </div>
+                    {% if discount %}
+                    <div class="basket-summary-row basket-summary-row--discount">
+                        <dt>Voucher discount</dt>
+                        <dd>−£{{ discount|floatformat:2 }}</dd>
+                    </div>
+                    {% endif %}
+                    <div class="basket-summary-row basket-summary-row--total">
+                        <dt>Total</dt>
+                        <dd>£{{ total|floatformat:2 }}</dd>
+                    </div>
+                </dl>
+            </div>
+
+            <div class="basket-summary-section basket-summary-section--voucher">
+                <form method="post" action="{% url 'bookings:basket_voucher' %}" class="checkout-voucher-form basket-voucher-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="apply">
+                    <div class="form-group basket-voucher-field">
+                        <label for="id_voucher_code">Voucher or promo code</label>
+                        <div class="checkout-voucher-row basket-voucher-row">
+                            <input type="text" name="voucher_code" id="id_voucher_code"
+                                   value="{{ voucher_form.voucher_code.value|default:'' }}"
+                                   placeholder="Voucher code" autocomplete="off"
+                                   class="checkout-voucher-input booking-field-input">
+                            <button type="submit" class="btn-secondary basket-voucher-apply">Apply</button>
+                        </div>
+                    </div>
+                </form>
+
+                {% if basket.voucher_code %}
+                <form method="post" action="{% url 'bookings:basket_voucher' %}" class="checkout-remove-voucher basket-remove-voucher">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="remove">
+                    <button type="submit" class="btn-link">Remove voucher</button>
+                </form>
                 {% endif %}
-                <div class="basket-summary-row basket-summary-row--total">
-                    <dt>Total</dt>
-                    <dd>£{{ total|floatformat:2 }}</dd>
-                </div>
-            </dl>
+            </div>
 
-            {% if basket.voucher_code %}
-            <p class="basket-voucher-note">
-                Voucher <strong>{{ basket.voucher_code }}</strong> applied. You can change it at checkout.
-            </p>
-            {% else %}
-            <p class="basket-voucher-note">Have a gift voucher or promo code? Apply it at checkout.</p>
-            {% endif %}
-
-            <form method="post" action="{% url 'bookings:basket_checkout' %}" class="basket-checkout-form">
-                {% csrf_token %}
-                <button type="submit" class="btn-primary basket-checkout-btn">Proceed to payment</button>
-            </form>
-            <a href="{% url 'courses:course_list' %}" class="btn-secondary basket-add-more-btn">Add more courses</a>
-            <p class="basket-secure-note">Secure payment via Stripe. Your places are reserved when payment completes.</p>
+            <div class="basket-summary-section basket-summary-section--checkout">
+                <form method="post" action="{% url 'bookings:basket_checkout' %}" class="basket-checkout-form">
+                    {% csrf_token %}
+                    <fieldset class="basket-checkout-options">
+                        <legend class="visually-hidden">Before you pay</legend>
+                        <div class="basket-terms-field{% if checkout_form.accept_terms.errors %} basket-terms-field--error{% endif %}">
+                            <label class="basket-checkout-option">
+                                <input type="checkbox" name="accept_terms" value="1" class="basket-checkout-checkbox" required>
+                                <span class="basket-checkout-option-text">I have read and agree to the <a href="{% url 'courses:terms_and_conditions' %}" target="_blank" rel="noopener noreferrer">Terms and Conditions</a>.</span>
+                            </label>
+                            {% if checkout_form.accept_terms.errors %}
+                            <p class="basket-checkout-option-error">{{ checkout_form.accept_terms.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="basket-newsletter-field">
+                            <label class="basket-checkout-option basket-checkout-option--optional">
+                                <input type="checkbox" name="subscribe_newsletter" value="1" class="basket-checkout-checkbox">
+                                <span class="basket-checkout-option-text">Sign me up for seasonal newsletters and special offers <span class="basket-checkout-optional">(optional)</span></span>
+                            </label>
+                        </div>
+                    </fieldset>
+                    <div class="basket-checkout-actions">
+                        <button type="submit" class="btn-primary basket-checkout-btn">
+                            {% if total <= 0 and basket.voucher_code %}
+                            Confirm booking
+                            {% else %}
+                            Proceed to payment
+                            {% endif %}
+                        </button>
+                        <a href="{% url 'courses:course_list' %}" class="btn-secondary basket-add-more-btn">Add more courses</a>
+                    </div>
+                </form>
+                <p class="basket-secure-note">Secure payment via Stripe. Your places are reserved when payment completes.</p>
+            </div>
         </aside>
     </div>
     {% else %}

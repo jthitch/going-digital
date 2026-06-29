@@ -54,6 +54,12 @@
                     <dd>{{ booking.student_phone }}</dd>
                 </div>
                 {% endif %}
+                {% if booking.loan_camera %}
+                <div class="booking-course-pricing-row">
+                    <dt>Loan camera</dt>
+                    <dd>Requested</dd>
+                </div>
+                {% endif %}
                 <div class="booking-course-pricing-row">
                     <dt>Amount paid</dt>
                     <dd>£{{ booking.price_paid|floatformat:2 }}</dd>
@@ -73,6 +79,12 @@
             </div>
             {% endif %}
         </div>
+
+        {% if show_facebook_groups_cta %}
+        {% include 'bookings/partials/facebook_groups_cta.html' %}
+        {% endif %}
+
+        {% include 'bookings/partials/facebook_share_cards.html' %}
 
         <div class="form-actions">
             <a href="{% url 'account:my_bookings' %}" class="btn-primary">Back to my bookings</a>

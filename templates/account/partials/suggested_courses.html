@@ -1,0 +1,51 @@
+{% if suggested_courses %}
+<section class="account-suggested-courses" aria-labelledby="suggested-courses-heading">
+    <header class="account-suggested-courses__header">
+        <h2 id="suggested-courses-heading" class="account-section-title">Suggested courses</h2>
+        <p class="account-suggested-courses__lead">
+            Continue your learning with workshops in your region at your level or above.
+        </p>
+    </header>
+    <ul class="account-suggested-courses-grid">
+        {% for course in suggested_courses %}
+        <li>
+            <article class="account-suggested-course-card">
+                <a href="{% url 'courses:course_detail' slug=course.slug %}" class="account-suggested-course-card__link">
+                    <div class="account-suggested-course-card__media">
+                        {% if course.list_card_thumbnail_url %}
+                        <img
+                            src="{{ course.list_card_thumbnail_url }}"
+                            alt=""
+                            class="account-suggested-course-card__image"
+                            style="{{ course.list_card_thumbnail_style }}"
+                            loading="lazy"
+                            decoding="async"
+                        >
+                        {% else %}
+                        <div class="account-suggested-course-card__placeholder" aria-hidden="true"></div>
+                        {% endif %}
+                        <span class="account-suggested-course-card__level" data-level="{{ course.level }}">
+                            {{ course.get_level_display }}
+                        </span>
+                    </div>
+                    <div class="account-suggested-course-card__body">
+                        <h3 class="account-suggested-course-card__title">{{ course.title }}</h3>
+                        {% with workshop=course.workshops.all.0 %}
+                        {% if workshop %}
+                        <p class="account-suggested-course-card__meta">
+                            {{ workshop.start_date|date:"l j F Y" }}
+                            {% if workshop.venue %}
+                            · {{ workshop.venue.name }}{% if workshop.venue.city %}, {{ workshop.venue.city }}{% endif %}
+                            {% endif %}
+                        </p>
+                        {% endif %}
+                        {% endwith %}
+                        <p class="account-suggested-course-card__price">From £{{ course.min_price }}</p>
+                    </div>
+                </a>
+            </article>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}

@@ -58,6 +58,7 @@ going-digital/
    EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
    DEFAULT_FROM_EMAIL=noreply@example.com
    CONTACT_EMAIL=info@goingdigital.co.uk
+   GOING_DIGITAL_FACEBOOK_GROUP_URL=https://www.facebook.com/groups/your-going-digital-group
 
    # Optional passcode gate for staging/dev (session cookie).
    # Defaults to enabled when DEBUG=True. For staging with DEBUG=False, set:

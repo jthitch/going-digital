@@ -1,0 +1,66 @@
+<div class="newsletter-fab-wrap" id="newsletter-fab-wrap">
+<button
+    type="button"
+    class="newsletter-fab"
+    data-newsletter-open
+    aria-haspopup="dialog"
+    aria-controls="newsletter-modal"
+>
+    <span class="newsletter-fab__icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="1.25em" height="1.25em">
+            <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>
+        </svg>
+    </span>
+    <span class="newsletter-fab__label">Newsletter</span>
+</button>
+</div>
+
+<div
+    id="newsletter-modal"
+    class="newsletter-modal"
+    aria-hidden="true"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="newsletter-modal-title"
+>
+    <div class="newsletter-modal__backdrop" data-newsletter-close tabindex="-1"></div>
+    <div
+        class="newsletter-modal__panel"
+        role="document"
+        style="--newsletter-modal-bg: url('{{ newsletter_modal_settings.image_url }}'); --newsletter-modal-position: {{ newsletter_modal_settings.desktop_position }}; --newsletter-modal-position-mobile: {{ newsletter_modal_settings.mobile_position }}; --newsletter-modal-bg-size: {{ newsletter_modal_settings.desktop_bg_size }}; --newsletter-modal-bg-size-mobile: {{ newsletter_modal_settings.mobile_bg_size }};"
+    >
+        <button type="button" class="newsletter-modal__close" data-newsletter-close aria-label="Close">&times;</button>
+        <div class="newsletter-modal__content">
+            <header class="newsletter-modal__header">
+                <h2 id="newsletter-modal-title">Become a better photographer</h2>
+                <p class="newsletter-modal__lead">
+                    Course news, tips, and offers straight to your inbox.
+                </p>
+            </header>
+            <form
+                id="newsletter-subscribe-form"
+                class="newsletter-modal__form"
+                method="post"
+                action="{% url 'newsletter_subscribe' %}"
+                novalidate
+            >
+                {% csrf_token %}
+                <input
+                    type="email"
+                    id="newsletter-email"
+                    name="email"
+                    class="newsletter-modal__input"
+                    autocomplete="email"
+                    placeholder="Enter your email address"
+                    required
+                >
+                <p class="newsletter-modal__error" id="newsletter-error" hidden role="alert"></p>
+                <p class="newsletter-modal__success" id="newsletter-success" hidden role="status"></p>
+                <button type="submit" class="btn-primary newsletter-modal__submit">Get tips and offers</button>
+            </form>
+            <p class="newsletter-modal__fine-print">
+                We respect your privacy. Unsubscribe any time.
+            </p>
+        </div>
+    </div>
+</div>

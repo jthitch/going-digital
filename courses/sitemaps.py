@@ -22,6 +22,8 @@ class StaticViewSitemap(Sitemap):
             'courses:contact',
             'courses:gift_vouchers',
             'courses:faq',
+            'courses:terms_and_conditions',
+            'courses:privacy_policy',
             'courses:editing_course_page',
             'courses:site_map',
         ]

@@ -1,0 +1,9 @@
+{% if facebook_share_items %}
+<p style="margin:16px 0 8px;"><strong>Share your booking on Facebook</strong></p>
+<p style="margin:0 0 8px;color:#444;">Tell friends you're joining a Going Digital course:</p>
+{% for item in facebook_share_items %}
+<p style="margin:0 0 8px;">
+    <a href="{{ item.facebook_share_url }}" style="color:#0066cc;">Share {{ item.course_title }} on Facebook</a>
+</p>
+{% endfor %}
+{% endif %}

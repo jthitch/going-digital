@@ -1,0 +1,49 @@
+{% if facebook_share_items %}
+<section class="fb-share-section" aria-labelledby="fb-share-heading">
+    <header class="fb-share-section__header">
+        <h2 id="fb-share-heading" class="account-section-title">Share your booking</h2>
+        <p class="fb-share-section__lead">
+            Tell friends you're joining a Going Digital course — they'll see the course page when you share.
+        </p>
+    </header>
+    <ul class="fb-share-grid" role="list">
+        {% for item in facebook_share_items %}
+        <li class="fb-share-card" role="listitem">
+            <div class="fb-share-card__media">
+                {% if item.image %}
+                <img
+                    src="{{ item.image }}"
+                    alt=""
+                    class="fb-share-card__image"
+                    loading="lazy"
+                    decoding="async"
+                >
+                {% else %}
+                <div class="fb-share-card__placeholder" aria-hidden="true">
+                    {% include 'bookings/partials/facebook_logo.html' %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="fb-share-card__body">
+                <div class="fb-share-card__brand">
+                    {% include 'bookings/partials/facebook_logo.html' %}
+                    <span>Share on Facebook</span>
+                </div>
+                <h3 class="fb-share-card__title">{{ item.course_title }}</h3>
+                <p class="fb-share-card__meta">{{ item.date_line }} · {{ item.location_line }}</p>
+                <p class="fb-share-card__blurb">{{ item.share_blurb }}</p>
+                <a
+                    href="{{ item.facebook_share_url }}"
+                    class="fb-share-card__cta"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    {% include 'bookings/partials/facebook_logo.html' %}
+                    Share on Facebook
+                </a>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}

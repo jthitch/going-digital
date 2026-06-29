@@ -57,6 +57,9 @@ class User(AbstractBaseUser):
     postcode = models.CharField(max_length=255, null=True, blank=True, db_column='postcode')
     telephone = models.CharField(max_length=255, null=True, blank=True, db_column='telephone')
     mobile = models.CharField(max_length=255, null=True, blank=True, db_column='mobile')
+    facebook_url = models.CharField(max_length=255, null=True, blank=True, db_column='facebook_url')
+    twitter_url = models.CharField(max_length=255, null=True, blank=True, db_column='twitter_url')
+    linkedin_url = models.CharField(max_length=255, null=True, blank=True, db_column='linkedin_url')
     created_at = models.DateTimeField(null=True, blank=True, db_column='created_at')
     updated_at = models.DateTimeField(null=True, blank=True, db_column='updated_at')
 
@@ -213,3 +216,67 @@ class User(AbstractBaseUser):
                 for p in Permission.objects.all()
             )
         return set()
+
+
+class Customer(models.Model):
+    """
+    Student / purchaser account — maps to legacy gd_customer.
+    Students authenticate against this table, not gd_user.
+    """
+    id = models.AutoField(primary_key=True, db_column='id')
+    active = models.SmallIntegerField(default=1, db_column='active')
+    archived = models.SmallIntegerField(default=0, db_column='archived')
+    guest_account = models.SmallIntegerField(default=1, db_column='guest_account')
+    facebook_id = models.IntegerField(null=True, blank=True, db_column='facebook_id')
+    registered_at = models.DateField(null=True, blank=True, db_column='registered_at')
+    confirmed_email = models.SmallIntegerField(null=True, blank=True, db_column='confirmed_email')
+    email = models.CharField(max_length=255, db_column='email')
+    password = models.CharField(max_length=255, default='', db_column='password')
+    firstname = models.CharField(max_length=255, default='', db_column='firstname')
+    lastname = models.CharField(max_length=255, default='', db_column='lastname')
+    address = models.CharField(max_length=1000, null=True, blank=True, db_column='address')
+    address1 = models.CharField(max_length=255, null=True, blank=True, db_column='address1')
+    address2 = models.CharField(max_length=255, null=True, blank=True, db_column='address2')
+    town_city = models.CharField(max_length=255, null=True, blank=True, db_column='town_city')
+    postcode = models.CharField(max_length=255, null=True, blank=True, db_column='postcode')
+    contact_number = models.CharField(max_length=255, null=True, blank=True, db_column='contact_number')
+    newsletter = models.SmallIntegerField(default=0, db_column='newsletter')
+    use_for_primary_booking = models.SmallIntegerField(default=1, db_column='use_for_primary_booking')
+    remember_token = models.CharField(max_length=100, null=True, blank=True, db_column='remember_token')
+    password_reset_token = models.CharField(max_length=99, null=True, blank=True, db_column='password_reset_token')
+    last_reset_password_date = models.DateTimeField(null=True, blank=True, db_column='last_reset_password_date')
+    last_login_date = models.DateField(null=True, blank=True, db_column='last_login_date')
+    createdby_id = models.IntegerField(null=True, blank=True, db_column='createdby_id')
+    updated_at = models.DateTimeField(null=True, blank=True, db_column='updated_at')
+    created_at = models.DateTimeField(null=True, blank=True, db_column='created_at')
+
+    class Meta:
+        db_table = 'gd_customer'
+        managed = False
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.email or f'Customer #{self.pk}'
+
+    @property
+    def is_active(self):
+        return self.active == 1 and self.archived != 1
+
+    @property
+    def first_name(self):
+        return self.firstname or ''
+
+    @property
+    def last_name(self):
+        return self.lastname or ''
+
+    def get_full_name(self):
+        return f'{self.firstname} {self.lastname}'.strip() or self.email
+
+    def set_password(self, raw_password):
+        from django.contrib.auth.hashers import make_password
+        self.password = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        from django.contrib.auth.hashers import check_password
+        return check_password(raw_password, self.password or '')

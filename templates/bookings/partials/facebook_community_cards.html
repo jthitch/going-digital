@@ -1,0 +1,71 @@
+{% if facebook_community_cards %}
+<div class="fb-community-grid" role="list">
+    {% for card in facebook_community_cards %}
+    <article class="fb-community-card fb-community-card--{{ card.kind }}" role="listitem">
+        <a
+            href="{{ card.url }}"
+            class="fb-community-card__preview{% if card.embed_url and not card.image %} fb-community-card__preview--embed{% endif %}"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Preview {{ card.headline }} on Facebook"
+        >
+            {% if card.image %}
+            <img
+                src="{{ card.image }}"
+                alt=""
+                class="fb-community-card__image"
+                loading="lazy"
+                decoding="async"
+            >
+            {% elif card.embed_url %}
+            <div class="fb-community-card__embed-wrap">
+                <iframe
+                    src="{{ card.embed_url }}"
+                    class="fb-community-card__embed"
+                    title="{{ card.headline }} preview"
+                    loading="lazy"
+                    scrolling="no"
+                    allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                    allowfullscreen="true"
+                ></iframe>
+            </div>
+            {% else %}
+            <div class="fb-community-card__placeholder" aria-hidden="true">
+                {% include 'bookings/partials/facebook_logo.html' %}
+            </div>
+            {% endif %}
+            <span class="fb-community-card__overlay" aria-hidden="true">View on Facebook</span>
+            <span class="fb-community-card__badge">{{ card.badge }}</span>
+        </a>
+
+        <div class="fb-community-card__body">
+            <div class="fb-community-card__brand">
+                {% include 'bookings/partials/facebook_logo.html' %}
+                <span>Facebook</span>
+            </div>
+            <h2 class="fb-community-card__title">{{ card.headline }}</h2>
+            <p class="fb-community-card__description">{{ card.description }}</p>
+            <a
+                href="{{ card.url }}"
+                class="fb-community-card__cta"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                {% include 'bookings/partials/facebook_logo.html' %}
+                {{ card.cta }}
+            </a>
+        </div>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<section class="facebook-groups-cta facebook-groups-cta--empty" aria-labelledby="facebook-groups-heading">
+    <div class="fb-community-page-intro">
+        {% include 'bookings/partials/facebook_logo.html' %}
+        <h2 id="facebook-groups-heading">Join our Facebook community</h2>
+    </div>
+    <p class="facebook-groups-note">
+        Community links are not set up yet. Check your booking confirmation email or ask your tutor about local Facebook groups.
+    </p>
+</section>
+{% endif %}

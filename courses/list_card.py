@@ -5,6 +5,38 @@ from django.urls import reverse
 from .models import CourseMedia
 
 
+def list_card_workshops(course):
+    """Workshops prefetched for the course list (respects active filters)."""
+    workshops = getattr(course, 'list_workshops', None)
+    if workshops is not None:
+        return workshops
+    return list(course.workshops.all()[:50])
+
+
+def list_card_location_names(course):
+    """Unique venue names for list cards (one entry per venue, stable order)."""
+    names = []
+    seen_venue_ids = set()
+    saw_tbc = False
+    for workshop in list_card_workshops(course):
+        venue = workshop.venue
+        if not venue or not venue.pk:
+            if not saw_tbc:
+                saw_tbc = True
+                names.append('TBC')
+            continue
+        if venue.pk in seen_venue_ids:
+            continue
+        seen_venue_ids.add(venue.pk)
+        name = (venue.name or '').strip()
+        if name:
+            names.append(name)
+        elif not saw_tbc:
+            saw_tbc = True
+            names.append('TBC')
+    return names
+
+
 def card_focal_point(course):
     """Return (x, y, zoom_percent) for list card image positioning."""
     x = 50 if course.card_image_focus_x is None else int(course.card_image_focus_x)
@@ -77,10 +109,7 @@ def list_card_video_data(course):
 def serialize_list_card(course, *, locations=None):
     """JSON-serializable dict for infinite-scroll course cards."""
     if locations is None:
-        locations = [
-            loc for loc in course.workshops.values_list('venue__venue_name', flat=True).distinct()
-            if loc
-        ]
+        locations = list_card_location_names(course)
     return {
         'id': course.id,
         'title': course.title,

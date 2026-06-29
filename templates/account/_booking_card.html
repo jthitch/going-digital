@@ -27,6 +27,42 @@
         <p class="account-booking-student">{{ booking.student_first_name }} {{ booking.student_last_name }}</p>
     </div>
     <div class="account-booking-card-actions">
+        {% if booking.calendar.has_calendar and booking.status != 'cancelled' %}
+        <details class="calendar-add-menu">
+            <summary class="btn-secondary btn-sm calendar-add-menu__summary">
+                <svg class="calendar-add-menu__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z"/>
+                </svg>
+                Add to calendar
+            </summary>
+            <div class="calendar-add-menu__panel" role="menu">
+                <a href="{{ booking.calendar.google_calendar_url }}" class="calendar-add-menu__link" target="_blank" rel="noopener noreferrer" role="menuitem">Google Calendar</a>
+                <a href="{{ booking.calendar.outlook_calendar_url }}" class="calendar-add-menu__link" target="_blank" rel="noopener noreferrer" role="menuitem">Outlook</a>
+                <a href="{{ booking.calendar.ics_download_url }}" class="calendar-add-menu__link" role="menuitem">Apple / other (.ics)</a>
+            </div>
+        </details>
+        {% endif %}
+        {% if booking.facebook_share and booking.status != 'cancelled' %}
+        <button
+            type="button"
+            class="btn-secondary btn-sm contact-tutor-btn"
+            data-fb-share-open
+            data-booking-ref="{{ booking.booking_reference }}"
+        >
+            <svg class="contact-tutor-btn__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+            </svg>
+            Share on Facebook
+        </button>
+        {% endif %}
+        {% if booking.tutor_contact.has_tutor_contact and booking.status != 'cancelled' %}
+        <a href="{{ booking.tutor_contact.mailto_url }}" class="btn-secondary btn-sm contact-tutor-btn">
+            <svg class="contact-tutor-btn__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>
+            </svg>
+            Contact tutor
+        </a>
+        {% endif %}
         <a href="{% url 'bookings:confirm' booking.booking_reference %}" class="btn-secondary btn-sm">View details</a>
     </div>
 </li>

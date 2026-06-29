@@ -8,7 +8,6 @@ from django.core.exceptions import ValidationError
 from django.db import connection
 
 from bookings.gift_voucher_basket import (
-    get_or_create_customer,
     get_stripe_gateway_id,
     parse_device_and_browser,
 )
@@ -19,7 +18,8 @@ from bookings.voucher_redemption import (
     get_voucher_by_code,
     validate_voucher_for_workshop,
 )
-from core.models import User
+from core.customer_auth import get_logged_in_customer
+from core.customer_service import get_or_create_customer_record
 from courses.models import Workshop
 
 SESSION_KEY = 'workshop_basket'
@@ -34,6 +34,48 @@ def places_available_message(available, existing_in_basket=0):
         basket_word = 'place' if existing_in_basket == 1 else 'places'
         message += f' ({existing_in_basket} {basket_word} already in your basket.)'
     return message
+
+
+def loan_cameras_reserved_in_basket(basket, workshop_id, exclude_item_id=None):
+    total = 0
+    for item in basket.get('items', []):
+        if item['workshop_id'] != workshop_id:
+            continue
+        if exclude_item_id and item.get('id') == exclude_item_id:
+            continue
+        total += int(item.get('loan_cameras') or 0)
+    return total
+
+
+def validate_loan_cameras_requested(
+    workshop,
+    loan_cameras,
+    quantity,
+    basket=None,
+    exclude_item_id=None,
+):
+    loan_cameras = int(loan_cameras or 0)
+    quantity = int(quantity or 0)
+    if loan_cameras < 0:
+        raise ValidationError('Invalid loan camera count.')
+    if loan_cameras == 0:
+        return 0
+    if not workshop.has_loan_cameras_available:
+        raise ValidationError('Loan cameras are not available for this course.')
+    if loan_cameras > quantity:
+        raise ValidationError('You cannot request more loan cameras than places booked.')
+    reserved = loan_cameras_reserved_in_basket(
+        basket or {},
+        workshop.pk,
+        exclude_item_id=exclude_item_id,
+    )
+    remaining = workshop.loan_cameras_remaining() - reserved
+    if loan_cameras > remaining:
+        camera_word = 'camera' if remaining == 1 else 'cameras'
+        raise ValidationError(
+            f'Only {remaining} loan {camera_word} still available for this course.'
+        )
+    return loan_cameras
 
 
 def _empty_basket():
@@ -160,12 +202,22 @@ def add_item_to_basket(request, workshop, cleaned_data, quantity):
 
     _validate_quantity_for_workshop(workshop, quantity, existing_in_basket=existing_qty)
 
+    new_quantity = existing_qty + quantity if merge_target else quantity
+    loan_cameras = validate_loan_cameras_requested(
+        workshop,
+        cleaned_data.get('loan_cameras', 0),
+        new_quantity,
+        basket=basket,
+        exclude_item_id=merge_target.get('id') if merge_target else None,
+    )
+
     if merge_target:
-        merge_target['quantity'] = existing_qty + quantity
+        merge_target['quantity'] = new_quantity
         merge_target['student_first_name'] = cleaned_data['student_first_name']
         merge_target['student_last_name'] = cleaned_data['student_last_name']
         merge_target['student_phone'] = cleaned_data.get('student_phone', '')
         merge_target['special_requirements'] = cleaned_data.get('special_requirements', '')
+        merge_target['loan_cameras'] = loan_cameras
         merge_target['unit_price'] = str(workshop.price)
     else:
         basket['items'].append({
@@ -177,6 +229,7 @@ def add_item_to_basket(request, workshop, cleaned_data, quantity):
             'student_email': cleaned_data['student_email'].strip(),
             'student_phone': cleaned_data.get('student_phone', ''),
             'special_requirements': cleaned_data.get('special_requirements', ''),
+            'loan_cameras': loan_cameras,
             'unit_price': str(workshop.price),
         })
 
@@ -267,28 +320,17 @@ def clear_voucher_from_session_basket(basket):
     return basket
 
 
-def _resolve_user(request, purchaser_email, firstname=None, lastname=None):
-    if request.user.is_authenticated:
-        return request.user
-    email = purchaser_email or 'anonymous@example.com'
-    user, created = User.objects.get_or_create(
-        email=email,
-        defaults={
-            'firstname': firstname or 'Anonymous',
-            'lastname': lastname or 'User',
-            'password': '',
-            'active': 1,
-        },
-    )
-    if not created and firstname:
-        updates = {}
-        if (user.firstname or '').strip().lower() == 'anonymous':
-            updates['firstname'] = firstname
-        if (user.lastname or '').strip().lower() == 'user' and lastname:
-            updates['lastname'] = lastname
-        if updates:
-            user.save(update_fields=[*updates.keys(), 'updated_at'])
-    return user
+def _resolve_customer(request, purchaser_email, firstname=None, lastname=None, phone=''):
+    logged_in = get_logged_in_customer(request)
+    if logged_in:
+        return logged_in
+
+    email = (purchaser_email or '').strip()
+    if not email:
+        raise ValidationError('Email is required.')
+
+    customer, _ = get_or_create_customer_record(email, firstname, lastname, phone)
+    return customer
 
 
 def _allocate_discounts(booking_amounts, total_discount):
@@ -311,7 +353,7 @@ def _allocate_discounts(booking_amounts, total_discount):
     return allocations
 
 
-def create_pending_bookings_for_basket(basket, user):
+def create_pending_bookings_for_basket(basket, customer):
     """Create one Booking row per place; return booking ids in basket order."""
     workshops = load_workshops_for_basket(basket)
     booking_specs = []
@@ -321,8 +363,9 @@ def create_pending_bookings_for_basket(basket, user):
             raise ValidationError('A course in your basket is no longer available.')
         qty = int(item['quantity'])
         _validate_quantity_for_workshop(workshop, qty)
+        loan_cameras = int(item.get('loan_cameras') or 0)
         unit = Decimal(str(workshop.price))
-        for _ in range(qty):
+        for place_index in range(qty):
             booking_specs.append({
                 'workshop': workshop,
                 'list_price': unit,
@@ -331,6 +374,7 @@ def create_pending_bookings_for_basket(basket, user):
                 'student_email': item['student_email'],
                 'student_phone': item.get('student_phone', ''),
                 'special_requirements': item.get('special_requirements', ''),
+                'loan_camera': place_index < loan_cameras,
             })
 
     list_amounts = [spec['list_price'] for spec in booking_specs]
@@ -344,12 +388,14 @@ def create_pending_bookings_for_basket(basket, user):
         price_paid = max(Decimal('0.00'), spec['list_price'] - discount_share)
         booking = Booking(
             workshop=spec['workshop'],
-            user=user,
+            user=None,
+            customer=customer,
             student_first_name=spec['student_first_name'],
             student_last_name=spec['student_last_name'],
             student_email=spec['student_email'],
             student_phone=spec['student_phone'],
             special_requirements=spec['special_requirements'],
+            loan_camera=spec['loan_camera'],
             list_price=spec['list_price'],
             price_paid=price_paid,
             status='pending',
@@ -363,7 +409,7 @@ def create_pending_bookings_for_basket(basket, user):
     return booking_ids
 
 
-def persist_workshop_basket(request, basket, booking_ids, user):
+def persist_workshop_basket(request, basket, booking_ids, customer):
     """Save basket snapshot to gd_basket for payment webhook completion."""
     workshops = load_workshops_for_basket(basket)
     list_total = basket_list_total(basket, workshops)
@@ -373,18 +419,13 @@ def persist_workshop_basket(request, basket, booking_ids, user):
     if basket['items']:
         purchaser_email = basket['items'][0]['student_email']
 
-    customer_id, _ = get_or_create_customer(
-        email=purchaser_email,
-        firstname=basket['items'][0]['student_first_name'] if basket['items'] else 'Customer',
-        lastname=basket['items'][0]['student_last_name'] if basket['items'] else '',
-        phone=basket['items'][0].get('student_phone', '') if basket['items'] else '',
-    )
+    customer_id = customer.pk
 
     gateway_id = get_stripe_gateway_id()
     checksum = uuid.uuid4().hex
     basket_data = {
         'type': 'workshop_booking',
-        'user_id': user.id if user else None,
+        'user_id': None,
         'customer_id': customer_id,
         'booking_ids': booking_ids,
         'list_total': str(list_total),
@@ -568,13 +609,14 @@ def prepare_checkout_from_session(request):
 
     lead_item = basket['items'][0]
     purchaser_email = lead_item['student_email'].strip()
-    user = _resolve_user(
+    customer = _resolve_customer(
         request,
         purchaser_email,
         firstname=lead_item.get('student_first_name'),
         lastname=lead_item.get('student_last_name'),
+        phone=lead_item.get('student_phone', ''),
     )
-    booking_ids = create_pending_bookings_for_basket(basket, user)
-    basket_id = persist_workshop_basket(request, basket, booking_ids, user)
+    booking_ids = create_pending_bookings_for_basket(basket, customer)
+    basket_id = persist_workshop_basket(request, basket, booking_ids, customer)
     clear_session_basket(request)
-    return basket_id, booking_ids
+    return basket_id, booking_ids, customer

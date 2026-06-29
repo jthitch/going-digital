@@ -27,6 +27,12 @@ urlpatterns = [
     path('frequently-asked-questions/', views.FAQView.as_view(), name='faq'),
     path('faq/', RedirectView.as_view(pattern_name='courses:faq', permanent=False)),
 
+    # Terms and conditions (matches original site URL for SEO)
+    path('terms-and-conditions/', views.TermsAndConditionsView.as_view(), name='terms_and_conditions'),
+
+    # Privacy policy (matches original site URL for SEO)
+    path('privacy-policy/', views.PrivacyPolicyView.as_view(), name='privacy_policy'),
+
     # Editing courses page
     path('photography-editing-courses/', views.EditingCoursePageView.as_view(), name='editing_course_page'),
     

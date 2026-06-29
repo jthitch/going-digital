@@ -4,7 +4,7 @@
 {% block title %}My bookings - Photography Courses{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/booking.css' %}">
+<link rel="stylesheet" href="{% static 'css/booking.css' %}?v=36">
 {% endblock %}
 
 {% block content %}
@@ -76,5 +76,13 @@
         <a href="{% url 'courses:course_list' %}" class="btn-primary">Explore courses</a>
     </div>
     {% endif %}
+    {% include 'account/partials/suggested_courses.html' %}
 </div>
+{% include 'bookings/partials/facebook_share_modal.html' with fb_share_modal_dismiss_only=True %}
+{% endblock %}
+
+{% block extra_js %}
+{% if facebook_share_bookings %}
+<script src="{% static 'js/fb-share-modal.js' %}"></script>
+{% endif %}
 {% endblock %}

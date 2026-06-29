@@ -1,18 +1,26 @@
 /* Modern Course List Page Styles - Dark/Light Mode Compatible */
 
+:root {
+    --gd-site-header-height: 70px;
+}
+
+@media (max-width: 767px) {
+    :root {
+        --gd-site-header-height: 64px;
+    }
+}
+
 .course-list-page {
     position: relative;
     min-height: 100vh;
     box-sizing: border-box;
 }
 
-/* Top area: title + list/map + filters (grid — mobile puts list/map + filters on one row) */
+/* Top area: title + unified filter bar */
 .course-list-top {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto;
+    display: flex;
+    flex-direction: column;
     gap: 1rem;
-    align-items: start;
     margin-bottom: 1rem;
     position: relative;
     z-index: 101;
@@ -20,23 +28,46 @@
 }
 
 .course-list-top .page-header {
-    grid-column: 1;
-    grid-row: 1;
+    flex: 0 0 auto;
 }
 
-.course-list-top .view-toggle-container {
-    grid-column: 2;
-    grid-row: 1;
-    align-self: start;
+.course-list-top .map-filter-bar {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    padding: 0;
+    pointer-events: auto;
+    align-items: center;
+    width: 100%;
 }
 
-.course-list-top .filters-section-collapsed {
-    grid-column: 1 / -1;
-    grid-row: 2;
-}
-
-/* When map is visible, overlay list/map + filters - no background */
+/* Map view: float filter bar over the map (header hidden) */
 body.map-view-active .course-list-top {
+    position: fixed;
+    top: var(--gd-site-header-height);
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    margin: 0;
+    padding: 0.75rem 1rem 0.5rem;
+    pointer-events: none;
+    background: transparent;
+    display: flex !important;
+    align-items: center;
+}
+
+body.map-view-active .course-list-top .page-header {
+    display: none;
+}
+
+body.map-view-active .course-list-top .map-filter-bar {
+    position: relative;
+    pointer-events: none;
+}
+
+/* Legacy map overlay rules — unused */
+body.map-view-active .course-list-top--legacy {
     position: fixed;
     top: 80px; /* Below header */
     left: auto;
@@ -54,31 +85,6 @@ body.map-view-active .course-list-top {
     justify-items: end;
     grid-template-columns: 1fr;
     grid-template-rows: auto auto;
-}
-
-body.map-view-active .course-list-top .page-header {
-    display: none;
-}
-
-body.map-view-active .course-list-top .view-toggle-container {
-    grid-column: 1;
-    grid-row: 1;
-    justify-self: end;
-    width: 100%;
-}
-
-body.map-view-active .course-list-top .filters-section-collapsed {
-    grid-column: 1;
-    grid-row: 2;
-    width: 100%;
-    /* Stack inside fixed .course-list-top — do not use separate fixed positioning */
-    position: static;
-    top: auto;
-    right: auto;
-    left: auto;
-    min-width: 0;
-    max-width: none;
-    margin-bottom: 0;
 }
 
 /* Page Header - Compact */
@@ -594,15 +600,16 @@ body.map-view-active .filter-group {
     box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3);
 }
 
-/* Map Container */
+/* Map Container — sit below sticky site header so controls are not hidden under nav */
 .map-container {
     position: fixed;
-    top: 0;
+    top: var(--gd-site-header-height);
     left: 0;
     right: 0;
     bottom: 0;
     width: 100%;
-    height: 100vh;
+    height: calc(100vh - var(--gd-site-header-height));
+    height: calc(100dvh - var(--gd-site-header-height));
     margin: 0;
     padding: 0;
     border: none;
@@ -667,33 +674,37 @@ body.map-view-active .filter-group {
         padding: 0.65rem 0.75rem 1rem;
     }
 
-    /* Map sidebar / mobile sheet: same course-card pattern as list view */
+    /* Map sidebar / mobile sheet: list-style overlay cards (location + date only) */
     .map-sidebar-list .map-sidebar-card.course-card {
         margin-bottom: 0.85rem;
+        aspect-ratio: 3 / 4;
+        min-height: 220px;
     }
 
     .map-sidebar-list .map-sidebar-card.course-card:last-child {
         margin-bottom: 0;
     }
 
-    .map-sidebar-list .map-sidebar-card.course-card {
-        aspect-ratio: auto;
-        min-height: 0;
-    }
-
+    .map-sidebar-list .map-sidebar-card--minimal .course-card-link,
     .map-sidebar-list .map-sidebar-card .course-card-link {
-        aspect-ratio: 16 / 10;
-        min-height: 180px;
+        height: 100%;
+        min-height: 100%;
     }
 
     .map-sidebar-list .map-sidebar-card .course-title {
         font-size: 1rem;
         line-height: 1.3;
+        -webkit-line-clamp: 2;
     }
 
-    .map-sidebar-list .map-sidebar-card .course-short-desc {
-        font-size: 0.82rem;
-        line-height: 1.35;
+    .map-sidebar-list .map-sidebar-card--minimal .course-card-content,
+    .map-sidebar-list .map-sidebar-card .course-card-content {
+        gap: 0.4rem;
+        padding: 0.85rem 1rem 1rem;
+    }
+
+    .map-sidebar-list .map-sidebar-card .course-locations-list {
+        max-height: none;
     }
 
     .map-sidebar-list .map-sidebar-card .meta-item.map-sidebar-date {
@@ -701,44 +712,12 @@ body.map-view-active .filter-group {
         line-height: 1.3;
     }
 
-    .map-sidebar-card-actions {
-        padding: 0 1rem 1rem;
-        border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
-        margin-top: 0;
+    .map-sidebar-list .map-sidebar-card .course-footer {
+        margin-top: 0.15rem;
     }
 
-    .map-sidebar-card-actions .map-sidebar-book-btn {
-        display: block;
-        width: 100%;
-        text-align: center;
-        box-sizing: border-box;
-        padding: 0.55rem 1rem;
-        font-size: 0.9rem;
-        font-weight: 600;
-        background: var(--primary-color);
-        color: white;
-        text-decoration: none;
-        border-radius: 10px;
-        border: none;
-        cursor: pointer;
-        transition: opacity 0.2s, transform 0.2s;
-    }
-
-    .map-sidebar-card-actions .map-sidebar-book-btn:hover {
-        opacity: 0.92;
-        transform: translateY(-1px);
-    }
-
-    .map-sidebar-card-actions .map-sidebar-book-btn.map-sidebar-book-disabled {
-        background: #e5e7eb;
-        color: #6b7280;
-        cursor: not-allowed;
-        transform: none;
-    }
-
-    .map-sidebar-card-actions .map-sidebar-book-btn.map-sidebar-book-disabled:hover {
-        opacity: 1;
-        transform: none;
+    .map-sidebar-list .map-sidebar-card .course-price {
+        font-size: 0.95rem;
     }
 
     .map-main {
@@ -746,7 +725,16 @@ body.map-view-active .filter-group {
         min-width: 0;
         height: 100%;
         position: relative;
+        overflow: hidden;
     }
+}
+
+/* map-main positioning on all breakpoints */
+.map-main {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
 }
 
 /* Mobile: full-width map + pull-up sheet (reuses .map-sidebar) */
@@ -847,16 +835,13 @@ body.map-view-active .filter-group {
 
     .map-sidebar-list .map-sidebar-card.course-card {
         margin-bottom: 0.65rem;
-    }
-
-    .map-sidebar-list .map-sidebar-card.course-card {
-        aspect-ratio: auto;
-        min-height: 0;
+        aspect-ratio: 3 / 4;
+        min-height: 200px;
     }
 
     .map-sidebar-list .map-sidebar-card .course-card-link {
-        aspect-ratio: 16 / 10;
-        min-height: 140px;
+        height: 100%;
+        min-height: 100%;
     }
 
     .map-main {
@@ -882,10 +867,6 @@ body.map-view-active .filter-group {
 
 [data-theme="dark"] .map-sidebar-header {
     border-bottom-color: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .map-sidebar-card-actions {
-    border-top-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Ensure filters content has proper background when overlaid */
@@ -926,7 +907,872 @@ body.map-view-active .filters-content {
 #course-map {
     width: 100%;
     height: 100%;
-    min-height: 100vh;
+    min-height: 0;
+    position: relative;
+    z-index: 1;
+}
+
+#course-map .leaflet-container {
+    z-index: 1;
+}
+
+/* --- Map filter bar (Airbnb-style floating search + filters) --- */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.map-filter-bar {
+    position: absolute;
+    top: 0.75rem;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    padding: 0 1rem 0.5rem;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.map-filter-bar__primary,
+.map-filter-chips,
+.map-filter-bar__quick,
+.map-filter-pill,
+.map-filter-chip {
+    pointer-events: auto;
+}
+
+.map-filter-bar__primary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem 0.75rem;
+    width: 100%;
+}
+
+.map-filter-bar__quick {
+    display: flex;
+    flex: 0 1 auto;
+    width: fit-content;
+    max-width: 100%;
+    min-width: 0;
+    align-items: stretch;
+    gap: 0;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 999px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+[data-theme="dark"] .map-filter-bar__quick {
+    background: rgba(26, 26, 26, 0.96);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+/* List / Map — first segment inside the unified filter pill bar */
+.map-filter-view-toggle {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 0.125rem;
+    padding: 0.35rem 0.45rem 0.35rem 0.5rem;
+    border-right: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+}
+
+.map-filter-bar__quick .map-filter-view-btn {
+    padding: 0.45rem 0.8rem;
+    margin: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    min-width: 0;
+    box-shadow: none;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.map-filter-bar__quick .map-filter-view-btn:hover:not(.active) {
+    color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .map-filter-bar__quick .map-filter-view-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.map-filter-bar__quick .map-filter-view-btn.active {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.map-filter-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 0 1 auto;
+    max-width: 300px;
+    min-width: 0;
+    padding: 0.65rem 0.75rem;
+    border-right: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+}
+
+.map-filter-search-icon {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+}
+
+.map-filter-search {
+    width: 100%;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    outline: none;
+}
+
+.map-filter-search::placeholder {
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.map-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.65rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s ease;
+}
+
+.map-filter-pill:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .map-filter-pill:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.map-filter-pill--dates {
+    border-left: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    border-right: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    gap: 0.35rem;
+    flex-wrap: nowrap;
+    max-width: none;
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+}
+
+.map-filter-pill--dates:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.map-filter-date-display {
+    font-size: 0.875rem;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--text-primary);
+}
+
+.map-date-range-wrap:not([data-has-value]) .map-filter-date-display,
+.map-date-range-wrap:not([data-has-value]) .filter-date-range-display {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.filter-date-range-display {
+    font-size: 0.95rem;
+    font-weight: 500;
+    width: 100%;
+}
+
+.filter-date-range.map-date-range-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+}
+
+.filter-date-range.map-date-range-wrap:focus-within {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.filter-date-range.map-date-range-wrap:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.map-date-range-fp-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.map-filter-date {
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    min-width: 0;
+    width: auto;
+    max-width: 9.5rem;
+    padding: 0;
+}
+
+.map-filter-date-sep {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.filter-date-range {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.65rem;
+}
+
+.filter-date-sep {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.filter-input-date {
+    width: auto;
+    min-width: 10rem;
+}
+
+.filter-group-dates {
+    grid-column: 1 / -1;
+}
+
+.map-filter-pill--location {
+    border-left: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    border-right: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    max-width: 180px;
+}
+
+.map-filter-pill-icon {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+}
+
+.map-filter-select {
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    max-width: 120px;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 0.25rem;
+}
+
+.map-filter-pill--filters {
+    border-radius: 0 999px 999px 0;
+    padding-right: 1.15rem;
+}
+
+.map-filter-pill__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: var(--primary-color);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.map-filter-bar__count {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .map-filter-bar__count {
+    background: rgba(26, 26, 26, 0.92);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.map-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    max-width: 100%;
+}
+
+.map-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.map-filter-chip:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .map-filter-chip {
+    background: rgba(26, 26, 26, 0.94);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.map-filter-chip__type {
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.map-filter-chip__label {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.map-filter-chip__remove {
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--text-secondary);
+    margin-left: 0.1rem;
+}
+
+.map-filter-chip--clear {
+    font-weight: 700;
+    color: var(--primary-color);
+    background: transparent;
+    border-style: dashed;
+}
+
+/* Map filter modal / drawer */
+.map-filter-modal[hidden] {
+    display: none !important;
+}
+
+.map-filter-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.map-filter-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    border: none;
+    background: rgba(0, 0, 0, 0.45);
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.map-filter-modal__dialog {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 560px;
+    max-height: min(88vh, 720px);
+    background: var(--bg-primary);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: mapFilterSlideUp 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes mapFilterSlideUp {
+    from { transform: translateY(100%); opacity: 0.6; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@media (min-width: 768px) {
+    .map-filter-modal {
+        align-items: center;
+        padding: 1.5rem;
+    }
+
+    .map-filter-modal__dialog {
+        border-radius: 16px;
+        max-height: min(85vh, 680px);
+        animation: mapFilterFadeIn 0.22s ease;
+    }
+
+    @keyframes mapFilterFadeIn {
+        from { transform: scale(0.96); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+}
+
+.map-filter-modal__header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    flex-shrink: 0;
+}
+
+.map-filter-modal__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.map-filter-modal__close:hover {
+    background: var(--bg-primary);
+}
+
+.map-filter-modal__title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--text-primary);
+}
+
+.map-filter-modal__clear {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.map-filter-modal__clear--placeholder {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.map-filter-modal__body {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    -webkit-overflow-scrolling: touch;
+}
+
+.map-filter-modal__body .filters-form--modal {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 0;
+    align-items: center;
+    width: 100%;
+}
+
+/* Prevent list-view filter grid from breaking modal layout at wider breakpoints */
+.filters-form--modal {
+    display: flex !important;
+    flex-direction: column;
+    grid-template-columns: unset !important;
+    align-items: center;
+}
+
+@media (min-width: 768px) {
+    .filters-form--modal {
+        grid-template-columns: unset !important;
+    }
+}
+
+.filter-modal-scroll {
+    flex: 1;
+    overflow-y: auto;
+    width: 100%;
+    max-width: 440px;
+    margin-inline: auto;
+    padding: 1.25rem 1.25rem 0.5rem;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+}
+
+.filter-modal-section {
+    padding-bottom: 1.35rem;
+    margin-bottom: 1.35rem;
+    border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    width: 100%;
+    min-width: 0;
+}
+
+.filter-modal-section .category-filter-wrap {
+    width: 100%;
+    min-width: 0;
+}
+
+.filter-modal-section:last-child {
+    margin-bottom: 0;
+    border-bottom: none;
+    padding-bottom: 0.5rem;
+}
+
+.filter-modal-section__title {
+    margin: 0 0 0.25rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+}
+
+.filter-modal-section__hint {
+    margin: 0 0 0.85rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.filter-modal-section--level,
+.filter-modal-section--category,
+.filter-modal-section--dates,
+.filter-modal-section--more {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.filter-modal-section--level .filter-modal-section__title,
+.filter-modal-section--level .filter-modal-section__hint,
+.filter-modal-section--category .filter-modal-section__title,
+.filter-modal-section--category .filter-modal-section__hint,
+.filter-modal-section--dates .filter-modal-section__title,
+.filter-modal-section--dates .filter-modal-section__hint,
+.filter-modal-section--more .filter-modal-section__title {
+    text-align: center;
+    width: 100%;
+}
+
+.filter-modal-section--level .category-filter-wrap,
+.filter-modal-section--category .category-filter-wrap,
+.filter-modal-section--dates .filter-date-range.map-date-range-wrap,
+.filter-modal-section--more .filter-group--compact {
+    width: 100%;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Modal filter chips: two columns per section, stacked vertically */
+.map-filter-modal .category-filter-buttons {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.map-filter-modal .category-filter-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    text-align: center;
+    justify-self: stretch;
+    box-sizing: border-box;
+}
+
+.filter-modal-section .category-filter-buttons-level,
+.filter-modal-section .category-filter-buttons-category,
+.filter-modal-section .category-filter-extra.category-filter-buttons-category {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    width: 100%;
+    justify-content: center;
+}
+
+/* Lone chip on the last row (odd count) sits centred */
+.map-filter-modal .category-filter-buttons > .category-filter-btn:last-child:nth-child(odd):not(.category-filter-more) {
+    grid-column: 1 / -1;
+    width: calc(50% - 0.25rem);
+    max-width: calc(50% - 0.25rem);
+    justify-self: center;
+}
+
+body.map-view-active .map-filter-modal .category-filter-buttons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+body.map-view-active .map-filter-modal .category-filter-btn {
+    text-align: center;
+}
+
+.filter-modal-section .category-filter-btn {
+    padding: 0.65rem 0.75rem;
+    font-size: 0.85rem;
+    line-height: 1.25;
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.filter-modal-section .category-filter-more {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+}
+
+.filter-modal-section .category-filter-extra {
+    margin-top: 0.5rem;
+}
+
+.filter-modal-section .filter-date-range.map-date-range-wrap {
+    margin-top: 0;
+    min-height: 3rem;
+    border-radius: 12px;
+}
+
+.filter-modal-section--more .filter-group--compact {
+    gap: 0.4rem;
+}
+
+.filter-modal-section--more .filter-label {
+    margin-bottom: 0;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.875rem;
+    opacity: 1;
+}
+
+.filter-modal-footer {
+    flex-shrink: 0;
+    width: 100%;
+    max-width: 440px;
+    margin-inline: auto;
+    padding: 1rem 1.25rem 1.25rem;
+    border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    background: var(--bg-primary);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+    box-sizing: border-box;
+}
+
+[data-theme="dark"] .filter-modal-footer {
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.map-filter-modal__submit.filter-submit-btn {
+    width: 100%;
+    padding: 0.95rem 1.5rem;
+    font-size: 1rem;
+    border-radius: 12px;
+    margin-top: 0;
+    text-transform: none;
+    letter-spacing: 0;
+    min-height: 48px;
+}
+
+body.map-filter-modal-open {
+    overflow: hidden;
+}
+
+@media (max-width: 767px) {
+    .map-filter-bar {
+        padding: 0.75rem 1rem 0.35rem;
+        align-items: stretch;
+    }
+
+    .map-filter-bar__primary {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+    }
+
+    .map-filter-bar__quick {
+        flex-direction: column;
+        border-radius: 16px;
+    }
+
+    .map-filter-view-toggle {
+        width: 100%;
+        justify-content: center;
+        padding: 0.5rem 0.65rem;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    }
+
+    .map-filter-bar__quick .map-filter-view-btn {
+        flex: 1;
+        text-align: center;
+        padding: 0.55rem 0.75rem;
+    }
+
+    .map-filter-search-wrap,
+    .map-filter-pill--dates {
+        border-right: none;
+        border-left: none;
+        border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+        max-width: none;
+    }
+
+    .map-filter-date {
+        max-width: none;
+        flex: 1 1 8rem;
+    }
+
+    .map-filter-pill--filters {
+        border-radius: 0;
+        justify-content: center;
+        padding: 0.85rem 1rem;
+    }
+
+    .map-filter-bar__count {
+        align-self: center;
+    }
+}
+
+@media (min-width: 1024px) {
+    .map-filter-bar {
+        padding-left: 1.25rem;
+        padding-right: 1.5rem;
+    }
+}
+
+/* Flatpickr calendar — match site theme */
+.flatpickr-calendar {
+    border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    font-family: inherit;
+    z-index: 1400;
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange,
+.flatpickr-day.selected.inRange,
+.flatpickr-day.startRange.inRange,
+.flatpickr-day.endRange.inRange {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.flatpickr-day.inRange {
+    background: rgba(74, 158, 255, 0.15);
+    border-color: transparent;
+    box-shadow: -5px 0 0 rgba(74, 158, 255, 0.15), 5px 0 0 rgba(74, 158, 255, 0.15);
+}
+
+.flatpickr-day.today {
+    border-color: var(--primary-color);
+}
+
+.flatpickr-day:hover {
+    background: rgba(74, 158, 255, 0.12);
+    border-color: rgba(74, 158, 255, 0.12);
+}
+
+[data-theme="dark"] .flatpickr-calendar {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] .flatpickr-months .flatpickr-month,
+[data-theme="dark"] .flatpickr-weekdays,
+[data-theme="dark"] span.flatpickr-weekday,
+[data-theme="dark"] .flatpickr-day {
+    color: var(--text-primary);
+    fill: var(--text-primary);
+}
+
+[data-theme="dark"] .flatpickr-day.flatpickr-disabled,
+[data-theme="dark"] .flatpickr-day.prevMonthDay,
+[data-theme="dark"] .flatpickr-day.nextMonthDay {
+    color: var(--text-secondary);
 }
 
 /* Custom marker styling */
@@ -1501,81 +2347,12 @@ body.map-view-active .filters-content {
     }
 
     .course-list-top {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        grid-template-rows: auto auto;
-        gap: 0.5rem 0.65rem;
+        gap: 0.75rem;
         margin-bottom: 0.75rem;
-        align-items: center;
     }
 
-    .course-list-top .page-header {
-        grid-column: 1 / -1;
-        grid-row: 1;
-    }
-
-    .course-list-top .view-toggle-container {
-        grid-column: 1;
-        grid-row: 2;
-        justify-self: start;
-        justify-content: flex-start;
-        width: auto;
-        max-width: 148px;
-    }
-
-    .course-list-top .filters-section-collapsed {
-        grid-column: 2;
-        grid-row: 2;
-        justify-self: stretch;
-        width: 100%;
-        min-width: 0;
-    }
-
-    .view-toggle-group {
-        padding: 0.2rem;
-        border-radius: 9px;
-        width: 100%;
-        max-width: 148px;
-        justify-content: center;
-    }
-
-    .view-toggle-btn {
-        padding: 0.35rem 0.45rem;
-        font-size: 0.72rem;
-        border-radius: 6px;
-        flex: 1;
-        text-align: center;
-        min-width: 0;
-    }
-
-    /* Map view: same compact List/Map + Filters on one row as list view (title hidden) */
     body.map-view-active .course-list-top {
-        padding: 0.65rem 0 0;
-        top: 70px;
-        left: 1.25rem;
-        right: 1.25rem;
-        width: auto;
-        max-width: none;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        grid-template-rows: auto;
-        justify-items: stretch;
-        align-items: center;
-        gap: 0.5rem 0.65rem;
-    }
-
-    body.map-view-active .course-list-top .view-toggle-container {
-        grid-column: 1;
-        grid-row: 1;
-        max-width: 148px;
-        justify-self: start;
-        justify-content: flex-start;
-        width: auto;
-    }
-
-    body.map-view-active .course-list-top .filters-section-collapsed {
-        grid-column: 2;
-        grid-row: 1;
-        width: 100%;
-        min-width: 0;
+        padding: 0.65rem 1rem 0.35rem;
     }
 
     .page-header {
@@ -1586,88 +2363,13 @@ body.map-view-active .filters-content {
         font-size: 2rem;
     }
     
-    body.map-view-active .page-header h1 {
-        font-size: 1.5rem;
-    }
-    
     .page-subtitle {
         font-size: 1rem;
     }
-    
-    body.map-view-active .page-subtitle {
-        font-size: 0.85rem;
-    }
-    
-    body.map-view-active .course-list-top .filters-section-collapsed {
-        position: static;
-        left: auto;
-        right: auto;
-        top: auto;
-        width: 100%;
-        max-width: none;
-        min-width: 0;
-    }
-    
-    body.map-view-active .view-toggle-group {
-        width: 100%;
-        max-width: 148px;
-        padding: 0.2rem;
-        border-radius: 9px;
-    }
 
-    body.map-view-active .view-toggle-btn {
-        padding: 0.35rem 0.45rem;
-        font-size: 0.72rem;
-        border-radius: 6px;
-    }
-
-    body.map-view-active .filter-toggle-modern {
-        padding: 0.4rem 0.65rem;
+    .map-filter-bar__quick .map-filter-view-btn {
+        padding: 0.45rem 0.65rem;
         font-size: 0.8rem;
-    }
-
-    /* Mobile: expanded filters — narrow grid column + min-width:280px (map) clips panel; full-width overlay */
-    .course-list-top {
-        overflow: visible;
-    }
-
-    .course-list-top .filters-section-collapsed {
-        min-width: 0;
-        max-width: 100%;
-    }
-
-    .filters-content {
-        min-width: 0 !important;
-        max-width: 100%;
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    .course-list-top .filters-content.active {
-        position: fixed;
-        left: 1.25rem;
-        right: 1.25rem;
-        width: auto;
-        min-width: 0 !important;
-        max-width: none;
-        margin-top: 0;
-        overflow-y: auto;
-        overflow-x: hidden;
-        z-index: 200;
-        border-radius: 12px;
-        border-top: 1px solid rgba(255, 255, 255, 0.3);
-    }
-
-    /* Map: toolbar only (no title row) */
-    body.map-view-active .course-list-top .filters-content.active {
-        top: calc(70px + 0.65rem + 2.75rem);
-        max-height: min(70vh, calc(100dvh - 9rem));
-    }
-
-    /* List: title + subtitle + list/map + filter button rows */
-    body:not(.map-view-active) .course-list-top .filters-content.active {
-        top: calc(70px + 9rem);
-        max-height: min(62vh, calc(100dvh - 11rem));
     }
 
     [data-theme="dark"] .course-list-top .filters-content.active {

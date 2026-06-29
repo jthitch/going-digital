@@ -1,0 +1,56 @@
+{% if facebook_share_bookings or facebook_share_items %}
+<div
+    id="fb-share-modal"
+    class="fb-share-modal"
+    aria-hidden="true"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="fb-share-modal-title"
+>
+    <div class="fb-share-modal__backdrop" data-fb-share-close tabindex="-1"></div>
+    <div class="fb-share-modal__panel" role="document">
+        <button type="button" class="fb-share-modal__close" data-fb-share-close aria-label="Close">&times;</button>
+        <header class="fb-share-modal__header">
+            <span class="fb-share-modal__icon" aria-hidden="true">
+                {% include 'bookings/partials/facebook_logo.html' %}
+            </span>
+            <div>
+                <h2 id="fb-share-modal-title">Share your booking</h2>
+                <p class="fb-share-modal__lead">
+                    {% if fb_share_modal_lead %}
+                    {{ fb_share_modal_lead }}
+                    {% else %}
+                    Tell friends you're joining a Going Digital course.
+                    {% endif %}
+                </p>
+            </div>
+        </header>
+        <ul class="fb-share-modal__list" role="list">
+            {% for booking in facebook_share_bookings %}
+            {% with item=booking.facebook_share %}
+            <li
+                class="fb-share-modal__pane"
+                role="listitem"
+                data-booking-ref="{{ booking.booking_reference }}"
+                hidden
+            >
+                {% include 'bookings/partials/facebook_share_modal_card.html' %}
+            </li>
+            {% endwith %}
+            {% endfor %}
+            {% for item in facebook_share_items %}
+            <li class="fb-share-modal__pane" role="listitem">
+                {% include 'bookings/partials/facebook_share_modal_card.html' %}
+            </li>
+            {% endfor %}
+        </ul>
+        <div class="fb-share-modal__footer">
+            {% if fb_share_modal_dismiss_only %}
+            <button type="button" class="btn-secondary" data-fb-share-close>Close</button>
+            {% else %}
+            <a href="{% url 'account:my_bookings' %}" class="btn-secondary">Continue to my bookings</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}

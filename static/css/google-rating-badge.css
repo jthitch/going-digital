@@ -1,0 +1,91 @@
+.hero-google-rating,
+.google-rating-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.95rem;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #fff;
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.hero-google-rating {
+    margin-top: 1rem;
+}
+
+.google-rating-badge-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 0 0 1.5rem;
+}
+
+.hero-google-rating:hover,
+.hero-google-rating:focus-visible,
+.google-rating-badge:hover,
+.google-rating-badge:focus-visible {
+    background: rgba(0, 0, 0, 0.42);
+    border-color: rgba(255, 255, 255, 0.55);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.hero-google-rating__logo,
+.google-rating-badge__logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.hero-google-rating__logo-svg,
+.google-rating-badge__logo-svg {
+    display: block;
+    filter: brightness(0) invert(1);
+}
+
+.hero-google-rating__score,
+.google-rating-badge__score {
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.hero-google-rating__stars,
+.google-rating-badge__stars {
+    display: inline-flex;
+    gap: 0.05rem;
+}
+
+.hero-google-rating__star,
+.google-rating-badge__star {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.hero-google-rating__star--full,
+.google-rating-badge__star--full {
+    color: #fbbc04;
+}
+
+.hero-google-rating__star--partial,
+.google-rating-badge__star--partial {
+    background: linear-gradient(90deg, #fbbc04 50%, rgba(255, 255, 255, 0.45) 50%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.hero-google-rating__label,
+.google-rating-badge__label {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.92);
+}

@@ -828,6 +828,23 @@ class Workshop(models.Model):
         return max(0, max_p - booked)
 
     @property
+    def has_loan_cameras_available(self):
+        return int(self.number_of_loan_cameras_available or 0) > 0
+
+    def loan_cameras_remaining(self):
+        """Loan cameras not yet assigned to pending/confirmed bookings."""
+        if not self.has_loan_cameras_available:
+            return 0
+        from bookings.models import Booking
+
+        reserved = Booking.objects.filter(
+            workshop_id=self.pk,
+            loan_camera=True,
+            status__in=['pending', 'confirmed'],
+        ).count()
+        return max(0, int(self.number_of_loan_cameras_available) - reserved)
+
+    @property
     def location(self):
         """Compatibility: return venue as location-like object (has .name, .city)."""
         return self.venue
@@ -1076,7 +1093,11 @@ class Course(models.Model):
     @property
     def min_price(self):
         """Minimum price from workshops (for list/detail display)."""
-        workshops = self.workshops.all()[:50]  # Limit for performance
+        workshops = getattr(self, 'list_workshops', None)
+        if workshops is None:
+            workshops = self.workshops.all()[:50]
+        else:
+            workshops = workshops[:50]
         prices = [w.price for w in workshops if w.price is not None]
         return min(prices) if prices else Decimal('0.00')
 
@@ -1150,6 +1171,11 @@ class Course(models.Model):
         """First CourseMedia video for photography-courses list card playback."""
         from .list_card import list_card_video_data
         return list_card_video_data(self)
+
+    def list_card_location_names(self):
+        """Unique venue names for photography-courses list cards."""
+        from .list_card import list_card_location_names
+        return list_card_location_names(self)
 
     def get_absolute_url(self, location=None, location_slug=None):
         """Generate SEO-friendly URL: /photography-courses/<course-slug>/<location-slug>/ or overview."""

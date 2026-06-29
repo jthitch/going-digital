@@ -1,71 +1,58 @@
-"""Student account helpers — booking linkage and password detection."""
-from django.contrib.auth.hashers import identify_hasher
+"""Student account helpers — gd_customer booking linkage and password detection."""
 from django.db.models import Q
+from django.utils import timezone
 
 from bookings.models import Booking
-from core.models import User
+from core.customer_auth import customer_has_sign_in_password
+from core.customer_service import get_or_create_customer_record
+from core.models import Customer
 
 
-def is_django_password_hash(stored_hash):
-    if not stored_hash:
-        return False
-    try:
-        identify_hasher(stored_hash)
-        return True
-    except ValueError:
-        return False
-
-
-def is_legacy_bcrypt_hash(stored_hash):
-    return bool(stored_hash) and stored_hash.startswith('$2')
-
-
-def user_has_sign_in_password(user):
-    """True if the account already has a password (Django hash or legacy bcrypt)."""
-    stored = (user.password or '').strip()
-    if not stored:
-        return False
-    if is_django_password_hash(stored) or is_legacy_bcrypt_hash(stored):
-        return True
-    return len(stored) > 0
-
-
-def link_bookings_to_user(user):
-    """Attach bookings booked with this email to the signed-in account."""
-    if not user or not user.email:
+def link_bookings_to_customer(customer):
+    """Attach bookings booked with this email to the signed-in customer."""
+    if not customer or not customer.email:
         return 0
     return Booking.objects.filter(
-        student_email__iexact=user.email.strip(),
-    ).exclude(user_id=user.pk).update(user_id=user.pk)
+        student_email__iexact=customer.email.strip(),
+    ).exclude(customer_id=customer.pk).update(customer_id=customer.pk)
 
 
-def user_needs_account_setup(user):
+def customer_needs_account_setup(customer):
     """True when the student should set a password to finish account creation."""
-    if not user or not user.is_active:
+    if not customer or not customer.is_active:
         return False
-    return not user_has_sign_in_password(user)
+    return not customer_has_sign_in_password(customer)
 
 
-def resolve_student_user_for_email(email):
+def resolve_customer_for_email(email, *, firstname='', lastname='', phone=''):
     if not email:
         return None
-    return User.objects.filter(email__iexact=email.strip()).first()
+    customer = Customer.objects.filter(email__iexact=email.strip()).first()
+    if customer:
+        return customer
+    if firstname or lastname or phone:
+        customer, _ = get_or_create_customer_record(email, firstname, lastname, phone)
+        return customer
+    return None
 
 
-def complete_student_account(user, password, *, firstname=None, lastname=None):
-    """Set password and optional profile fields for a guest student account."""
-    if user_has_sign_in_password(user):
+def complete_customer_account(customer, password, *, firstname=None, lastname=None):
+    """Set password and profile fields on gd_customer (not gd_user)."""
+    if customer_has_sign_in_password(customer):
         raise ValueError('This account already has a password. Please sign in instead.')
 
     if firstname:
-        user.firstname = firstname
+        customer.firstname = firstname
     if lastname:
-        user.lastname = lastname
-    user.active = 1
-    user.set_password(password)
-    user.save()
-    link_bookings_to_user(user)
-    return user
+        customer.lastname = lastname
+    customer.active = 1
+    customer.guest_account = 0
+    customer.registered_at = timezone.now().date()
+    customer.set_password(password)
+    customer.updated_at = timezone.now()
+    customer.save()
+    link_bookings_to_customer(customer)
+    return customer
 
 
 def account_setup_from_bookings(bookings):
@@ -82,22 +69,26 @@ def account_setup_from_bookings(bookings):
     if not email:
         return None
 
-    user = primary.user or resolve_student_user_for_email(email)
-    if not user or not user_needs_account_setup(user):
+    customer = (
+        primary.customer
+        or resolve_customer_for_email(
+            email,
+            firstname=primary.student_first_name,
+            lastname=primary.student_last_name,
+            phone=primary.student_phone or '',
+        )
+    )
+    if not customer or not customer_needs_account_setup(customer):
         return None
 
-    firstname = primary.student_first_name or user.firstname or ''
-    lastname = primary.student_last_name or user.lastname or ''
-    if (user.firstname or '').strip().lower() == 'anonymous':
-        firstname = primary.student_first_name or firstname
-    if (user.lastname or '').strip().lower() == 'user':
-        lastname = primary.student_last_name or lastname
+    firstname = primary.student_first_name or customer.firstname or ''
+    lastname = primary.student_last_name or customer.lastname or ''
 
     return {
         'email': email,
         'firstname': firstname,
         'lastname': lastname,
-        'user': user,
+        'customer': customer,
         'booking_reference': primary.booking_reference,
     }
 
@@ -111,20 +102,24 @@ def payment_account_context_from_checkout_data(data, *, is_authenticated=False):
     if not email:
         return None
 
-    user = resolve_student_user_for_email(email)
+    customer = resolve_customer_for_email(
+        email,
+        firstname=data.get('firstname', ''),
+        lastname=data.get('lastname', ''),
+    )
     base = {
         'email': email,
-        'firstname': data.get('firstname') or (user.firstname if user else ''),
-        'lastname': data.get('lastname') or (user.lastname if user else ''),
+        'firstname': data.get('firstname') or (customer.firstname if customer else ''),
+        'lastname': data.get('lastname') or (customer.lastname if customer else ''),
         'booking_reference': data.get('booking_reference') or '',
     }
 
-    if user and user_needs_account_setup(user):
+    if customer and customer_needs_account_setup(customer):
         setup = {
             'email': email,
             'firstname': base['firstname'],
             'lastname': base['lastname'],
-            'user': user,
+            'customer': customer,
             'booking_reference': base['booking_reference'],
         }
         return {**base, 'mode': 'setup', 'setup': setup}
@@ -149,15 +144,20 @@ def payment_account_context_from_bookings(bookings, *, is_authenticated=False):
     if not email:
         return None
 
-    user = primary.user or resolve_student_user_for_email(email)
+    customer = primary.customer or resolve_customer_for_email(
+        email,
+        firstname=primary.student_first_name,
+        lastname=primary.student_last_name,
+        phone=primary.student_phone or '',
+    )
     base = {
         'email': email,
-        'firstname': primary.student_first_name or (user.firstname if user else ''),
-        'lastname': primary.student_last_name or (user.lastname if user else ''),
+        'firstname': primary.student_first_name or (customer.firstname if customer else ''),
+        'lastname': primary.student_last_name or (customer.lastname if customer else ''),
         'booking_reference': primary.booking_reference,
     }
 
-    if user and user_needs_account_setup(user):
+    if customer and customer_needs_account_setup(customer):
         setup = account_setup_from_bookings(booking_list)
         if setup:
             return {
@@ -172,13 +172,13 @@ def payment_account_context_from_bookings(bookings, *, is_authenticated=False):
     }
 
 
-def bookings_for_user(user):
+def bookings_for_customer(customer):
     """Bookings owned by or booked under this student's email."""
-    email = (user.email or '').strip()
-    qs = Booking.objects.filter(user_id=user.pk)
+    email = (customer.email or '').strip()
+    qs = Booking.objects.filter(customer_id=customer.pk)
     if email:
         qs = Booking.objects.filter(
-            Q(user_id=user.pk) | Q(student_email__iexact=email),
+            Q(customer_id=customer.pk) | Q(student_email__iexact=email),
         )
     return qs.select_related(
         'workshop',
@@ -186,3 +186,32 @@ def bookings_for_user(user):
         'workshop__venue',
         'payment',
     ).distinct()
+
+
+def customer_can_view_booking(request, booking):
+    """
+    True when a signed-in student owns the booking, or the browser session
+    still has post-checkout access for that booking's email.
+    """
+    from core.customer_auth import is_customer_authenticated
+
+    if is_customer_authenticated(request):
+        customer = request.customer
+        return bookings_for_customer(customer).filter(pk=booking.pk).exists()
+
+    student_email = (booking.student_email or '').strip().lower()
+    if not student_email:
+        return False
+
+    from payments.checkout_session_context import (
+        get_checkout_success_context,
+        load_bookings_from_checkout_context,
+    )
+
+    checkout_bookings = load_bookings_from_checkout_context(request)
+    if any(item.pk == booking.pk for item in checkout_bookings):
+        return True
+
+    session_email = (request.session.get('account_setup_email') or '').strip().lower()
+    checkout_email = (get_checkout_success_context(request).get('email') or '').strip().lower()
+    return student_email in {session_email, checkout_email}

@@ -34,6 +34,17 @@ body.app-courses.model-workshop.add-form .card-body {
     overflow-x: hidden;
 }
 
+.gd-workshop-duplicate-date-focus {
+    background: rgba(74, 158, 255, 0.08);
+    border-radius: 8px;
+    outline: 2px solid rgba(74, 158, 255, 0.35);
+    outline-offset: 2px;
+}
+
+[data-theme="dark"] .gd-workshop-duplicate-date-focus {
+    background: rgba(74, 158, 255, 0.12);
+}
+
 body.app-courses.model-workshop.change-form .tab-pane.gd-workshop-customers-tab .card-body.p-5 {
     overflow-x: visible;
 }

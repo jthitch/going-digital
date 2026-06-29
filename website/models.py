@@ -1,7 +1,8 @@
 """
-Website models: HeroImage, GiftVoucherPageImage, Testimonial, BeforeAfterImage, FAQ.
+Website models: HeroImage, GiftVoucherPageImage, GiftCardDesign, Testimonial, BeforeAfterImage, FAQ.
 These models manage website content separate from course definitions.
 """
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from courses.models import Course
 
@@ -24,6 +25,280 @@ class GiftVoucherPageImage(models.Model):
 
     def __str__(self):
         return 'Gift vouchers page image'
+
+
+class GiftCardDesign(models.Model):
+    """
+    Printable gift card artwork. Text fields are overlaid at percentage positions
+    when a voucher is downloaded or emailed after purchase.
+    """
+    name = models.CharField(max_length=100)
+    image = models.ImageField(
+        upload_to='gift-card-designs/',
+        help_text='Background artwork (PNG or JPG). Text is drawn on top at the positions below.',
+    )
+    is_active = models.BooleanField(default=True)
+    display_order = models.PositiveSmallIntegerField(
+        default=0,
+        help_text='Lower numbers appear first on the payment success page.',
+    )
+
+    value_x = models.PositiveSmallIntegerField(
+        default=50, validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name='Value X (%)',
+    )
+    value_y = models.PositiveSmallIntegerField(
+        default=42, validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name='Value Y (%)',
+    )
+    value_font_size = models.PositiveSmallIntegerField(default=64)
+    value_color = models.CharField(max_length=7, default='#1a1a1a')
+
+    code_x = models.PositiveSmallIntegerField(
+        default=50, validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name='Voucher code X (%)',
+    )
+    code_y = models.PositiveSmallIntegerField(
+        default=55, validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name='Voucher code Y (%)',
+    )
+    code_font_size = models.PositiveSmallIntegerField(default=32)
+    code_color = models.CharField(max_length=7, default='#1a1a1a')
+
+    recipient_x = models.PositiveSmallIntegerField(
+        default=50, validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name='Recipient X (%)',
+    )
+    recipient_y = models.PositiveSmallIntegerField(
+        default=68, validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name='Recipient Y (%)',
+    )
+    recipient_font_size = models.PositiveSmallIntegerField(default=28)
+    recipient_color = models.CharField(max_length=7, default='#333333')
+
+    message_x = models.PositiveSmallIntegerField(
+        default=50, validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name='Message X (%)',
+    )
+    message_y = models.PositiveSmallIntegerField(
+        default=76, validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name='Message Y (%)',
+    )
+    message_font_size = models.PositiveSmallIntegerField(default=22)
+    message_color = models.CharField(max_length=7, default='#333333')
+    message_max_width_pct = models.PositiveSmallIntegerField(
+        default=80,
+        validators=[MinValueValidator(20), MaxValueValidator(100)],
+        help_text='Wrap long messages within this width (% of image).',
+    )
+
+    expiry_x = models.PositiveSmallIntegerField(
+        default=50, validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name='Expiry X (%)',
+    )
+    expiry_y = models.PositiveSmallIntegerField(
+        default=88, validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name='Expiry Y (%)',
+    )
+    expiry_font_size = models.PositiveSmallIntegerField(default=18)
+    expiry_color = models.CharField(max_length=7, default='#555555')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'gift_card_design'
+        ordering = ['display_order', 'name']
+        verbose_name = 'Gift card design'
+        verbose_name_plural = 'Gift card designs'
+
+    def __str__(self):
+        return self.name
+
+
+class NewsletterModalSettings(models.Model):
+    """
+    Singleton settings for the site-wide newsletter signup modal.
+    Platform super users can change the background image and focal point.
+    """
+    image = models.ImageField(
+        upload_to='newsletter/modal/',
+        blank=True,
+        null=True,
+        help_text=(
+            'Background for the newsletter popup. Leave empty to use the default static image. '
+            'Recommended: portrait or tall photo (e.g. 800×1200px).'
+        ),
+    )
+    desktop_focus_x = models.PositiveSmallIntegerField(
+        default=85,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text='Desktop: horizontal focus (0 = left edge, 100 = right edge).',
+    )
+    desktop_focus_y = models.PositiveSmallIntegerField(
+        default=50,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text='Desktop: vertical focus (0 = top, 100 = bottom).',
+    )
+    mobile_focus_x = models.PositiveSmallIntegerField(
+        default=50,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text='Mobile: horizontal focus (0 = left, 100 = right).',
+    )
+    mobile_focus_y = models.PositiveSmallIntegerField(
+        default=25,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text='Mobile: vertical focus (0 = top, 100 = bottom).',
+    )
+    desktop_zoom = models.PositiveSmallIntegerField(
+        default=100,
+        validators=[MinValueValidator(100), MaxValueValidator(200)],
+        help_text='Desktop: 100 = default crop; increase to zoom in on the focal point.',
+    )
+    mobile_zoom = models.PositiveSmallIntegerField(
+        default=100,
+        validators=[MinValueValidator(100), MaxValueValidator(200)],
+        help_text='Mobile: 100 = default crop; increase to zoom in on the focal point.',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'newsletter_modal_settings'
+        verbose_name = 'Newsletter modal'
+        verbose_name_plural = 'Newsletter modal'
+
+    def __str__(self):
+        return 'Newsletter modal settings'
+
+    @property
+    def desktop_background_position(self):
+        return f'{self.desktop_focus_x}% {self.desktop_focus_y}%'
+
+    @property
+    def mobile_background_position(self):
+        return f'{self.mobile_focus_x}% {self.mobile_focus_y}%'
+
+    @staticmethod
+    def image_background_size(zoom):
+        zoom_pct = 100 if zoom is None else int(zoom)
+        zoom_pct = max(100, min(200, zoom_pct))
+        image_size = 'cover' if zoom_pct <= 100 else f'{zoom_pct}%'
+        return f'100% 100%, {image_size}'
+
+    @property
+    def desktop_background_size(self):
+        return self.image_background_size(self.desktop_zoom)
+
+    @property
+    def mobile_background_size(self):
+        return self.image_background_size(self.mobile_zoom)
+
+    @classmethod
+    def get_singleton(cls):
+        return cls.objects.first()
+
+
+class GoogleReviewsSettings(models.Model):
+    """
+    Homepage Google reviews trust badge — one row, edited in admin.
+    """
+    is_active = models.BooleanField(
+        default=True,
+        help_text='Show the Google reviews badge on the homepage.',
+    )
+    business_name = models.CharField(
+        max_length=200,
+        default='GD Photography Ltd',
+    )
+    rating = models.DecimalField(
+        max_digits=2,
+        decimal_places=1,
+        default=5.0,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text='Average star rating (1.0–5.0).',
+    )
+    review_count = models.PositiveIntegerField(
+        default=0,
+        help_text='Total number of Google reviews. Leave at 0 to hide the count.',
+    )
+    reviews_url = models.URLField(
+        max_length=500,
+        default=(
+            'https://www.google.com/search?q=GD+Photography+Ltd&hl=en-GB'
+            '#lrd=0xab70654900d0b227:0x926a542e36e35028,1'
+        ),
+        help_text='Link to your Google reviews (opens Google).',
+    )
+    google_place_id = models.CharField(
+        max_length=128,
+        blank=True,
+        default='ChIJJ7LQAEllcKsRKFDjNi5UapI',
+        help_text='Google Place ID (ChIJ…). Leave blank to look up automatically when the API key is set.',
+    )
+    google_cid = models.CharField(
+        max_length=32,
+        blank=True,
+        default='10550337634534903848',
+        help_text='Google Business Profile CID. Used to verify the correct listing is selected.',
+    )
+    use_live_reviews = models.BooleanField(
+        default=True,
+        help_text=(
+            'Load the most relevant Google reviews live on the homepage when '
+            'GOOGLE_PLACES_API_KEY is configured. Manual featured reviews are used as a fallback.'
+        ),
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'google_reviews_settings'
+        verbose_name = 'Google reviews'
+        verbose_name_plural = 'Google reviews'
+
+    def __str__(self):
+        return 'Google reviews settings'
+
+    @classmethod
+    def get_singleton(cls):
+        return cls.objects.first()
+
+
+class GoogleReviewHighlight(models.Model):
+    """Featured Google review shown on the homepage (admin-curated)."""
+    settings = models.ForeignKey(
+        GoogleReviewsSettings,
+        on_delete=models.CASCADE,
+        related_name='highlights',
+    )
+    author_name = models.CharField(max_length=120)
+    review_text = models.TextField()
+    rating = models.PositiveSmallIntegerField(
+        default=5,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    author_photo = models.ImageField(
+        upload_to='google-reviews/',
+        blank=True,
+        null=True,
+        help_text='Optional reviewer photo. Leave empty to use initials or a photo URL.',
+    )
+    author_photo_url = models.URLField(
+        max_length=500,
+        blank=True,
+        help_text='Optional photo URL (e.g. from Google). Used when no uploaded image.',
+    )
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'google_review_highlights'
+        ordering = ['order', 'id']
+        verbose_name = 'Featured Google review'
+        verbose_name_plural = 'Featured Google reviews'
+
+    def __str__(self):
+        return f'{self.author_name} ({self.rating}★)'
 
 
 class HeroImage(models.Model):
@@ -197,3 +472,31 @@ class Redirect(models.Model):
 
     def __str__(self):
         return f"{self.old_path} → {self.new_path}"
+
+
+class LegalPage(models.Model):
+    """
+    Editable legal pages (terms and privacy). Two fixed rows — edit in admin as superuser.
+    """
+    TERMS = 'terms'
+    PRIVACY = 'privacy'
+    PAGE_KEY_CHOICES = [
+        (TERMS, 'Terms and conditions'),
+        (PRIVACY, 'Privacy policy'),
+    ]
+
+    page_key = models.CharField(max_length=16, choices=PAGE_KEY_CHOICES, unique=True, editable=False)
+    page_title = models.CharField(max_length=200, help_text='Heading shown at the top of the page.')
+    browser_title = models.CharField(max_length=200, help_text='Browser tab title.')
+    meta_description = models.CharField(max_length=500, blank=True)
+    meta_keywords = models.CharField(max_length=500, blank=True)
+    body = models.TextField(help_text='Main page content (HTML).')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'legal_pages'
+        verbose_name = 'Legal page'
+        verbose_name_plural = 'Legal pages'
+
+    def __str__(self):
+        return self.get_page_key_display()

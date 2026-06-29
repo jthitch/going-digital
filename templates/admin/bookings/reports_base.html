@@ -1,0 +1,57 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'admin:app_list' app_label='bookings' %}">{% trans 'Bookings' %}</a></li>
+    <li class="breadcrumb-item active">{% trans 'Reports' %}</li>
+</ol>
+{% endblock %}
+
+{% block content_title %}{% trans 'Booking reports' %}{% endblock %}
+
+{% block content %}
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a
+            class="nav-link{% if report_type == 'monthly' %} active{% endif %}"
+            href="{% url 'admin:bookings_reports' %}?report=monthly"
+        >{% trans 'Monthly summary' %}</a>
+    </li>
+    {% if show_payment_gateway_report %}
+    <li class="nav-item">
+        <a
+            class="nav-link{% if report_type == 'payment_gateway' %} active{% endif %}"
+            href="{% url 'admin:bookings_reports' %}?report=payment_gateway"
+        >{% trans 'Bookings by payment gateway' %}</a>
+    </li>
+    {% endif %}
+    {% if show_franchisee_booking_report %}
+    <li class="nav-item">
+        <a
+            class="nav-link{% if report_type == 'franchisee' %} active{% endif %}"
+            href="{% url 'admin:bookings_reports' %}?report=franchisee"
+        >{% trans 'Bookings by franchisee' %}</a>
+    </li>
+    {% endif %}
+    {% if show_refunds_report %}
+    <li class="nav-item">
+        <a
+            class="nav-link{% if report_type == 'refunds' %} active{% endif %}"
+            href="{% url 'admin:bookings_reports' %}?report=refunds"
+        >{% trans 'Refunds' %}</a>
+    </li>
+    {% endif %}
+    {% if show_gift_voucher_purchased_report %}
+    <li class="nav-item">
+        <a
+            class="nav-link{% if report_type == 'gift_vouchers' %} active{% endif %}"
+            href="{% url 'admin:bookings_reports' %}?report=gift_vouchers"
+        >{% trans 'Gift vouchers purchased' %}</a>
+    </li>
+    {% endif %}
+</ul>
+
+{% block report_content %}{% endblock %}
+{% endblock %}

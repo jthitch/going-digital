@@ -4,13 +4,21 @@
 {% block title %}Payment Successful - Photography Courses{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/booking.css' %}">
+<link rel="stylesheet" href="{% static 'css/booking.css' %}?v=41">
 {% endblock %}
 
 {% block content %}
 <div class="payment-success-container">
     <div class="success-icon">✓</div>
     <h1>Payment Successful!</h1>
+
+    {% if messages %}
+    <div class="payment-messages">
+        {% for message in messages %}
+        <p class="payment-message payment-message--{{ message.tags }}">{{ message }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     {% if is_gift_voucher and gift_voucher_basket %}
     <p class="success-message">Thank you for your gift voucher purchase. Your payment has been processed successfully.</p>
@@ -29,6 +37,88 @@
         {% endif %}
         <p>You will receive a confirmation email with your voucher details shortly.</p>
     </div>
+
+    {% if gift_card_designs and gift_voucher_codes and gift_voucher_basket_id %}
+    <div class="gift-card-panel booking-info">
+        <h2>Download or email your gift card</h2>
+        <p>Your gift card preview is below. Choose a different design if you prefer, then download or email it.</p>
+
+        <div class="gift-card-preview" aria-live="polite">
+            <p class="gift-card-preview-label">Preview</p>
+            <div class="gift-card-preview-frame is-loading" id="gift-card-preview-frame">
+                <p class="gift-card-preview-loading" id="gift-card-preview-loading">
+                    Generating preview…
+                </p>
+                <img
+                    id="gift-card-preview"
+                    class="gift-card-preview-image"
+                    alt="Gift card preview with your voucher details"
+                    src="{% url 'payments:gift_voucher_card_download' gift_voucher_basket_id %}?session_id={{ session_id|urlencode }}&amp;design={{ gift_card_designs.0.pk }}&amp;voucher=0&amp;preview=1"
+                >
+            </div>
+        </div>
+
+        {% if gift_voucher_codes|length > 1 %}
+        <div class="form-group gift-card-field">
+            <label for="gift-card-voucher">Voucher</label>
+            <select id="gift-card-voucher" class="form-select">
+                {% for code in gift_voucher_codes %}
+                <option value="{{ forloop.counter0 }}">{{ code.0 }} (£{{ code.1|floatformat:0 }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <p class="gift-card-design-label">Choose a design</p>
+        <div class="gift-card-design-grid" role="radiogroup" aria-label="Gift card design">
+            {% for design in gift_card_designs %}
+            <label class="gift-card-design-option">
+                <input
+                    type="radio"
+                    name="gift_card_design"
+                    value="{{ design.pk }}"
+                    {% if forloop.first %}checked{% endif %}
+                >
+                <span class="gift-card-design-thumb">
+                    <img src="{{ design.image.url }}" alt="{{ design.name }}">
+                </span>
+                <span class="gift-card-design-name">{{ design.name }}</span>
+            </label>
+            {% endfor %}
+        </div>
+
+        <form
+            method="post"
+            action="{% url 'payments:gift_voucher_card_email' gift_voucher_basket_id %}"
+            class="gift-card-email-form booking-form"
+            id="gift-card-email-form"
+        >
+            {% csrf_token %}
+            <input type="hidden" name="session_id" value="{{ session_id }}">
+            <input type="hidden" name="design" id="gift-card-design-input" value="{{ gift_card_designs.0.pk }}">
+            <input type="hidden" name="voucher" id="gift-card-voucher-input" value="0">
+            <div class="form-group gift-card-field">
+                <label for="gift-card-email">Email to</label>
+                <input
+                    type="email"
+                    name="email"
+                    id="gift-card-email"
+                    class="form-input"
+                    value="{{ gift_voucher_default_email }}"
+                    required
+                >
+            </div>
+            <div class="gift-card-actions account-form-actions account-form-actions--inline">
+                <a
+                    href="{% url 'payments:gift_voucher_card_download' gift_voucher_basket_id %}?session_id={{ session_id|urlencode }}&amp;design={{ gift_card_designs.0.pk }}&amp;voucher=0"
+                    id="gift-card-download"
+                    class="btn-secondary"
+                >Download gift card</a>
+                <button type="submit" class="btn-primary">Email gift card</button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
     {% elif bookings %}
     <p class="success-message">Thank you for your booking. Your payment has been processed successfully.</p>
     <div class="booking-info">
@@ -98,9 +188,11 @@
                 </div>
             </div>
             <div class="account-form-actions account-form-actions--inline">
-                <button type="submit" class="btn-primary">Save password and view bookings</button>
+                <button type="submit" class="btn-primary">Save password and continue</button>
                 {% if payment_account.booking_reference %}
-                <a href="{% url 'account:complete_setup' %}?ref={{ payment_account.booking_reference }}" class="btn-secondary">Set up later</a>
+                <a href="{% url 'account:post_booking_community' %}?ref={{ payment_account.booking_reference }}" class="btn-secondary">Set up later</a>
+                {% else %}
+                <a href="{% url 'account:post_booking_community' %}" class="btn-secondary">Set up later</a>
                 {% endif %}
             </div>
         </form>
@@ -123,17 +215,158 @@
         <h2>View your bookings</h2>
         <p class="account-setup-lead">You're signed in. Your bookings are in your account.</p>
         <div class="account-form-actions account-form-actions--inline">
+            {% if facebook_share_items %}
+            <button type="button" class="btn-primary" id="payment-success-my-bookings" data-fb-share-open>
+                My bookings
+            </button>
+            {% else %}
             <a href="{% url 'account:my_bookings' %}" class="btn-primary">My bookings</a>
+            {% endif %}
         </div>
     </div>
+    {% include 'bookings/partials/facebook_share_modal.html' %}
     {% endif %}
 
     <div class="actions">
         {% if is_gift_voucher %}
         <a href="{% url 'courses:gift_vouchers' %}" class="btn-primary">Buy Another Voucher</a>
         {% endif %}
-        <a href="{% url 'courses:course_list' %}" class="btn-primary">Browse Courses</a>
-        <a href="{% url 'courses:homepage' %}" class="btn-secondary">Return to Home</a>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if gift_card_designs and gift_voucher_codes and gift_voucher_basket_id %}
+<script>
+(function () {
+    var downloadBase = "{% url 'payments:gift_voucher_card_download' gift_voucher_basket_id %}";
+    var sessionId = "{{ session_id|escapejs }}";
+    var designInput = document.getElementById('gift-card-design-input');
+    var voucherInput = document.getElementById('gift-card-voucher-input');
+    var voucherSelect = document.getElementById('gift-card-voucher');
+    var downloadLink = document.getElementById('gift-card-download');
+    var previewImg = document.getElementById('gift-card-preview');
+    var previewFrame = document.getElementById('gift-card-preview-frame');
+    var previewLoading = document.getElementById('gift-card-preview-loading');
+    var designRadios = document.querySelectorAll('input[name="gift_card_design"]');
+
+    function buildCardUrl(preview) {
+        var designId = currentDesignId();
+        if (!designId) {
+            return '';
+        }
+        var url = downloadBase
+            + '?session_id=' + encodeURIComponent(sessionId)
+            + '&design=' + encodeURIComponent(designId)
+            + '&voucher=' + encodeURIComponent(currentVoucherIndex());
+        if (preview) {
+            url += '&preview=1';
+        }
+        return url;
+    }
+
+    function setPreviewLoading(isLoading) {
+        if (!previewFrame) {
+            return;
+        }
+        previewFrame.classList.toggle('is-loading', isLoading);
+        if (previewLoading) {
+            previewLoading.hidden = !isLoading;
+        }
+    }
+
+    function updatePreview() {
+        if (!previewImg) {
+            return;
+        }
+        var url = buildCardUrl(true);
+        if (!url) {
+            previewImg.removeAttribute('src');
+            setPreviewLoading(false);
+            return;
+        }
+
+        url += '&_=' + Date.now();
+        setPreviewLoading(true);
+
+        function finishPreview() {
+            setPreviewLoading(false);
+        }
+
+        previewImg.onload = finishPreview;
+        previewImg.onerror = finishPreview;
+        previewImg.src = url;
+    }
+
+    function initPreview() {
+        if (!previewImg || !previewImg.getAttribute('src')) {
+            updatePreview();
+            return;
+        }
+
+        setPreviewLoading(true);
+
+        function finishPreview() {
+            setPreviewLoading(false);
+        }
+
+        if (previewImg.complete && previewImg.naturalWidth > 0) {
+            finishPreview();
+            return;
+        }
+
+        previewImg.addEventListener('load', finishPreview, { once: true });
+        previewImg.addEventListener('error', finishPreview, { once: true });
+        if (previewImg.decode) {
+            previewImg.decode().then(finishPreview).catch(finishPreview);
+        }
+    }
+
+    function currentVoucherIndex() {
+        if (voucherSelect) {
+            return voucherSelect.value;
+        }
+        return '0';
+    }
+
+    function currentDesignId() {
+        var checked = document.querySelector('input[name="gift_card_design"]:checked');
+        return checked ? checked.value : '';
+    }
+
+    function syncFields() {
+        var designId = currentDesignId();
+        if (designInput) {
+            designInput.value = designId;
+        }
+        if (voucherInput) {
+            voucherInput.value = currentVoucherIndex();
+        }
+        if (downloadLink) {
+            var downloadUrl = buildCardUrl(false);
+            if (downloadUrl) {
+                downloadLink.href = downloadUrl;
+            }
+        }
+    }
+
+    function syncFieldsAndPreview() {
+        syncFields();
+        updatePreview();
+    }
+
+    designRadios.forEach(function (radio) {
+        radio.addEventListener('change', syncFieldsAndPreview);
+    });
+    if (voucherSelect) {
+        voucherSelect.addEventListener('change', syncFieldsAndPreview);
+    }
+    syncFields();
+    initPreview();
+})();
+</script>
+{% endif %}
+{% if facebook_share_items %}
+<script src="{% static 'js/fb-share-modal.js' %}"></script>
+{% endif %}
 {% endblock %}

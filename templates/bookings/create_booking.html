@@ -65,7 +65,7 @@
                             {% if form.student_phone.errors %}
                             <span class="error">{{ form.student_phone.errors }}</span>
                             {% endif %}
-                            <small>Optional — include country code, e.g. +44 7700 900000</small>
+                            <small>Optional</small>
                         </div>
                     </div>
                 </div>
@@ -83,7 +83,6 @@
                                 <button type="button" class="basket-qty-btn" data-qty-action="increase"
                                         aria-label="Increase number of places">+</button>
                             </div>
-                            <span class="booking-qty-hint">Same student details for each place</span>
                         </div>
                         {% if form.quantity.errors %}
                         <div class="form-field-error" role="alert">
@@ -94,13 +93,39 @@
                         {% endif %}
                     </div>
 
+                    {% if loan_cameras_available %}
+                    <div class="form-group">
+                        <label for="{{ form.loan_cameras.id_for_label }}">Loan cameras required</label>
+                        <div class="booking-qty-row">
+                            <div class="basket-qty-stepper">
+                                <button type="button" class="basket-qty-btn" data-loan-qty-action="decrease"
+                                        aria-label="Decrease loan cameras required">−</button>
+                                {{ form.loan_cameras }}
+                                <button type="button" class="basket-qty-btn" data-loan-qty-action="increase"
+                                        aria-label="Increase loan cameras required">+</button>
+                            </div>
+                            <span class="booking-qty-hint">
+                                {{ loan_cameras_remaining }} loan camera{{ loan_cameras_remaining|pluralize }} available
+                            </span>
+                        </div>
+                        {% if form.loan_cameras.errors %}
+                        <div class="form-field-error" role="alert">
+                            {% for error in form.loan_cameras.errors %}
+                            <p class="form-field-error-text">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <small>Free loan cameras for this workshop. One camera per place if needed.</small>
+                    </div>
+                    {% endif %}
+
                     <div class="form-group">
                         <label for="{{ form.special_requirements.id_for_label }}">Special requirements</label>
                         {{ form.special_requirements }}
                         {% if form.special_requirements.errors %}
                         <span class="error">{{ form.special_requirements.errors }}</span>
                         {% endif %}
-                        <small>Dietary needs, accessibility, or anything we should know before the day.</small>
+                        <small>Accessibility, or anything we should know before the day.</small>
                     </div>
                 </div>
 
@@ -115,9 +140,6 @@
                 <div class="booking-form-actions booking-form-actions--mobile">
                     <button type="submit" name="action" value="basket" class="btn-primary" id="booking-submit">
                         Add to basket
-                    </button>
-                    <button type="submit" name="action" value="checkout" class="btn-secondary">
-                        Add and checkout
                     </button>
                     {% if basket_has_items %}
                     <a href="{% url 'bookings:basket' %}" class="btn-secondary booking-basket-link">
@@ -189,9 +211,6 @@
                 <button type="submit" form="booking-form" name="action" value="basket" class="btn-primary booking-sidebar-btn">
                     Add to basket
                 </button>
-                <button type="submit" form="booking-form" name="action" value="checkout" class="btn-secondary booking-sidebar-btn">
-                    Add and checkout
-                </button>
                 {% if basket_has_items %}
                 <a href="{% url 'bookings:basket' %}" class="btn-secondary booking-sidebar-btn booking-basket-link">
                     View basket ({{ basket_item_count }})
@@ -199,7 +218,7 @@
                 {% endif %}
             </div>
 
-            <p class="basket-secure-note">Add more courses from your basket before paying. Gift vouchers can be applied at checkout.</p>
+            <p class="basket-secure-note">Add more courses from your basket before paying. Gift vouchers can be applied in your basket.</p>
         </aside>
     </div>
 </div>
@@ -209,15 +228,41 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var form = document.getElementById('booking-form');
-    var qtyInput = form && form.querySelector('.booking-qty-input');
+    var qtyInput = form && form.querySelector('.booking-qty-input:not([data-loan-camera-input])');
+    var loanInput = form && form.querySelector('[data-loan-camera-input]');
     var lineTotal = document.getElementById('booking-line-total');
     var unitPrice = {{ course_instance.price }};
     var submitBtn = document.getElementById('booking-submit');
+    var loanCamerasRemaining = {{ loan_cameras_remaining|default:0 }};
+
+    function maxLoanCamerasForQuantity() {
+        if (!qtyInput) {
+            return loanCamerasRemaining;
+        }
+        var qty = parseInt(qtyInput.value, 10) || 1;
+        return Math.max(0, Math.min(loanCamerasRemaining, qty));
+    }
+
+    function clampLoanCameras() {
+        if (!loanInput) {
+            return;
+        }
+        var maxLoan = maxLoanCamerasForQuantity();
+        loanInput.setAttribute('max', String(maxLoan));
+        var value = parseInt(loanInput.value, 10) || 0;
+        if (value > maxLoan) {
+            loanInput.value = String(maxLoan);
+        }
+        if (value < 0) {
+            loanInput.value = '0';
+        }
+    }
 
     function updateLineTotal() {
         if (!qtyInput || !lineTotal) return;
         var qty = parseInt(qtyInput.value, 10) || 1;
         lineTotal.textContent = '£' + (unitPrice * qty).toFixed(2);
+        clampLoanCameras();
     }
 
     if (qtyInput) {
@@ -238,6 +283,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
         qtyInput.addEventListener('input', updateLineTotal);
         updateLineTotal();
+    }
+
+    if (loanInput) {
+        clampLoanCameras();
+        form.querySelectorAll('[data-loan-qty-action]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var maxLoan = maxLoanCamerasForQuantity();
+                var value = parseInt(loanInput.value, 10) || 0;
+                if (btn.getAttribute('data-loan-qty-action') === 'decrease') {
+                    loanInput.value = String(Math.max(0, value - 1));
+                } else {
+                    loanInput.value = String(Math.min(maxLoan, value + 1));
+                }
+            });
+        });
+        loanInput.addEventListener('input', clampLoanCameras);
     }
 
     if (form && submitBtn) {

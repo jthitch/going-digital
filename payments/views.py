@@ -10,6 +10,7 @@ except ImportError:
 
 import uuid
 from decimal import Decimal
+from urllib.parse import unquote
 
 from django.conf import settings
 from django.contrib import messages
@@ -32,6 +33,7 @@ from bookings.voucher_redemption import (
     apply_voucher_to_booking,
     clear_booking_voucher,
 )
+from core.customer_auth import get_logged_in_customer, is_customer_authenticated
 from core.forms_student import CompleteAccountPasswordForm
 from core.student_auth import (
     payment_account_context_from_bookings,
@@ -71,8 +73,9 @@ if STRIPE_AVAILABLE and hasattr(settings, 'STRIPE_SECRET_KEY'):
 
 def _get_pending_booking(request, booking_id):
     qs = Booking.objects.select_related('workshop', 'workshop__course', 'workshop__venue', 'payment')
-    if request.user.is_authenticated:
-        return get_object_or_404(qs, id=booking_id, user=request.user, status='pending')
+    customer = get_logged_in_customer(request)
+    if customer:
+        return get_object_or_404(qs, id=booking_id, customer=customer, status='pending')
     return get_object_or_404(qs, id=booking_id, status='pending')
 
 
@@ -152,7 +155,7 @@ def _start_stripe_checkout(request, booking):
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=request.build_absolute_uri('/payments/success/?session_id={CHECKOUT_SESSION_ID}'),
+            success_url=_stripe_checkout_success_url(request),
             cancel_url=request.build_absolute_uri(
                 reverse('payments:create_checkout', kwargs={'booking_id': booking.id})
             ),
@@ -174,7 +177,7 @@ def _start_stripe_checkout(request, booking):
         payment_metadata = _booking_payment_metadata(booking)
 
         payment = Payment.objects.create(
-            user=booking.user,
+            user=None,
             intent_type='checkout_session',
             stripe_id=checkout_session.id,
             amount=booking.price_paid,
@@ -198,7 +201,7 @@ def _complete_free_voucher_checkout(request, booking):
     payment_metadata = _booking_payment_metadata(booking)
 
     payment = Payment.objects.create(
-        user=booking.user,
+        user=None,
         intent_type='voucher_free',
         stripe_id=stripe_id,
         amount=Decimal('0.00'),
@@ -365,7 +368,7 @@ def _start_stripe_basket_checkout(request, basket_id, ctx):
             payment_method_types=['card'],
             line_items=line_items,
             mode='payment',
-            success_url=request.build_absolute_uri('/payments/success/?session_id={CHECKOUT_SESSION_ID}'),
+            success_url=_stripe_checkout_success_url(request),
             cancel_url=request.build_absolute_uri(
                 reverse('payments:create_workshop_basket_checkout', kwargs={'basket_id': basket_id})
             ),
@@ -374,9 +377,8 @@ def _start_stripe_basket_checkout(request, basket_id, ctx):
         )
 
         payment_metadata = _workshop_basket_payment_metadata(basket_id, data, booking_ids)
-        user = bookings[0].user
         payment = Payment.objects.create(
-            user=user,
+            user=None,
             intent_type='checkout_session',
             stripe_id=checkout_session.id,
             amount=total,
@@ -398,7 +400,7 @@ def _complete_free_workshop_basket_checkout(request, basket_id, ctx):
     stripe_id = f'free-basket-{basket_id}-{uuid.uuid4().hex[:12]}'
     payment_metadata = _workshop_basket_payment_metadata(basket_id, data, booking_ids)
     payment = Payment.objects.create(
-        user=bookings[0].user,
+        user=None,
         intent_type='voucher_free',
         stripe_id=stripe_id,
         amount=Decimal('0.00'),
@@ -421,6 +423,25 @@ def _complete_free_workshop_basket_checkout(request, basket_id, ctx):
     )
     store_checkout_success_context(request, bookings)
     return redirect(f'{reverse("payments:success")}?session_id={stripe_id}')
+
+
+def initiate_workshop_basket_payment(request, basket_id):
+    """Start Stripe Checkout or complete a fully discounted basket."""
+    ctx = _get_workshop_basket_context(basket_id)
+    if not ctx:
+        from django.http import Http404
+        raise Http404('Basket not found')
+
+    if ctx['total'] <= 0:
+        if not ctx['basket_data'].get('voucher_code'):
+            messages.error(
+                request,
+                'Apply a voucher that covers the full amount, or pay by card.',
+            )
+            return redirect('payments:create_workshop_basket_checkout', basket_id=basket_id)
+        return _complete_free_workshop_basket_checkout(request, basket_id, ctx)
+
+    return _start_stripe_basket_checkout(request, basket_id, ctx)
 
 
 class CreateWorkshopBasketCheckoutView(View):
@@ -464,14 +485,7 @@ class CreateWorkshopBasketCheckoutView(View):
             messages.info(request, 'Voucher removed.')
             return redirect('payments:create_workshop_basket_checkout', basket_id=basket_id)
 
-        ctx = _get_workshop_basket_context(basket_id)
-        if ctx['total'] <= 0:
-            if not ctx['basket_data'].get('voucher_code'):
-                messages.error(request, 'Apply a voucher that covers the full amount, or pay by card.')
-                return redirect('payments:create_workshop_basket_checkout', basket_id=basket_id)
-            return _complete_free_workshop_basket_checkout(request, basket_id, ctx)
-
-        return _start_stripe_basket_checkout(request, basket_id, ctx)
+        return initiate_workshop_basket_payment(request, basket_id)
 
 
 class CreateGiftVoucherCheckoutView(View):
@@ -524,9 +538,7 @@ class CreateGiftVoucherCheckoutView(View):
                     'quantity': 1,
                 }],
                 mode='payment',
-                success_url=request.build_absolute_uri(
-                    f'/payments/success/?session_id={{CHECKOUT_SESSION_ID}}&type=gift_voucher'
-                ),
+                success_url=_stripe_checkout_success_url(request, extra_query='type=gift_voucher'),
                 cancel_url=request.build_absolute_uri(reverse('courses:gift_vouchers')),
                 metadata={
                     'gift_voucher_basket_id': str(basket_id),
@@ -545,6 +557,8 @@ class CreateGiftVoucherCheckoutView(View):
                     'gift_voucher_basket_id': str(basket_id),
                 }
             )
+
+            request.session['gift_voucher_checkout_basket_id'] = basket_id
 
             return redirect(checkout_session.url)
 
@@ -633,12 +647,12 @@ def _attach_account_setup_context(request, context, bookings=None, checkout_data
     if booking_list:
         account_ctx = payment_account_context_from_bookings(
             booking_list,
-            is_authenticated=request.user.is_authenticated,
+            is_authenticated=is_customer_authenticated(request),
         )
     elif checkout_data:
         account_ctx = payment_account_context_from_checkout_data(
             checkout_data,
-            is_authenticated=request.user.is_authenticated,
+            is_authenticated=is_customer_authenticated(request),
         )
 
     if not account_ctx:
@@ -653,7 +667,63 @@ def _attach_account_setup_context(request, context, bookings=None, checkout_data
 
 
 def _is_stripe_session_placeholder(session_id):
-    return session_id in ('{CHECKOUT_SESSION_ID}', '%7BCHECKOUT_SESSION_ID%7D')
+    if not session_id:
+        return True
+    decoded = unquote(session_id)
+    return decoded == '{CHECKOUT_SESSION_ID}' or '{CHECKOUT_SESSION_ID}' in decoded
+
+
+def _stripe_checkout_success_url(request, *, extra_query=''):
+    """
+    Absolute success URL for Stripe Checkout.
+
+    Stripe must receive the literal ``{CHECKOUT_SESSION_ID}`` token. Django's
+    ``build_absolute_uri()`` percent-encodes braces, which prevents substitution.
+    """
+    query = 'session_id={CHECKOUT_SESSION_ID}'
+    if extra_query:
+        query = f'{query}&{extra_query.lstrip("&")}'
+    return f'{request.scheme}://{request.get_host()}/payments/success/?{query}'
+
+
+def _recover_gift_voucher_checkout(request, session_id, metadata, payment):
+    """
+    When Stripe's session id placeholder reaches the success page, recover the
+    basket from the checkout session we stored server-side.
+    """
+    if not _is_stripe_session_placeholder(session_id):
+        return session_id, metadata, payment
+    if request.GET.get('type') != 'gift_voucher':
+        return session_id, metadata, payment
+
+    basket_id = request.session.pop('gift_voucher_checkout_basket_id', None)
+    if not basket_id:
+        return session_id, metadata, payment
+
+    recovered = Payment.objects.filter(
+        metadata__gift_voucher_basket_id=str(basket_id),
+    ).order_by('-id').first()
+    if not recovered:
+        return session_id, metadata, payment
+
+    return recovered.stripe_id, dict(recovered.metadata or {}), recovered
+
+
+def _populate_gift_voucher_success_context(context, metadata):
+    from bookings.gift_voucher_basket import get_vouchers_for_basket
+    from payments.gift_voucher_cards import get_active_gift_card_designs
+
+    basket_id = int(metadata['gift_voucher_basket_id'])
+    basket = get_basket(basket_id)
+    if not basket or basket.get('basket_data', {}).get('type') != 'gift_voucher':
+        return
+
+    context['is_gift_voucher'] = True
+    context['gift_voucher_basket'] = basket
+    context['gift_voucher_basket_id'] = basket_id
+    context['gift_voucher_codes'] = get_vouchers_for_basket(basket_id)
+    context['gift_card_designs'] = list(get_active_gift_card_designs())
+    context['gift_voucher_default_email'] = basket['basket_data'].get('purchaser_email') or ''
 
 
 def _populate_success_from_bookings(context, bookings):
@@ -664,6 +734,26 @@ def _populate_success_from_bookings(context, bookings):
         context['booking'] = booking_list[0]
     else:
         context['bookings'] = booking_list
+
+
+def _attach_facebook_share_for_success(request, context):
+    """Facebook share cards for signed-in students on the payment success page."""
+    if not is_customer_authenticated(request):
+        return
+
+    booking_list = []
+    if context.get('bookings'):
+        booking_list = list(context['bookings'])
+    elif context.get('booking'):
+        booking_list = [context['booking']]
+    if not booking_list:
+        return
+
+    from bookings.social_media import facebook_share_items_for_bookings
+
+    items = facebook_share_items_for_bookings(booking_list, request)
+    if items:
+        context['facebook_share_items'] = items
 
 
 class PaymentSuccessView(TemplateView):
@@ -685,6 +775,7 @@ class PaymentSuccessView(TemplateView):
                 _attach_account_setup_context(
                     self.request, context, checkout_data, checkout_session_data,
                 )
+            _attach_facebook_share_for_success(self.request, context)
             return context
 
         payment = None
@@ -713,16 +804,28 @@ class PaymentSuccessView(TemplateView):
                 )
                 payment.refresh_from_db()
                 metadata = dict(payment.metadata or metadata)
+        else:
+            session_id, metadata, payment = _recover_gift_voucher_checkout(
+                self.request, session_id, metadata, payment,
+            )
+            if session_id and payment:
+                context['session_id'] = session_id
+                if payment.status != 'succeeded':
+                    complete_checkout_session(
+                        {
+                            'id': session_id,
+                            'payment_status': 'paid',
+                            'status': 'complete',
+                            'metadata': metadata,
+                        },
+                        source='checkout.session.completed (success_page)',
+                    )
+                    payment.refresh_from_db()
+                    metadata = dict(payment.metadata or metadata)
 
         if 'gift_voucher_basket_id' in metadata:
-            context['is_gift_voucher'] = True
             try:
-                from bookings.gift_voucher_basket import get_vouchers_for_basket
-                basket_id = int(metadata['gift_voucher_basket_id'])
-                basket = get_basket(basket_id)
-                if basket and basket.get('basket_data', {}).get('type') == 'gift_voucher':
-                    context['gift_voucher_basket'] = basket
-                    context['gift_voucher_codes'] = get_vouchers_for_basket(basket_id)
+                _populate_gift_voucher_success_context(context, metadata)
             except (ValueError, TypeError):
                 pass
             return context
@@ -743,7 +846,74 @@ class PaymentSuccessView(TemplateView):
                 self.request, context, None, checkout_session_data,
             )
 
+        _attach_facebook_share_for_success(self.request, context)
         return context
+
+
+class GiftVoucherCardDownloadView(View):
+    """Download a rendered gift card PNG for a paid voucher basket."""
+
+    def get(self, request, basket_id):
+        from payments.gift_voucher_cards import (
+            render_gift_voucher_card,
+            verify_gift_voucher_session_access,
+        )
+
+        session_id = request.GET.get('session_id', '')
+        if not verify_gift_voucher_session_access(session_id, basket_id):
+            return HttpResponse('Not found.', status=404)
+
+        design_id = request.GET.get('design')
+        if not design_id:
+            return HttpResponse('Please choose a design.', status=400)
+
+        try:
+            voucher_index = int(request.GET.get('voucher', 0))
+        except (TypeError, ValueError):
+            voucher_index = 0
+
+        png_bytes, code = render_gift_voucher_card(basket_id, voucher_index, design_id)
+        if request.GET.get('preview') == '1':
+            from website.gift_card_render import shrink_png_bytes
+            png_bytes = shrink_png_bytes(png_bytes)
+        response = HttpResponse(png_bytes, content_type='image/png')
+        disposition = 'inline' if request.GET.get('preview') == '1' else 'attachment'
+        response['Content-Disposition'] = f'{disposition}; filename="gift-voucher-{code}.png"'
+        return response
+
+
+class GiftVoucherCardEmailView(View):
+    """Email a rendered gift card to the purchaser or another address."""
+
+    def post(self, request, basket_id):
+        from payments.gift_voucher_cards import verify_gift_voucher_session_access
+        from payments.tasks import send_gift_voucher_card_email
+
+        session_id = request.POST.get('session_id', '')
+        if not verify_gift_voucher_session_access(session_id, basket_id):
+            return HttpResponse('Not found.', status=404)
+
+        email = (request.POST.get('email') or '').strip()
+        design_id = request.POST.get('design')
+        if not email or not design_id:
+            messages.error(request, 'Please choose a design and enter an email address.')
+            return redirect(
+                f"{reverse('payments:success')}?session_id={session_id}&type=gift_voucher"
+            )
+
+        try:
+            voucher_index = int(request.POST.get('voucher', 0))
+        except (TypeError, ValueError):
+            voucher_index = 0
+
+        if send_gift_voucher_card_email(basket_id, voucher_index, design_id, email):
+            messages.success(request, f'Gift card sent to {email}.')
+        else:
+            messages.error(request, 'We could not send the gift card. Please try again or contact us.')
+
+        return redirect(
+            f"{reverse('payments:success')}?session_id={session_id}&type=gift_voucher"
+        )
 
 
 class PaymentCancelView(TemplateView):

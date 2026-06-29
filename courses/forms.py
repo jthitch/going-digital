@@ -971,7 +971,8 @@ class WorkshopAdminForm(forms.ModelForm):
             self.fields['active'].initial = _legacy_01_checked(self.instance.active)
             self.fields['cameras_available'].initial = _legacy_01_checked(self.instance.cameras_available)
         else:
-            self.fields['active'].initial = False if self.region_ids is not None else True
+            if 'active' not in self.initial:
+                self.fields['active'].initial = False if self.region_ids is not None else True
         exclude_pk = self.instance.pk if self.instance.pk else None
         clone_include = self.instance.cloned_from_workshop_id if self.instance.pk else None
         clone_qs = _recent_workshops_queryset(

@@ -1,0 +1,15 @@
+{% if show_facebook_groups_cta %}
+<p style="margin:24px 0 8px;"><strong>Join our Facebook community</strong></p>
+<p style="margin:0 0 12px;color:#444;">
+    Connect with other students, share photos from your workshops, and get course updates.
+</p>
+<p style="margin:0 0 16px;">
+    {% if going_digital_facebook_url %}
+    <a href="{{ going_digital_facebook_url }}" style="color:#0066cc;">Join the Going Digital Facebook group</a>
+    {% endif %}
+    {% for group in local_facebook_groups %}
+    {% if going_digital_facebook_url %}<br>{% endif %}
+    <a href="{{ group.url }}" style="color:#0066cc;">Join {{ group.label }}&rsquo;s Facebook group</a>
+    {% endfor %}
+</p>
+{% endif %}

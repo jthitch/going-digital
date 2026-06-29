@@ -1,17 +1,17 @@
-"""Sign-in and sign-up forms for students."""
+"""Sign-in and sign-up forms for students (gd_customer)."""
 from django import forms
-from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from core.models import User
+from core.customer_auth import authenticate_customer, customer_has_sign_in_password
+from core.customer_service import get_or_create_customer_record
+from core.models import Customer
 from core.student_auth import (
-    complete_student_account,
-    link_bookings_to_user,
-    resolve_student_user_for_email,
-    user_has_sign_in_password,
-    user_needs_account_setup,
+    complete_customer_account,
+    customer_needs_account_setup,
+    link_bookings_to_customer,
+    resolve_customer_for_email,
 )
 
 
@@ -35,7 +35,7 @@ class StudentLoginForm(forms.Form):
 
     def __init__(self, request=None, *args, **kwargs):
         self.request = request
-        self.user_cache = None
+        self.customer_cache = None
         super().__init__(*args, **kwargs)
 
     def clean(self):
@@ -45,17 +45,17 @@ class StudentLoginForm(forms.Form):
         if not email or not password:
             return cleaned
 
-        user = authenticate(self.request, username=email, password=password)
-        if user is None:
+        customer = authenticate_customer(email, password)
+        if customer is None:
             raise ValidationError('Invalid email or password.')
-        if not user.is_active:
+        if not customer.is_active:
             raise ValidationError('This account is inactive. Please contact us for help.')
 
-        self.user_cache = user
+        self.customer_cache = customer
         return cleaned
 
-    def get_user(self):
-        return self.user_cache
+    def get_customer(self):
+        return self.customer_cache
 
 
 class StudentSignupForm(forms.Form):
@@ -101,14 +101,11 @@ class StudentSignupForm(forms.Form):
 
     def clean_email(self):
         email = self.cleaned_data['email'].strip().lower()
-        try:
-            user = User.objects.get(email__iexact=email)
-            if user_has_sign_in_password(user):
-                raise ValidationError(
-                    'An account with this email already exists. Please sign in instead.'
-                )
-        except User.DoesNotExist:
-            pass
+        customer = Customer.objects.filter(email__iexact=email).first()
+        if customer and customer_has_sign_in_password(customer):
+            raise ValidationError(
+                'An account with this email already exists. Please sign in instead.'
+            )
         return email
 
     def clean(self):
@@ -121,7 +118,7 @@ class StudentSignupForm(forms.Form):
             email = (cleaned.get('email') or '').strip().lower()
             validate_password(
                 password1,
-                User(
+                Customer(
                     email=email,
                     firstname=cleaned.get('firstname', ''),
                     lastname=cleaned.get('lastname', ''),
@@ -131,32 +128,25 @@ class StudentSignupForm(forms.Form):
 
     def save(self):
         email = self.cleaned_data['email']
-        now = timezone.now()
-        try:
-            user = User.objects.get(email__iexact=email)
-        except User.DoesNotExist:
-            user = User(
-                email=email,
-                firstname=self.cleaned_data['firstname'],
-                lastname=self.cleaned_data['lastname'],
-                active=1,
-                user_type_id=None,
-                created_at=now,
-                updated_at=now,
+        customer = Customer.objects.filter(email__iexact=email).first()
+        created = False
+        if not customer:
+            customer, created = get_or_create_customer_record(
+                email,
+                self.cleaned_data['firstname'],
+                self.cleaned_data['lastname'],
             )
-            user.set_password(self.cleaned_data['password1'])
-            user.save()
-            link_bookings_to_user(user)
-            return user, True
 
-        user.firstname = self.cleaned_data['firstname']
-        user.lastname = self.cleaned_data['lastname']
-        user.active = 1
-        user.updated_at = now
-        user.set_password(self.cleaned_data['password1'])
-        user.save()
-        link_bookings_to_user(user)
-        return user, False
+        customer.firstname = self.cleaned_data['firstname']
+        customer.lastname = self.cleaned_data['lastname']
+        customer.active = 1
+        customer.guest_account = 0
+        customer.registered_at = timezone.now().date()
+        customer.set_password(self.cleaned_data['password1'])
+        customer.updated_at = timezone.now()
+        customer.save()
+        link_bookings_to_customer(customer)
+        return customer, created
 
 
 class CompleteAccountPasswordForm(forms.Form):
@@ -190,14 +180,18 @@ class CompleteAccountPasswordForm(forms.Form):
 
     def clean_email(self):
         email = self.cleaned_data['email'].strip().lower()
-        user = resolve_student_user_for_email(email)
-        if not user:
+        customer = resolve_customer_for_email(
+            email,
+            firstname=self.setup.get('firstname', ''),
+            lastname=self.setup.get('lastname', ''),
+        )
+        if not customer:
             raise ValidationError('No account found for this email.')
-        if not user_needs_account_setup(user):
+        if not customer_needs_account_setup(customer):
             raise ValidationError(
                 'This account already has a password. Please sign in instead.'
             )
-        self.user_cache = user
+        self.customer_cache = customer
         return email
 
     def clean(self):
@@ -206,22 +200,22 @@ class CompleteAccountPasswordForm(forms.Form):
         password2 = cleaned.get('password2')
         if password1 and password2 and password1 != password2:
             self.add_error('password2', 'Passwords do not match.')
-        user = getattr(self, 'user_cache', None)
-        if password1 and user:
+        customer = getattr(self, 'customer_cache', None)
+        if password1 and customer:
             validate_password(
                 password1,
-                User(
-                    email=user.email,
-                    firstname=self.setup.get('firstname') or user.firstname,
-                    lastname=self.setup.get('lastname') or user.lastname,
+                Customer(
+                    email=customer.email,
+                    firstname=self.setup.get('firstname') or customer.firstname,
+                    lastname=self.setup.get('lastname') or customer.lastname,
                 ),
             )
         return cleaned
 
     def save(self):
-        user = self.user_cache
-        return complete_student_account(
-            user,
+        customer = self.customer_cache
+        return complete_customer_account(
+            customer,
             self.cleaned_data['password1'],
             firstname=self.setup.get('firstname'),
             lastname=self.setup.get('lastname'),

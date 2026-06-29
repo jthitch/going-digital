@@ -2,12 +2,13 @@
 {% load static %}
 
 {% block title %}Browse Photography Courses Across the UK{% endblock %}
-{% block meta_description %}Browse {{ total_course_count|default:"our" }} photography courses across the UK, from beginner to aspiring professional. Filter by location, date, level and category.{% endblock %}
+{% block meta_description %}Browse hands-on photography courses and workshops across the UK. Beginner, intermediate and advanced levels — filter by date, skill level, category or map to book in-person training.{% endblock %}
 
 {% block extra_head %}
 <!-- Leaflet CSS for map -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=6">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=24">
 {% endblock %}
 
 {% block content %}
@@ -15,120 +16,9 @@
     <div class="course-list-top">
         <div class="page-header">
             <h1>Photography Courses</h1>
-            <p class="page-subtitle">{% if total_course_count %}{{ total_course_count }}+ courses across the UK{% else %}Discover photography courses{% endif %} — from beginner to aspiring professional</p>
+            <p class="page-subtitle">Browse hands-on photography courses and workshops across the UK — beginner, intermediate and advanced. Filter by date, skill level or category, or explore workshops on the map.</p>
         </div>
-        
-        <!-- View Toggle Buttons -->
-        <div class="view-toggle-container">
-            <div class="view-toggle-group">
-                <button class="view-toggle-btn active" id="grid-view-btn" onclick="showGridView()" aria-label="View courses in grid layout">
-                    List
-                </button>
-                <button class="view-toggle-btn" id="map-view-btn" onclick="showMapView()" aria-label="View courses on map">
-                    Map
-                </button>
-            </div>
-        </div>
-    
-    <!-- Collapsible Filters -->
-    <section class="filters-section-collapsed" aria-label="Filter Courses">
-        <button type="button" class="filter-toggle-modern" id="filter-toggle-btn" onclick="toggleFilters()" aria-label="Toggle filters">
-            <svg class="filter-icon-modern" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="4" y1="21" x2="4" y2="14"></line>
-                <line x1="4" y1="10" x2="4" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12" y2="3"></line>
-                <line x1="20" y1="21" x2="20" y2="16"></line>
-                <line x1="20" y1="12" x2="20" y2="3"></line>
-                <line x1="1" y1="14" x2="7" y2="14"></line>
-                <line x1="9" y1="8" x2="15" y2="8"></line>
-                <line x1="17" y1="16" x2="23" y2="16"></line>
-            </svg>
-            <span class="filter-toggle-text">Filters</span>
-            {% if current_search or current_category or current_level or current_city or current_instructor %}
-            <span class="filter-badge-modern"></span>
-            {% endif %}
-            <svg class="filter-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-        </button>
-        <div class="filters-content" id="filters-content">
-            <div class="filters-header">
-                {% if current_search or current_category or current_level or current_city or current_instructor %}
-                <a href="{% url 'courses:course_list' %}" class="clear-filters-btn">Clear All</a>
-                {% endif %}
-            </div>
-            <form method="get" action="{% url 'courses:course_list' %}" class="filters-form">
-            <input type="hidden" name="category" value="{{ current_category }}">
-            <input type="hidden" name="level" value="{{ current_level }}">
-            <div class="filter-group">
-                <label for="search" class="filter-label">Search</label>
-                <input type="text" id="search" name="q" value="{{ current_search }}" placeholder="Search courses..." class="filter-input">
-            </div>
-            
-            <div class="filter-group filter-group-category">
-                <span class="filter-label">Category</span>
-                <div class="category-filter-wrap" aria-label="Filter by category">
-                    <div class="category-filter-buttons category-filter-buttons-inline" id="category-filter-buttons-main">
-                        <a href="{% url 'courses:course_list' %}{% if other_params_query %}?{{ other_params_query }}{% endif %}" 
-                           class="category-filter-btn {% if not current_category %}active{% endif %}">All</a>
-                        {% for value, label in categories %}
-                        {% if forloop.counter <= 9 %}
-                        <a href="{% url 'courses:course_list' %}?category={{ value }}{% if other_params_query %}&amp;{{ other_params_query }}{% endif %}" 
-                           class="category-filter-btn {% if current_category == value %}active{% endif %}">{{ label }}</a>
-                        {% endif %}
-                        {% endfor %}
-                        {% if categories|length > 9 %}
-                        <button type="button" class="category-filter-btn category-filter-more" id="category-filter-more"
-                                aria-expanded="false" aria-controls="category-filter-extra" aria-label="Show more categories">...</button>
-                        {% endif %}
-                    </div>
-                    {% if categories|length > 9 %}
-                    <div class="category-filter-buttons category-filter-buttons-inline category-filter-extra" id="category-filter-extra" hidden>
-                        {% for value, label in categories %}
-                        {% if forloop.counter > 9 %}
-                        <a href="{% url 'courses:course_list' %}?category={{ value }}{% if other_params_query %}&amp;{{ other_params_query }}{% endif %}" 
-                           class="category-filter-btn {% if current_category == value %}active{% endif %}">{{ label }}</a>
-                        {% endif %}
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            
-            <div class="filter-group filter-group-level">
-                <span class="filter-label">Level</span>
-                <div class="category-filter-wrap" aria-label="Filter by skill level">
-                    <div class="category-filter-buttons category-filter-buttons-inline">
-                        <a href="{% url 'courses:course_list' %}{% if other_params_for_level_query %}?{{ other_params_for_level_query }}{% endif %}"
-                           class="category-filter-btn {% if not current_level %}active{% endif %}">All</a>
-                        {% for value, label in levels %}
-                        <a href="{% url 'courses:course_list' %}?level={{ value }}{% if other_params_for_level_query %}&amp;{{ other_params_for_level_query }}{% endif %}"
-                           class="category-filter-btn {% if current_level == value %}active{% endif %}">{{ label }}</a>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-            
-            <div class="filter-group">
-                <label for="city" class="filter-label">Locations</label>
-                <select id="city" name="city" class="filter-select">
-                    <option value="">All locations</option>
-                    {% for venue in filter_venues %}
-                    <option value="{{ venue.slug|default:venue.id }}" {% if current_city == venue.slug or current_city == venue.id|stringformat:"s" %}selected{% endif %}>{{ venue.venue_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div class="filter-group">
-                <label for="instructor" class="filter-label">Instructor</label>
-                <input type="text" id="instructor" name="instructor" value="{{ current_instructor }}" placeholder="Search by instructor..." class="filter-input">
-            </div>
-            
-            <button type="submit" class="filter-submit-btn">Apply</button>
-            </form>
-        </div>
-    </section>
+        {% include 'courses/partials/course_list_filter_bar.html' %}
     </div>
     
     <!-- Map View -->
@@ -170,13 +60,12 @@
                                 {{ course.title }}
                             </h2>
                         </div>
-                        {% if course.workshops.all %}
-                        {% regroup course.workshops.all by venue as location_groups %}
-                        {% if location_groups %}
+                        {% with location_names=course.list_card_location_names %}
+                        {% if location_names %}
                         <div class="course-locations" data-course-id="{{ course.id }}" onclick="event.stopPropagation();">
                             <div class="course-locations-list" id="locations-{{ course.id }}">
-                                {% for location_group in location_groups %}
-                                <span class="location-item">{{ location_group.grouper.name|default:"TBC" }}</span>
+                                {% for location_name in location_names %}
+                                <span class="location-item">{{ location_name }}</span>
                                 {% endfor %}
                             </div>
                             <button type="button" class="locations-more-btn" onclick="event.stopPropagation(); toggleLocations({{ course.id }});" aria-label="Show more locations" style="display: none;">
@@ -185,7 +74,7 @@
                             </button>
                         </div>
                         {% endif %}
-                        {% endif %}
+                        {% endwith %}
                         <div class="course-footer">
                             <div class="course-price">From £{{ course.min_price }}</div>
                             <span class="btn-view">View course</span>
@@ -223,42 +112,65 @@
 {% block extra_js %}
 <!-- Leaflet JS for map -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="{% static 'js/map-date-range.js' %}?v=3"></script>
 <script>
-// Toggle filters
-function toggleFilters() {
-    const content = document.getElementById('filters-content');
-    const btn = document.getElementById('filter-toggle-btn');
-    const isActive = content.classList.contains('active');
-    
-    if (isActive) {
-        content.classList.remove('active');
-        btn.classList.remove('active');
-    } else {
-        content.classList.add('active');
-        btn.classList.add('active');
+// View toggle functions with smooth transitions
+function syncQuickFormViewInput(isMap) {
+    var form = document.getElementById('course-filter-quick-form');
+    if (!form) return;
+    var existing = form.querySelector('input[name="view"]');
+    if (isMap) {
+        if (!existing) {
+            existing = document.createElement('input');
+            existing.type = 'hidden';
+            existing.name = 'view';
+            form.appendChild(existing);
+        }
+        existing.value = 'map';
+    } else if (existing) {
+        existing.remove();
     }
 }
 
-// View toggle functions with smooth transitions
+function updateViewUrl(isMap) {
+    var url = new URL(window.location.href);
+    if (isMap) {
+        url.searchParams.set('view', 'map');
+        url.searchParams.delete('city');
+    } else {
+        url.searchParams.delete('view');
+    }
+    window.history.replaceState({}, '', url.pathname + url.search);
+}
+
+function syncMapViewToggleButtons(isMap) {
+    var gridBtn = document.getElementById('grid-view-btn');
+    var mapBtn = document.getElementById('map-view-btn');
+    if (!gridBtn || !mapBtn) return;
+    if (isMap) {
+        gridBtn.classList.remove('active');
+        mapBtn.classList.add('active');
+    } else {
+        gridBtn.classList.add('active');
+        mapBtn.classList.remove('active');
+    }
+}
+
 function showGridView() {
     const gridContainer = document.getElementById('course-grid');
     const mapContainer = document.getElementById('map-container');
-    const gridBtn = document.getElementById('grid-view-btn');
-    const mapBtn = document.getElementById('map-view-btn');
     
     clearMapSidebarFilter();
+    closeCourseFilterModal();
     
-    // Remove map view class first
     document.body.classList.remove('map-view-active');
+    syncMapViewToggleButtons(false);
+    syncQuickFormViewInput(false);
+    updateViewUrl(false);
     
-    // Switch active states
-    gridBtn.classList.add('active');
-    mapBtn.classList.remove('active');
-    
-    // Hide map with transition
     mapContainer.classList.add('hidden');
     
-    // Show grid with slight delay for smoother transition
     setTimeout(function() {
         gridContainer.classList.remove('hidden');
     }, 50);
@@ -267,22 +179,15 @@ function showGridView() {
 function showMapView() {
     const gridContainer = document.getElementById('course-grid');
     const mapContainer = document.getElementById('map-container');
-    const gridBtn = document.getElementById('grid-view-btn');
-    const mapBtn = document.getElementById('map-view-btn');
     
-    // Switch active states
-    gridBtn.classList.remove('active');
-    mapBtn.classList.add('active');
-    
-    // Hide grid with transition
+    syncMapViewToggleButtons(true);
+    syncQuickFormViewInput(true);
     gridContainer.classList.add('hidden');
-    
-    // Add map view class and show map with slight delay
     document.body.classList.add('map-view-active');
+    updateViewUrl(true);
     
     setTimeout(function() {
         mapContainer.classList.remove('hidden');
-        // Initialize map after transition starts
         setTimeout(function() {
             initializeMap();
         }, 100);
@@ -304,9 +209,9 @@ function toggleLocations(courseId) {
 }
 
 // Category filters: show first 9 + "..."; expand to show the rest (toggle)
-function setupCategoryFilterExpand() {
-    var moreBtn = document.getElementById('category-filter-more');
-    var extra = document.getElementById('category-filter-extra');
+function setupCategoryFilterExpand(moreBtnId, extraId) {
+    var moreBtn = document.getElementById(moreBtnId);
+    var extra = document.getElementById(extraId);
     if (!moreBtn || !extra) return;
     function setExpanded(expanded) {
         moreBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
@@ -327,9 +232,74 @@ function setupCategoryFilterExpand() {
     }
 }
 
+function openCourseFilterModal() {
+    var modal = document.getElementById('course-filter-modal');
+    var openBtn = document.getElementById('course-filters-open');
+    if (!modal) return;
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('map-filter-modal-open');
+    if (openBtn) openBtn.setAttribute('aria-expanded', 'true');
+    var closeBtn = document.getElementById('course-filter-modal-close');
+    if (closeBtn) closeBtn.focus();
+}
+
+function closeCourseFilterModal() {
+    var modal = document.getElementById('course-filter-modal');
+    var openBtn = document.getElementById('course-filters-open');
+    if (!modal) return;
+    modal.hidden = true;
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('map-filter-modal-open');
+    if (openBtn) {
+        openBtn.setAttribute('aria-expanded', 'false');
+        openBtn.focus();
+    }
+}
+
+function setupCourseFilterBar() {
+    var openBtn = document.getElementById('course-filters-open');
+    var closeBtn = document.getElementById('course-filter-modal-close');
+    var backdrop = document.getElementById('course-filter-modal-backdrop');
+    var quickForm = document.getElementById('course-filter-quick-form');
+    var searchInput = quickForm ? quickForm.querySelector('input[name="q"]') : null;
+
+    if (openBtn) {
+        openBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            openCourseFilterModal();
+        });
+    }
+    if (closeBtn) closeBtn.addEventListener('click', closeCourseFilterModal);
+    if (backdrop) backdrop.addEventListener('click', closeCourseFilterModal);
+    if (searchInput && quickForm) {
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                quickForm.submit();
+            }
+        });
+    }
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (document.querySelector('.flatpickr-calendar.open')) return;
+            if (document.body.classList.contains('map-filter-modal-open')) {
+                closeCourseFilterModal();
+            }
+        }
+    });
+}
+
 // Check if locations list needs "more" button on page load (compare full content vs CSS max-height, not hardcoded 3em)
 document.addEventListener('DOMContentLoaded', function() {
-    setupCategoryFilterExpand();
+    setupCategoryFilterExpand('filter-modal-category-filter-more', 'filter-modal-category-filter-extra');
+    setupCourseFilterBar();
+    if (window.initMapDateRangePickers) {
+        window.initMapDateRangePickers();
+    }
+    {% if map_view_active %}
+    showMapView();
+    {% endif %}
     const locationLists = document.querySelectorAll('.course-locations-list');
     locationLists.forEach(function(list) {
         list.style.maxHeight = 'none';
@@ -514,47 +484,36 @@ function initializeMap() {
             sidebarList.innerHTML = instances.map(function(inst) {
                 const level = ((inst.course_level || 'various').toString().replace(/[^a-z0-9_-]/gi, '') || 'various');
                 const levelDisplay = escapeHtmlMap(inst.level_display || 'Various');
-                const title = escapeHtmlMap(inst.course_title || '');
+                const title = escapeHtmlMap(inst.course_title || 'Workshop');
                 const price = inst.price != null ? inst.price.toFixed(2) : '0.00';
-                const byline = inst.byline ? escapeHtmlMap(inst.byline) : '';
                 const imgUrl = (inst.image_url || '').trim();
                 const href = (inst.course_url || '#').replace(/"/g, '&quot;');
                 const locationLine = escapeHtmlMap(
                     [inst.location_name || 'TBC', inst.city || ''].filter(Boolean).join(', ')
                 );
                 const dateLine = inst.date_display ? escapeHtmlMap(inst.date_display) : '';
-                var bookBtn = '';
-                if (inst.is_full) {
-                    bookBtn = '<span class="map-sidebar-book-btn map-sidebar-book-disabled">Fully Booked</span>';
-                } else if (!inst.enrollment_open) {
-                    bookBtn = '<span class="map-sidebar-book-btn map-sidebar-book-disabled">Enrollment Closed</span>';
-                } else {
-                    bookBtn = '<a href="/bookings/create/' + (inst.instance_id || '') + '/" class="map-sidebar-book-btn">Book – £' + price + '</a>';
-                }
+                const ariaLabel = escapeHtmlMap(
+                    [inst.course_title, inst.location_name, inst.date_display].filter(Boolean).join(' — ')
+                );
                 var imgBlock = imgUrl
-                    ? '<img src="' + imgUrl.replace(/"/g, '&quot;') + '" alt="' + title + '" class="course-thumbnail" loading="lazy">'
-                    : '<div class="course-placeholder" aria-hidden="true">📷</div>';
-                var metaInner = '';
-                if (dateLine) {
-                    metaInner += '<span class="meta-item map-sidebar-date">' + dateLine + '</span>';
-                }
-                var metaBlock = metaInner ? '<div class="course-meta">' + metaInner + '</div>' : '';
-                var bylineBlock = byline ? '<p class="instance-byline">' + byline + '</p>' : '';
+                    ? '<img src="' + imgUrl.replace(/"/g, '&quot;') + '" alt="" class="course-thumbnail course-card-poster" loading="lazy" decoding="async">'
+                    : '<div class="course-placeholder course-card-poster" aria-hidden="true">📷</div>';
+                var dateBlock = dateLine
+                    ? '<div class="course-meta"><span class="meta-item map-sidebar-date">' + dateLine + '</span></div>'
+                    : '';
                 return '<article class="course-card course-card--overlay map-sidebar-card map-sidebar-item" data-instance-id="' + (inst.instance_id || '') + '">' +
-                    '<a href="' + href + '" class="course-card-link">' +
+                    '<a href="' + href + '" class="course-card-link" aria-label="' + ariaLabel + '">' +
                     '<div class="course-image-wrapper">' + imgBlock +
                     '<div class="course-card-scrim" aria-hidden="true"></div></div>' +
                     '<div class="course-level-badge" data-level="' + level + '">' + levelDisplay + '</div>' +
-                    '<div class="course-card-content">' +
+                    '<div class="course-card-content map-sidebar-card-content">' +
                     '<div class="course-header"><h2 class="course-title">' + title + '</h2></div>' +
-                    bylineBlock +
-                    metaBlock +
                     '<div class="course-locations"><div class="course-locations-list map-sidebar-locations-list">' +
                     '<span class="location-item">' + locationLine + '</span></div></div>' +
-                    '<div class="course-footer">' +
-                    '<div class="course-price">£' + price + '</div>' +
-                    '<span class="btn-view">View course</span></div></div></a>' +
-                    '<div class="map-sidebar-card-actions">' + bookBtn + '</div></article>';
+                    dateBlock +
+                    '<div class="course-footer"><div class="course-price">£' + price + '</div>' +
+                    '<span class="btn-view">View course</span></div>' +
+                    '</div></a></article>';
             }).join('');
         }
     }

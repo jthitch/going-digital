@@ -2,6 +2,7 @@
 from django import forms
 from django.contrib.auth.forms import (
     BaseUserCreationForm,
+    PasswordResetForm,
     UserChangeForm,
 )
 from django.utils import timezone
@@ -113,3 +114,14 @@ class GdUserCreationForm(BaseUserCreationForm):
         region_pks = [r.pk for r in self.cleaned_data['regions']]
         editor_id = getattr(self, '_editor_id', None)
         _sync_user_regions(user, region_pks, editor_id=editor_id)
+
+
+class GdUserPasswordResetForm(PasswordResetForm):
+    """Password reset for gd_user (uses active column, not is_active field)."""
+
+    def get_users(self, email):
+        active_users = User.objects.filter(email__iexact=email, active=1)
+        email_field = User.get_email_field_name()
+        for user in active_users:
+            if user.has_usable_password() and (getattr(user, email_field) or '').strip().casefold() == email.casefold():
+                yield user

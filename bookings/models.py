@@ -4,7 +4,7 @@ Booking models for course reservations.
 from django.db import models
 from django.core.validators import RegexValidator, MinValueValidator
 from decimal import Decimal
-from core.models import User
+from core.models import User, Customer
 from courses.models import Workshop
 from payments.models import Payment
 from courses.models import SafeDateTimeField, SafeDateField
@@ -27,7 +27,20 @@ class Booking(models.Model):
         on_delete=models.PROTECT,
         related_name='bookings'
     )
-    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name='bookings')
+    user = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='bookings',
+        null=True,
+        blank=True,
+    )
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.PROTECT,
+        related_name='bookings',
+        null=True,
+        blank=True,
+    )
     payment = models.ForeignKey(
         Payment,
         on_delete=models.SET_NULL,
@@ -48,6 +61,10 @@ class Booking(models.Model):
     
     # Special requirements
     special_requirements = models.TextField(blank=True, help_text="Dietary, accessibility, etc.")
+    loan_camera = models.BooleanField(
+        default=False,
+        help_text='Student has requested a loan camera for this place.',
+    )
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     booking_reference = models.CharField(max_length=50, unique=True, db_index=True)
@@ -131,6 +148,36 @@ class Booking(models.Model):
     @property
     def used_voucher(self):
         return bool(self.voucher_id and self.voucher_code)
+
+
+class BookingTermsAcceptance(models.Model):
+    """Records that a customer accepted terms before basket checkout."""
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.PROTECT,
+        related_name='terms_acceptances',
+        null=True,
+        blank=True,
+    )
+    basket_id = models.IntegerField(db_index=True, help_text='gd_basket.id for this checkout.')
+    booking_ids = models.JSONField(default=list, blank=True)
+    accepted_at = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True)
+    terms_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Terms and conditions page version at time of acceptance.',
+    )
+
+    class Meta:
+        db_table = 'booking_terms_acceptance'
+        ordering = ['-accepted_at']
+        verbose_name = 'Terms acceptance'
+        verbose_name_plural = 'Terms acceptances'
+
+    def __str__(self):
+        return f'Terms accepted for basket {self.basket_id} at {self.accepted_at:%Y-%m-%d %H:%M}'
 
 
 class Voucher(models.Model):

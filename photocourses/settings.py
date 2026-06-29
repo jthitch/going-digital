@@ -83,6 +83,7 @@ MIDDLEWARE = [
     'website.middleware.RedirectMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.CustomerAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -94,6 +95,8 @@ _template_context_processors = [
     'django.contrib.auth.context_processors.auth',
     'django.contrib.messages.context_processors.messages',
     'bookings.context_processors.basket_context',
+    'website.context_processors.google_reviews',
+    'website.context_processors.newsletter_modal',
 ]
 if DEBUG:
     _template_context_processors.insert(0, 'django.template.context_processors.debug')
@@ -212,6 +215,17 @@ CKEDITOR_CONFIGS = {
         'height': 300,
         'width': '100%',
     },
+    'legal': {
+        'toolbar': [
+            ['Styles', 'Format'],
+            ['Bold', 'Italic', 'Underline'],
+            ['NumberedList', 'BulletedList', '-', 'Outdent', 'Indent'],
+            ['Link', 'Unlink', 'Anchor'],
+            ['RemoveFormat', 'Source'],
+        ],
+        'height': 500,
+        'width': '100%',
+    },
 }
 
 # REST Framework
@@ -236,6 +250,14 @@ except NameError:
     STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
     STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
 
+# Google Places API (optional — live homepage review rating sync)
+try:
+    GOOGLE_PLACES_API_KEY = env('GOOGLE_PLACES_API_KEY', default='').strip()
+    GOOGLE_PLACE_ID = env('GOOGLE_PLACE_ID', default='').strip()
+except NameError:
+    GOOGLE_PLACES_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY', '').strip()
+    GOOGLE_PLACE_ID = os.environ.get('GOOGLE_PLACE_ID', '').strip()
+
 # Email Configuration
 try:
     EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
@@ -248,6 +270,7 @@ try:
     SERVER_EMAIL = env('SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
     CONTACT_EMAIL = env('CONTACT_EMAIL', default='info@goingdigital.co.uk')
     SITE_URL = env('SITE_URL', default='http://127.0.0.1:8000')
+    GOING_DIGITAL_FACEBOOK_GROUP_URL = env('GOING_DIGITAL_FACEBOOK_GROUP_URL', default='')
     GETADDRESS_API_KEY = env('GETADDRESS_API_KEY', default='')
     EMAIL_SUPPRESS_RECIPIENTS = [
         addr.strip().lower()
@@ -266,6 +289,7 @@ except NameError:
     SERVER_EMAIL = os.environ.get('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
     CONTACT_EMAIL = os.environ.get('CONTACT_EMAIL', 'info@goingdigital.co.uk')
     SITE_URL = os.environ.get('SITE_URL', 'http://127.0.0.1:8000')
+    GOING_DIGITAL_FACEBOOK_GROUP_URL = os.environ.get('GOING_DIGITAL_FACEBOOK_GROUP_URL', '')
     GETADDRESS_API_KEY = os.environ.get('GETADDRESS_API_KEY', '')
     EMAIL_SUPPRESS_RECIPIENTS = [
         addr.strip().lower()
@@ -372,12 +396,24 @@ JAZZMIN_SETTINGS = {
         "website",
         "website.HeroImage",
         "website.GiftVoucherPageImage",
+        "website.GiftCardDesign",
+        "website.NewsletterModalSettings",
+        "website.GoogleReviewsSettings",
+        "website.LegalPage",
         "bookings",
         "franchises",
         "payments",
     ],
     
-    "custom_links": {},
+    "custom_links": {
+        "bookings": [
+            {
+                "name": "Reports",
+                "url": "admin:bookings_reports",
+                "icon": "fas fa-chart-bar",
+            },
+        ],
+    },
     
     # Custom icons for side menu apps/models
     "icons": {
@@ -390,6 +426,10 @@ JAZZMIN_SETTINGS = {
         "website": "fas fa-globe",
         "website.HeroImage": "fas fa-image",
         "website.GiftVoucherPageImage": "fas fa-gift",
+        "website.GiftCardDesign": "fas fa-id-card",
+        "website.NewsletterModalSettings": "fas fa-envelope-open-text",
+        "website.GoogleReviewsSettings": "fab fa-google",
+        "website.LegalPage": "fas fa-file-contract",
         "website.Testimonial": "fas fa-quote-left",
         "website.BeforeAfterImage": "fas fa-images",
         "website.FAQ": "fas fa-question-circle",

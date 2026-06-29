@@ -1,0 +1,92 @@
+{% extends "admin/bookings/reports_base.html" %}
+{% load i18n %}
+
+{% block report_content %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="m-0">{% trans 'Filters' %}</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="form-row align-items-end">
+            <input type="hidden" name="report" value="monthly">
+            <div class="form-group col-md-3">
+                <label for="{{ form.region.id_for_label }}">{{ form.region.label }}</label>
+                {{ form.region }}
+            </div>
+            <div class="form-group col-md-3">
+                <label for="{{ form.tutor.id_for_label }}">{{ form.tutor.label }}</label>
+                {{ form.tutor }}
+            </div>
+            <div class="form-group col-md-3">
+                <label for="{{ form.months.id_for_label }}">{{ form.months.label }}</label>
+                {{ form.months }}
+            </div>
+            <div class="form-group col-md-3">
+                <button type="submit" class="btn btn-primary">{% trans 'Apply filters' %}</button>
+                <a href="{% url 'admin:bookings_reports' %}?report=monthly" class="btn btn-secondary">{% trans 'Reset' %}</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if filters_applied and rows %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+        <h5 class="m-0">{% trans 'Monthly summary' %}</h5>
+        <div class="d-flex align-items-center flex-wrap">
+            <span class="text-muted small mr-3">{% trans 'Bookings and income by booking date; courses by workshop date' %}</span>
+            <a href="{{ export_csv_url }}" class="btn btn-sm btn-outline-secondary">{% trans 'Export CSV' %}</a>
+        </div>
+    </div>
+    <div class="card-body table-responsive p-0">
+        <table class="table table-striped table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>{% trans 'Month' %}</th>
+                    <th class="text-right">{% trans 'Bookings' %}</th>
+                    <th class="text-right">{% trans 'Income' %}</th>
+                    <th class="text-right">{% trans 'Courses scheduled' %}</th>
+                    <th class="text-right">{% trans 'Future courses' %}</th>
+                    <th class="text-right">{% trans '% sold' %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ row.label }}</td>
+                    <td class="text-right">{{ row.bookings }}</td>
+                    <td class="text-right">£{{ row.income|floatformat:2 }}</td>
+                    <td class="text-right">{{ row.courses_scheduled }}</td>
+                    <td class="text-right">{% if row.future_courses %}{{ row.future_courses }}{% else %}—{% endif %}</td>
+                    <td class="text-right">
+                        {% if row.percent_sold is not None %}{{ row.percent_sold }}%{% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if totals %}
+            <tfoot>
+                <tr class="font-weight-bold">
+                    <td>{% trans 'Total' %}</td>
+                    <td class="text-right">{{ totals.bookings }}</td>
+                    <td class="text-right">£{{ totals.income|floatformat:2 }}</td>
+                    <td class="text-right">{{ totals.courses_scheduled }}</td>
+                    <td class="text-right">{{ totals.future_courses }}</td>
+                    <td class="text-right">
+                        {% if totals.percent_sold is not None %}{{ totals.percent_sold }}%{% else %}—{% endif %}
+                    </td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</div>
+
+<p class="text-muted small mt-3">
+    {% trans '% sold is places booked divided by maximum places for all workshops scheduled in that month.' %}
+    {% trans 'Future courses counts workshops in that month that have not yet taken place.' %}
+</p>
+{% elif request.GET %}
+<div class="alert alert-warning">{% trans 'Please correct the filter errors above.' %}</div>
+{% endif %}
+{% endblock %}

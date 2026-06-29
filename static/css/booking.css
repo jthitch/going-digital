@@ -119,6 +119,7 @@
 .btn-secondary {
     padding: 0.875rem 1.75rem;
     border-radius: 6px;
+    font-family: inherit;
     font-size: 1rem;
     font-weight: 600;
     text-decoration: none;
@@ -206,6 +207,173 @@
     padding: 1.5rem;
     border-radius: 8px;
     margin: 2rem 0;
+    text-align: left;
+}
+
+.booking-info ul {
+    margin: 0.5rem 0 0.5rem 1.25rem;
+}
+
+.payment-messages {
+    margin-bottom: 1.5rem;
+}
+
+.payment-message {
+    margin: 0.5rem 0;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+}
+
+.payment-message--success,
+.payment-message--info {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.payment-message--error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.payment-success-container:has(.gift-card-panel) {
+    max-width: 720px;
+}
+
+.gift-card-panel {
+    margin-top: 1.5rem;
+}
+
+.gift-card-field {
+    margin-bottom: 1rem;
+}
+
+.gift-card-preview {
+    margin: 1.25rem 0 1.75rem;
+}
+
+.gift-card-design-label {
+    margin: 0 0 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: left;
+}
+
+.gift-card-preview-label {
+    margin: 0 0 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: left;
+}
+
+.gift-card-preview-frame {
+    position: relative;
+    max-width: 420px;
+    margin: 0 auto;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-primary);
+    box-shadow: 0 4px 16px var(--shadow);
+    line-height: 0;
+}
+
+.gift-card-preview-frame.is-loading .gift-card-preview-image {
+    opacity: 0.35;
+}
+
+.gift-card-preview-loading[hidden] {
+    display: none !important;
+}
+
+.gift-card-preview-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 1rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.72);
+    line-height: 1.4;
+    z-index: 1;
+}
+
+.gift-card-preview-image {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.gift-card-design-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.gift-card-design-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    text-align: center;
+}
+
+.gift-card-design-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.gift-card-design-thumb {
+    display: block;
+    width: 100%;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-primary);
+    box-shadow: 0 2px 8px var(--shadow);
+    transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.gift-card-design-thumb img {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+.gift-card-design-option input:checked + .gift-card-design-thumb {
+    border-color: var(--accent, #2563eb);
+    transform: translateY(-2px);
+}
+
+.gift-card-design-name {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.gift-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: center;
+    margin-top: 0.5rem;
+}
+
+.gift-card-actions .btn-primary,
+.gift-card-actions .btn-secondary {
+    flex: 1;
+    min-width: 10rem;
+    width: auto;
+}
+
+.gift-card-email-form {
     text-align: left;
 }
 
@@ -365,7 +533,11 @@
 
 /* Workshop basket page */
 .basket-page {
-    max-width: 1080px;
+    max-width: 1240px;
+}
+
+.basket-page.booking-container {
+    padding: 2rem 2.5rem;
 }
 
 .basket-page-header {
@@ -437,8 +609,8 @@
 
 .basket-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
-    gap: 2rem;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
+    gap: 2.5rem;
     align-items: start;
 }
 
@@ -655,20 +827,36 @@
 .basket-order-summary {
     position: sticky;
     top: 5.5rem;
-    padding: 1.5rem;
+    min-width: 0;
+    padding: 1.75rem;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 12px;
 }
 
 .basket-summary-title {
-    margin: 0 0 1rem;
-    font-size: 1.125rem;
+    margin: 0 0 1.25rem;
+    font-size: 1.25rem;
+    font-weight: 700;
     color: var(--text-primary);
 }
 
+.basket-summary-section {
+    padding: 1.25rem 0;
+    border-top: 1px solid var(--border-color);
+}
+
+.basket-summary-section:first-of-type {
+    border-top: none;
+    padding-top: 0;
+}
+
+.basket-summary-section--totals {
+    padding-bottom: 1rem;
+}
+
 .basket-summary-rows {
-    margin: 0 0 1rem;
+    margin: 0;
 }
 
 .basket-summary-row {
@@ -676,8 +864,9 @@
     justify-content: space-between;
     align-items: baseline;
     gap: 1rem;
-    padding: 0.35rem 0;
-    font-size: 0.95rem;
+    padding: 0.5rem 0;
+    font-size: 0.9375rem;
+    line-height: 1.5;
     color: var(--text-secondary);
 }
 
@@ -689,6 +878,8 @@
 .basket-summary-row dd {
     font-weight: 600;
     color: var(--text-primary);
+    text-align: right;
+    white-space: nowrap;
 }
 
 .basket-summary-row--discount dd {
@@ -696,10 +887,10 @@
 }
 
 .basket-summary-row--total {
-    margin-top: 0.5rem;
-    padding-top: 0.85rem;
+    margin-top: 0.25rem;
+    padding-top: 1rem;
     border-top: 1px solid var(--border-color);
-    font-size: 1.05rem;
+    font-size: 1rem;
 }
 
 .basket-summary-row--total dt,
@@ -709,36 +900,168 @@
 }
 
 .basket-summary-row--total dd {
-    font-size: 1.25rem;
+    font-size: 1.375rem;
 }
 
-.basket-voucher-note {
-    margin: 0 0 1.25rem;
+.basket-order-summary .checkout-voucher-form,
+.basket-order-summary .basket-voucher-form {
+    margin: 0;
+}
+
+.basket-order-summary .basket-voucher-field {
+    margin: 0;
+    gap: 0.625rem;
+}
+
+.basket-order-summary .basket-voucher-field label {
     font-size: 0.875rem;
-    color: var(--text-secondary);
-    line-height: 1.45;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.basket-order-summary .basket-voucher-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.625rem;
+    align-items: stretch;
+}
+
+.basket-order-summary .checkout-voucher-input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 0.75rem 0.875rem;
+    font-size: 0.9375rem;
+}
+
+.basket-order-summary .basket-voucher-apply {
+    width: auto;
+    min-width: 5.25rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.9375rem;
+    white-space: nowrap;
+}
+
+.basket-order-summary .basket-remove-voucher,
+.basket-order-summary .checkout-remove-voucher {
+    margin: 0.75rem 0 0;
+}
+
+.basket-summary-section--checkout {
+    padding-bottom: 0;
 }
 
 .basket-checkout-form {
-    margin-bottom: 0.75rem;
+    margin: 0;
+}
+
+.basket-checkout-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin: 0 0 1.5rem;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    min-width: 0;
+}
+
+.basket-checkout-options legend {
+    padding: 0;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.basket-terms-field--error .basket-checkout-option {
+    color: #c0392b;
+}
+
+.basket-checkout-option {
+    display: grid;
+    grid-template-columns: 1.125rem minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: start;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.basket-checkout-option-text {
+    min-width: 0;
+}
+
+.basket-checkout-option--optional {
+    color: var(--text-secondary);
+}
+
+.basket-checkout-checkbox {
+    width: 1.125rem;
+    height: 1.125rem;
+    margin: 0.125rem 0 0;
+    accent-color: var(--primary-color, #4a9eff);
+}
+
+.basket-checkout-option a {
+    color: var(--primary-color, #4a9eff);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.basket-checkout-option a:hover {
+    text-decoration-thickness: 2px;
+}
+
+.basket-checkout-optional {
+    color: var(--text-secondary);
+}
+
+.basket-checkout-option-error {
+    margin: 0.5rem 0 0;
+    padding-left: 1.875rem;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: #c0392b;
+}
+
+.basket-checkout-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
 .basket-checkout-btn {
     width: 100%;
+    margin: 0;
+    padding: 0.875rem 1.25rem;
+    font-size: 1rem;
 }
 
 .basket-add-more-btn {
     width: 100%;
     display: block;
     box-sizing: border-box;
+    padding: 0.75rem 1.25rem;
+    text-align: center;
 }
 
 .basket-secure-note {
-    margin: 1rem 0 0;
-    font-size: 0.8rem;
+    margin: 1.25rem 0 0;
+    font-size: 0.8125rem;
+    line-height: 1.5;
     color: var(--text-secondary);
     text-align: center;
-    line-height: 1.4;
 }
 
 .basket-empty {
@@ -1104,6 +1427,520 @@
 .account-booking-card-actions {
     flex-shrink: 0;
     align-self: center;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    min-width: 10.5rem;
+}
+
+.calendar-add-menu {
+    position: relative;
+}
+
+.calendar-add-menu__summary {
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    width: 100%;
+}
+
+.calendar-add-menu__summary::-webkit-details-marker {
+    display: none;
+}
+
+.calendar-add-menu__icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+}
+
+.calendar-add-menu__panel {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    right: 0;
+    z-index: 20;
+    min-width: 11.5rem;
+    padding: 0.35rem 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px var(--shadow);
+}
+
+.calendar-add-menu__link {
+    display: block;
+    padding: 0.55rem 1rem;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.calendar-add-menu__link:hover,
+.calendar-add-menu__link:focus-visible {
+    background: var(--bg-secondary);
+    color: var(--primary-color);
+}
+
+.contact-tutor-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    width: 100%;
+}
+
+.contact-tutor-btn__icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+}
+
+.account-suggested-courses {
+    margin-top: 2.5rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.account-suggested-courses__header {
+    margin-bottom: 1.25rem;
+}
+
+.account-suggested-courses__lead {
+    margin: 0.35rem 0 0;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.account-suggested-courses-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+    gap: 1rem;
+}
+
+.account-suggested-course-card {
+    height: 100%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.account-suggested-course-card:hover,
+.account-suggested-course-card:focus-within {
+    box-shadow: 0 4px 16px var(--shadow);
+    transform: translateY(-2px);
+}
+
+.account-suggested-course-card__link {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    color: inherit;
+    text-decoration: none;
+}
+
+.account-suggested-course-card__media {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    background: var(--bg-primary);
+}
+
+.account-suggested-course-card__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.account-suggested-course-card__placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #e8eaed 0%, #d8dde3 100%);
+}
+
+.account-suggested-course-card__level {
+    position: absolute;
+    top: 0.65rem;
+    left: 0.65rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.62);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.account-suggested-course-card__level[data-level="beginner"] {
+    background: rgba(46, 125, 50, 0.88);
+}
+
+.account-suggested-course-card__level[data-level="intermediate"] {
+    background: rgba(21, 101, 192, 0.88);
+}
+
+.account-suggested-course-card__level[data-level="advanced"] {
+    background: rgba(198, 40, 40, 0.88);
+}
+
+.account-suggested-course-card__level[data-level="masterclass"] {
+    background: rgba(106, 27, 154, 0.88);
+}
+
+.account-suggested-course-card__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 0.35rem;
+    padding: 0.9rem 1rem 1rem;
+}
+
+.account-suggested-course-card__title {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.35;
+    color: var(--text-primary);
+}
+
+.account-suggested-course-card__meta {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
+}
+
+.account-suggested-course-card__price {
+    margin: auto 0 0;
+    padding-top: 0.35rem;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.fb-share-section {
+    margin-top: 2.5rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.fb-share-section__header {
+    margin-bottom: 1.25rem;
+}
+
+.fb-share-section__lead {
+    margin: 0.35rem 0 0;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.fb-share-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    justify-content: center;
+    gap: 1.25rem;
+}
+
+.fb-share-card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.fb-share-card__media {
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    background: var(--bg-primary);
+}
+
+.fb-share-card__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.fb-share-card__placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #1877f2 0%, #0d5bb8 100%);
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.fb-share-card__placeholder .facebook-logo {
+    width: 3rem;
+    height: 3rem;
+}
+
+.fb-share-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 1rem 1.1rem 1.15rem;
+    flex: 1;
+}
+
+.fb-share-card__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #1877f2;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.fb-share-card__brand .facebook-logo {
+    width: 1rem;
+    height: 1rem;
+}
+
+.fb-share-card__title {
+    margin: 0;
+    font-size: 1.05rem;
+    line-height: 1.35;
+    color: var(--text-primary);
+}
+
+.fb-share-card__meta {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
+}
+
+.fb-share-card__blurb {
+    margin: 0;
+    flex: 1;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.fb-share-card__cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+    padding: 0.65rem 1rem;
+    border-radius: 8px;
+    background: #1877f2;
+    color: #fff !important;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.fb-share-card__cta .facebook-logo {
+    width: 1rem;
+    height: 1rem;
+}
+
+.fb-share-card__cta:hover,
+.fb-share-card__cta:focus-visible {
+    background: #166fe5;
+    transform: translateY(-1px);
+}
+
+.fb-share-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.fb-share-modal.is-open {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+body.fb-share-modal-open {
+    overflow: hidden;
+}
+
+.fb-share-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.52);
+}
+
+.fb-share-modal__panel {
+    position: relative;
+    width: min(100%, 32rem);
+    max-height: min(90vh, 42rem);
+    overflow: auto;
+    padding: 1.35rem 1.35rem 1.15rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
+}
+
+.fb-share-modal__close {
+    position: absolute;
+    top: 0.65rem;
+    right: 0.75rem;
+    border: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 1.75rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.15rem 0.35rem;
+}
+
+.fb-share-modal__close:hover,
+.fb-share-modal__close:focus-visible {
+    color: var(--text-primary);
+}
+
+.fb-share-modal__header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    margin-bottom: 1rem;
+    padding-right: 1.75rem;
+}
+
+.fb-share-modal__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 10px;
+    background: #1877f2;
+    color: #fff;
+}
+
+.fb-share-modal__icon .facebook-logo {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.fb-share-modal__header h2 {
+    margin: 0 0 0.35rem;
+    font-size: 1.2rem;
+    color: var(--text-primary);
+}
+
+.fb-share-modal__lead {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
+}
+
+.fb-share-modal__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.fb-share-modal__card {
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-secondary);
+}
+
+.fb-share-modal__image {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+}
+
+.fb-share-modal__body {
+    padding: 0.9rem 1rem 1rem;
+}
+
+.fb-share-modal__title {
+    margin: 0 0 0.35rem;
+    font-size: 1rem;
+    line-height: 1.35;
+    color: var(--text-primary);
+}
+
+.fb-share-modal__meta {
+    margin: 0 0 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.fb-share-modal__blurb {
+    margin: 0 0 0.75rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.fb-share-modal__cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    width: 100%;
+    padding: 0.65rem 1rem;
+    border-radius: 8px;
+    background: #1877f2;
+    color: #fff !important;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.fb-share-modal__cta .facebook-logo {
+    width: 1rem;
+    height: 1rem;
+}
+
+.fb-share-modal__footer {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.fb-share-modal__footer .btn-secondary {
+    width: 100%;
+    text-align: center;
 }
 
 .account-empty {
@@ -1133,13 +1970,497 @@
 }
 
 .account-setup-panel,
-.account-setup-card {
+.account-setup-card,
+.facebook-groups-cta {
     margin-top: 1.5rem;
     padding: 1.5rem;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 12px;
     text-align: left;
+}
+
+.facebook-groups-cta h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.15rem;
+    color: var(--text-primary);
+}
+
+.facebook-groups-lead {
+    margin: 0 0 1.25rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    font-size: 0.95rem;
+}
+
+.facebook-groups-note {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    font-size: 0.9rem;
+}
+
+.facebook-groups-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.facebook-groups-btn {
+    text-decoration: none;
+}
+
+/* Post-booking Facebook community page */
+.fb-community-page__header {
+    margin-bottom: 0.25rem;
+}
+
+.fb-community-page__title-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.fb-community-page__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 12px;
+    background: #1877f2;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(24, 119, 242, 0.28);
+}
+
+.fb-community-page__icon .facebook-logo {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.fb-community-page__lead {
+    margin: 0 0 1.5rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    font-size: 0.98rem;
+    max-width: none;
+}
+
+/* Share cards on join-community — match Facebook group card proportions */
+.fb-community-page .fb-share-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+}
+
+.fb-community-page .fb-share-card {
+    width: 100%;
+    max-width: 31.25rem;
+    margin-inline: auto;
+}
+
+.fb-community-page .fb-share-grid:has(.fb-share-card:only-child) {
+    grid-template-columns: minmax(0, 31.25rem);
+    justify-content: start;
+}
+
+.fb-community-page .fb-share-card__media {
+    aspect-ratio: 1.91 / 1;
+    max-height: 16.25rem;
+}
+
+.fb-community-page .fb-share-card__image {
+    object-fit: cover;
+    object-position: center;
+}
+
+.fb-community-page .fb-share-card__body {
+    gap: 0.5rem;
+    padding: 1rem 1.1rem 1.15rem;
+}
+
+.fb-community-page .fb-share-card__title {
+    font-size: 1.05rem;
+}
+
+.fb-community-page .fb-share-card__blurb {
+    font-size: 0.9rem;
+    font-style: normal;
+}
+
+.fb-community-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+    justify-content: center;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+    width: 100%;
+}
+
+.fb-community-card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    margin-inline: auto;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.fb-community-grid:has(.fb-community-card:only-child) {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+}
+
+.fb-community-card__preview {
+    position: relative;
+    display: block;
+    aspect-ratio: 1.91 / 1;
+    overflow: hidden;
+    background: linear-gradient(135deg, #1877f2 0%, #0d5bb8 100%);
+    text-decoration: none;
+}
+
+.fb-community-card__preview--embed {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    aspect-ratio: auto;
+    min-height: 360px;
+    height: auto;
+    padding: 1.5rem;
+    overflow: hidden;
+    background: #e8eaed;
+    text-decoration: none;
+}
+
+.fb-community-card__embed-wrap {
+    width: 100%;
+    max-width: 500px;
+    min-height: 320px;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+    pointer-events: none;
+    flex: 0 1 500px;
+}
+
+.fb-community-card__embed {
+    display: block;
+    width: 100%;
+    height: 320px;
+    border: 0;
+    margin: 0;
+}
+
+.fb-community-card__overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(24, 119, 242, 0);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    opacity: 0;
+    transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.fb-community-card__preview:hover .fb-community-card__overlay,
+.fb-community-card__preview:focus-visible .fb-community-card__overlay {
+    opacity: 1;
+    background: rgba(24, 119, 242, 0.45);
+}
+
+.fb-community-card__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.25s ease;
+}
+
+.fb-community-card__preview:hover .fb-community-card__image,
+.fb-community-card__preview:focus-visible .fb-community-card__image {
+    transform: scale(1.03);
+}
+
+.fb-community-card__placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.fb-community-card__placeholder .facebook-logo {
+    width: 3.5rem;
+    height: 3.5rem;
+}
+
+.fb-community-card__badge {
+    position: absolute;
+    left: 0.75rem;
+    bottom: 0.75rem;
+    max-width: calc(100% - 1.5rem);
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.62);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    backdrop-filter: blur(4px);
+}
+
+.fb-community-card__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 0.5rem;
+    padding: 1rem 1.1rem 1.15rem;
+}
+
+.fb-community-card__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #1877f2;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.fb-community-card__brand .facebook-logo {
+    width: 1rem;
+    height: 1rem;
+}
+
+.fb-community-card__title {
+    margin: 0;
+    font-size: 1.05rem;
+    line-height: 1.35;
+    color: var(--text-primary);
+}
+
+.fb-community-card__description {
+    margin: 0;
+    flex: 1;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.fb-community-card__cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+    padding: 0.65rem 1rem;
+    border-radius: 8px;
+    background: #1877f2;
+    color: #fff !important;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.fb-community-card__cta .facebook-logo {
+    width: 1rem;
+    height: 1rem;
+}
+
+.fb-community-card__cta:hover,
+.fb-community-card__cta:focus-visible {
+    background: #166fe5;
+    transform: translateY(-1px);
+}
+
+.fb-community-card--local .fb-community-card__cta {
+    background: var(--text-primary);
+}
+
+.fb-community-card--local .fb-community-card__cta:hover,
+.fb-community-card--local .fb-community-card__cta:focus-visible {
+    background: #333;
+}
+
+.fb-community-page-intro {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.75rem;
+    color: #1877f2;
+}
+
+.fb-community-page-intro .facebook-logo {
+    width: 1.35rem;
+    height: 1.35rem;
+}
+
+.fb-community-page-intro h2 {
+    margin: 0;
+    font-size: 1.15rem;
+    color: var(--text-primary);
+}
+
+.facebook-groups-cta--empty {
+    margin-top: 0;
+}
+
+.post-booking-community-actions {
+    margin-top: 0.5rem;
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.post-booking-community-note {
+    margin-top: 1rem;
+    text-align: center;
+}
+
+/* Join-community stepped wizard */
+.fb-community-wizard__progress {
+    margin-bottom: 1.75rem;
+}
+
+.fb-community-wizard__steps {
+    display: flex;
+    gap: 0.75rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.fb-community-wizard__step {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.fb-community-wizard__step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    border: 2px solid var(--border-color);
+    background: var(--bg-primary);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+
+.fb-community-wizard__step.is-active {
+    color: var(--text-primary);
+}
+
+.fb-community-wizard__step.is-active .fb-community-wizard__step-num {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.fb-community-wizard__panel[hidden] {
+    display: none !important;
+}
+
+.fb-community-wizard__panel.is-active {
+    display: block;
+}
+
+.fb-community-wizard .fb-community-card__cta {
+    display: none;
+}
+
+.fb-community-wizard__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+}
+
+.fb-community-wizard__actions .btn-primary,
+.fb-community-wizard__actions .fb-community-wizard__share {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-width: min(100%, 14rem);
+}
+
+.fb-community-wizard__share .facebook-logo {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.fb-community-wizard__finish {
+    margin-top: 1rem;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.fb-community-wizard__skip {
+    color: var(--text-secondary);
+    text-decoration: none;
+}
+
+.fb-community-wizard__skip:hover {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+.fb-community-wizard__finish-sep {
+    margin: 0 0.35rem;
+    color: var(--text-secondary);
+}
+
+.fb-community-wizard__share-grid {
+    margin-top: 0.5rem;
+    justify-content: center;
+    justify-items: center;
+}
+
+.fb-community-wizard .fb-share-grid:has(.fb-share-card:only-child),
+.fb-community-wizard__share-grid:has(.fb-share-card:only-child) {
+    grid-template-columns: minmax(0, 31.25rem);
+    justify-content: center;
+}
+
+.fb-community-wizard .fb-share-card {
+    width: 100%;
+    max-width: 31.25rem;
+}
+
+.fb-community-wizard__panel[data-wizard-panel="2"] .fb-community-wizard__actions {
+    justify-content: center;
+}
+
+@media (max-width: 540px) {
+    .fb-community-wizard__step-label {
+        font-size: 0.8rem;
+    }
+}
+
+.payment-success-container .facebook-groups-cta {
+    margin: 2rem 0 0;
 }
 
 .payment-success-container .account-setup-panel {
@@ -1223,9 +2544,23 @@
         gap: 1.5rem;
     }
 
+    .basket-page.booking-container {
+        padding: 1.5rem 1.25rem;
+    }
+
     .basket-order-summary {
         position: static;
         order: 2;
+        padding: 1.5rem;
+    }
+
+    .basket-order-summary .basket-voucher-row {
+        grid-template-columns: 1fr;
+    }
+
+    .basket-order-summary .basket-voucher-apply {
+        width: 100%;
+        min-width: 0;
     }
 
     .basket-items {

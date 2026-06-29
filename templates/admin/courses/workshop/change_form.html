@@ -1,0 +1,34 @@
+{% extends "admin/change_form.html" %}
+
+{% block object-tools-items %}
+{{ block.super }}
+{% if duplicate_workshop_url %}
+<li>
+    <a href="{{ duplicate_workshop_url }}" class="historylink">Duplicate workshop</a>
+</li>
+{% endif %}
+{% endblock %}
+
+{% block admin_change_form_document_ready %}
+{{ block.super }}
+{% if is_workshop_duplicate %}
+<script>
+(function () {
+    'use strict';
+    function focusWorkshopDate() {
+        var dateInput = document.getElementById('id_date');
+        var row = dateInput ? dateInput.closest('.form-row') : null;
+        if (row) {
+            row.classList.add('gd-workshop-duplicate-date-focus');
+        }
+        if (dateInput) {
+            dateInput.focus();
+            row && row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+    focusWorkshopDate();
+    setTimeout(focusWorkshopDate, 300);
+})();
+</script>
+{% endif %}
+{% endblock %}

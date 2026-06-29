@@ -5,7 +5,7 @@ from django.utils.html import format_html
 from courses.admin_mixins import PlatformAdminOnlyMixin
 
 from .admin_mixins import RegionScopedBookingAdminMixin
-from .models import Booking, Voucher
+from .models import Booking, BookingTermsAcceptance, Voucher
 
 
 @admin.register(Voucher)
@@ -58,6 +58,7 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
         'voucher_code',
         'voucher_discount',
         'price_paid',
+        'loan_camera',
         'created_at',
     ]
     list_filter = ['status', 'created_at', 'workshop__course', 'workshop__venue']
@@ -80,6 +81,7 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
         'student_email',
         'student_phone',
         'special_requirements',
+        'loan_camera',
         'status',
         'list_price',
         'voucher_id',
@@ -119,6 +121,7 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
                 'student_email',
                 'student_phone',
                 'special_requirements',
+                'loan_camera',
             ),
         }),
         ('Payment & account', {
@@ -176,3 +179,40 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
         if workshop.date:
             parts.append(format_html('Date: {}', workshop.date.strftime('%d %B %Y')))
         return format_html('<br>'.join(parts)) if parts else '—'
+
+
+@admin.register(BookingTermsAcceptance)
+class BookingTermsAcceptanceAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
+    list_display = [
+        'id',
+        'accepted_at',
+        'customer',
+        'basket_id',
+        'booking_count',
+        'terms_updated_at',
+        'ip_address',
+    ]
+    list_filter = ['accepted_at']
+    search_fields = ['customer__email', 'customer__firstname', 'customer__lastname', 'ip_address']
+    readonly_fields = [
+        'customer',
+        'basket_id',
+        'booking_ids',
+        'accepted_at',
+        'ip_address',
+        'user_agent',
+        'terms_updated_at',
+    ]
+
+    @admin.display(description='Bookings')
+    def booking_count(self, obj):
+        return len(obj.booking_ids or [])
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

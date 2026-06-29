@@ -6,6 +6,10 @@
 {% block meta_keywords %}{{ meta_keywords }}{% endblock %}
 
 {% block extra_head %}
+    <link rel="stylesheet" href="{% static 'css/google-rating-badge.css' %}">
+    <link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=24">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
     <!-- JSON-LD Structured Data for SEO -->
     <script type="application/ld+json">
     {{ schema_data|safe }}
@@ -20,6 +24,7 @@
     <meta property="og:image" content="{{ request.build_absolute_uri }}{{ course.image.url }}">
     {% endif %}
     <meta property="og:type" content="product">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
 {% endblock %}
 
 {% block content %}
@@ -74,11 +79,11 @@
             <strong>Price:</strong> {% if has_multiple_prices %}From {% endif %}£{{ min_price }}
         </div>
         {% endif %}
-        {% if all_locations %}
+        {% if display_locations %}
         <div class="fact-item fact-item-locations">
-            <strong>Location{{ all_locations|length|pluralize }}:</strong>
+            <strong>Location{{ display_locations|length|pluralize }}:</strong>
             <div class="location-tags" role="list">
-                {% for loc in all_locations %}
+                {% for loc in display_locations %}
                 <span class="location-tag" role="listitem">{{ loc.name }}</span>
                 {% endfor %}
             </div>
@@ -235,56 +240,45 @@
     {% endif %}
     
     <!-- Available Workshops (Dates & Locations) -->
+    <div class="google-rating-badge-wrap">
+        {% include 'partials/google_rating_badge.html' %}
+    </div>
     <section class="course-instances" id="available-dates-locations">
         <h2>Available Dates & Locations</h2>
         {% if instances_by_city %}
             {% if show_instance_filters %}
             <div class="course-instances-filters" data-course-instance-filters>
-                <div class="course-instances-filters-header">
-                    <div class="course-instances-filters-title">
-                        <svg class="course-instances-filters-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <line x1="4" y1="21" x2="4" y2="14"></line>
-                            <line x1="4" y1="10" x2="4" y2="3"></line>
-                            <line x1="12" y1="21" x2="12" y2="12"></line>
-                            <line x1="12" y1="8" x2="12" y2="3"></line>
-                            <line x1="20" y1="21" x2="20" y2="16"></line>
-                            <line x1="20" y1="12" x2="20" y2="3"></line>
-                            <line x1="1" y1="14" x2="7" y2="14"></line>
-                            <line x1="9" y1="8" x2="15" y2="8"></line>
-                            <line x1="17" y1="16" x2="23" y2="16"></line>
-                        </svg>
-                        <span>Filter by location or date</span>
-                    </div>
-                    <button type="button" class="course-instances-filter-clear" data-filter-clear hidden>Clear all</button>
-                </div>
-                <div class="course-instances-filters-form{% if all_locations|length > 1 %} course-instances-filters-form--with-location{% endif %}">
-                    {% if all_locations|length > 1 %}
-                    <div class="filter-group">
-                        <label class="filter-label" for="instance-filter-location">Location</label>
-                        <select id="instance-filter-location" class="filter-select" data-filter-location>
-                            <option value="">All locations</option>
-                            {% for loc in all_locations %}
-                            <option value="{{ loc.slug|default:loc.pk }}">{{ loc.name }}{% if loc.location %} ({{ loc.location }}){% endif %}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    {% endif %}
-                    <div class="filter-group">
-                        <label class="filter-label" for="instance-filter-from">From</label>
-                        <input type="date" id="instance-filter-from" class="filter-input filter-date-input"
-                               data-filter-date-from
-                               {% if instances_date_min %}min="{{ instances_date_min }}"{% endif %}
-                               {% if instances_date_max %}max="{{ instances_date_max }}"{% endif %}>
-                    </div>
-                    <div class="filter-group">
-                        <label class="filter-label" for="instance-filter-to">To</label>
-                        <input type="date" id="instance-filter-to" class="filter-input filter-date-input"
-                               data-filter-date-to
-                               {% if instances_date_min %}min="{{ instances_date_min }}"{% endif %}
-                               {% if instances_date_max %}max="{{ instances_date_max }}"{% endif %}>
+                <div class="map-filter-bar map-filter-bar--course-instances" role="toolbar" aria-label="Filter dates and locations">
+                    <div class="map-filter-bar__primary">
+                        <div class="map-filter-bar__quick">
+                            {% if all_locations|length > 1 %}
+                            <label class="map-filter-pill map-filter-pill--location">
+                                <svg class="map-filter-pill-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+                                <span class="visually-hidden">Location</span>
+                                <select id="instance-filter-location" class="map-filter-select" data-filter-location aria-label="Filter by location">
+                                    <option value="">All locations</option>
+                                    {% for loc in all_locations %}
+                                    <option value="{{ loc.pk }}" data-venue-slug="{{ loc.slug }}"{% if current_location_filter == loc.pk|stringformat:"s" %} selected{% endif %}>{{ loc.name }}{% if loc.location %} ({{ loc.location }}){% endif %}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            {% endif %}
+                            <div class="map-filter-pill map-filter-pill--dates map-date-range-wrap"
+                                 data-auto-submit="false"
+                                 role="button"
+                                 tabindex="0"
+                                 aria-label="Select dates"
+                                 {% if instances_date_max %}data-max-date="{{ instances_date_max }}"{% endif %}>
+                                <svg class="map-filter-pill-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                <span class="map-filter-date-display" data-placeholder="Add dates">Add dates</span>
+                                <input type="hidden" id="instance-filter-from" data-filter-date-from value="">
+                                <input type="hidden" id="instance-filter-to" data-filter-date-to value="">
+                            </div>
+                            <button type="button" class="map-filter-pill map-filter-pill--filters course-instances-filter-clear" data-filter-clear hidden>Clear all</button>
+                        </div>
+                        <p class="map-filter-bar__count course-instances-filter-summary" data-filter-summary aria-live="polite"></p>
                     </div>
                 </div>
-                <p class="course-instances-filter-summary" data-filter-summary aria-live="polite"></p>
             </div>
             {% endif %}
             <p class="course-instances-no-matches" data-instances-no-matches hidden>
@@ -297,7 +291,7 @@
                 <ul class="instance-list">
                     {% for instance in instances %}
                     <li class="instance-item{% if instance.byline_plain %} instance-item--has-byline{% endif %}"
-                        data-venue-slug="{% if instance.venue %}{{ instance.venue.slug|default:instance.venue_id }}{% endif %}"
+                        data-venue-id="{% if instance.venue_id %}{{ instance.venue_id }}{% endif %}"
                         data-instance-date="{{ instance.filter_date }}">
                         <a href="{{ instance.get_absolute_url }}" class="instance-card-link" aria-label="View {{ course.title }} at {{ instance.location.name }} on {{ instance.start_date|date:'d F Y' }}"></a>
                         <div class="instance-col-main">
@@ -373,6 +367,8 @@
 {% block extra_js %}
 <!-- Load React booking component (if needed) -->
 <script src="{% static 'js/booking-widget.js' %}" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="{% static 'js/map-date-range.js' %}?v=3"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var filtersRoot = document.querySelector('[data-course-instance-filters]');
@@ -380,6 +376,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var locationSelect = filtersRoot.querySelector('[data-filter-location]');
         var dateFrom = filtersRoot.querySelector('[data-filter-date-from]');
         var dateTo = filtersRoot.querySelector('[data-filter-date-to]');
+        var dateRangeWrap = filtersRoot.querySelector('.map-date-range-wrap');
         var clearBtn = filtersRoot.querySelector('[data-filter-clear]');
         var summaryEl = filtersRoot.querySelector('[data-filter-summary]');
         var noMatchesEl = document.querySelector('[data-instances-no-matches]');
@@ -388,10 +385,30 @@ document.addEventListener('DOMContentLoaded', function () {
         var cityGroups = instancesList ? instancesList.querySelectorAll('[data-city-group]') : [];
         var totalCount = items.length;
 
+        function resolveLocationValue(raw) {
+            if (!locationSelect || !raw) {
+                return '';
+            }
+            for (var i = 0; i < locationSelect.options.length; i++) {
+                var opt = locationSelect.options[i];
+                if (!opt.value) {
+                    continue;
+                }
+                if (opt.value === raw) {
+                    return opt.value;
+                }
+                var slug = opt.getAttribute('data-venue-slug');
+                if (slug && slug === raw) {
+                    return opt.value;
+                }
+            }
+            return raw;
+        }
+
         function readUrlFilters() {
             var params = new URLSearchParams(window.location.search);
             if (locationSelect && params.get('location')) {
-                locationSelect.value = params.get('location');
+                locationSelect.value = resolveLocationValue(params.get('location'));
             }
             if (dateFrom && params.get('from')) {
                 dateFrom.value = params.get('from');
@@ -399,6 +416,35 @@ document.addEventListener('DOMContentLoaded', function () {
             if (dateTo && params.get('to')) {
                 dateTo.value = params.get('to');
             }
+        }
+
+        function navigateWithFilters() {
+            var params = new URLSearchParams(window.location.search);
+            if (locationSelect) {
+                if (locationSelect.value) {
+                    params.set('location', locationSelect.value);
+                } else {
+                    params.delete('location');
+                }
+            }
+            if (dateFrom) {
+                if (dateFrom.value) {
+                    params.set('from', dateFrom.value);
+                } else {
+                    params.delete('from');
+                }
+            }
+            if (dateTo) {
+                if (dateTo.value) {
+                    params.set('to', dateTo.value);
+                } else {
+                    params.delete('to');
+                }
+            }
+            var query = params.toString();
+            window.location.href = window.location.pathname
+                + (query ? '?' + query : '')
+                + '#available-dates-locations';
         }
 
         function syncUrl() {
@@ -429,38 +475,18 @@ document.addEventListener('DOMContentLoaded', function () {
             window.history.replaceState(null, '', newUrl);
         }
 
-        function syncDateBounds() {
-            if (dateFrom && dateTo) {
-                if (dateFrom.value) {
-                    dateTo.min = dateFrom.value;
-                } else if (dateFrom.hasAttribute('min')) {
-                    dateTo.min = dateFrom.getAttribute('min');
-                }
-                if (dateTo.value) {
-                    dateFrom.max = dateTo.value;
-                } else if (dateFrom.hasAttribute('max')) {
-                    dateFrom.max = dateFrom.getAttribute('max');
-                }
-            }
-        }
-
         function applyFilters() {
-            var location = locationSelect ? locationSelect.value : '';
             var from = dateFrom ? dateFrom.value : '';
             var to = dateTo ? dateTo.value : '';
             if (from && to && from > to) {
                 dateTo.value = from;
                 to = from;
             }
-            syncDateBounds();
             var visible = 0;
             var dateFilterActive = Boolean(from || to);
 
             items.forEach(function (item) {
                 var show = true;
-                if (location && item.getAttribute('data-venue-slug') !== location) {
-                    show = false;
-                }
                 var instanceDate = (item.getAttribute('data-instance-date') || '').trim();
                 if (dateFilterActive) {
                     if (!instanceDate) {
@@ -497,6 +523,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     : visible + ' of ' + totalCount + ' dates shown';
             }
             if (clearBtn) {
+                var location = locationSelect ? locationSelect.value : '';
                 clearBtn.hidden = !location && !from && !to;
             }
             syncUrl();
@@ -513,22 +540,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (dateTo) {
                     dateTo.value = '';
                 }
-                applyFilters();
+                navigateWithFilters();
             });
         }
         if (locationSelect) {
-            locationSelect.addEventListener('change', applyFilters);
+            locationSelect.addEventListener('change', navigateWithFilters);
         }
-        [dateFrom, dateTo].forEach(function (input) {
-            if (!input) {
-                return;
-            }
-            input.addEventListener('change', applyFilters);
-            input.addEventListener('input', applyFilters);
-        });
+        if (dateRangeWrap) {
+            dateRangeWrap.addEventListener('gd:date-range-change', applyFilters);
+        }
 
         readUrlFilters();
-        syncDateBounds();
+        if (typeof window.initMapDateRangePickers === 'function') {
+            window.initMapDateRangePickers(filtersRoot);
+        }
         applyFilters();
     }
 

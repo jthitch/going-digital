@@ -13,6 +13,7 @@
     <link rel="icon" type="image/png" href="{% static 'img/favicon/favicon.png' %}">
     
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="{% static 'css/newsletter.css' %}?v=4">
     
     {% block extra_head %}{% endblock %}
 </head>
@@ -28,14 +29,8 @@
             <div class="nav-end">
                 <div class="nav-links">
                     <a href="{% url 'courses:course_list' %}" class="nav-link-item">Explore Courses</a>
-                    {% if user.is_authenticated %}
+                    {% if request.customer %}
                     <a href="{% url 'account:my_bookings' %}" class="nav-link-item">My bookings</a>
-                    <form method="post" action="{% url 'account:logout' %}" class="nav-logout-form nav-logout-form--desktop">
-                        {% csrf_token %}
-                        <button type="submit" class="nav-logout-btn">Sign out</button>
-                    </form>
-                    {% else %}
-                    <a href="{% url 'account:login' %}" class="nav-link-item">Sign in</a>
                     {% endif %}
                     <div class="nav-gift-wrap">
                         <a href="{% url 'courses:gift_vouchers' %}" class="nav-gift-vouchers nav-link-item" aria-label="Gift Vouchers">
@@ -44,6 +39,14 @@
                         </a>
                         <span class="nav-gift-label">Giftcards</span>
                     </div>
+                    {% if request.customer %}
+                    <form method="post" action="{% url 'account:logout' %}" class="nav-logout-form nav-logout-form--desktop">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-logout-btn">Sign out</button>
+                    </form>
+                    {% else %}
+                    <a href="{% url 'account:login' %}" class="nav-link-item">Sign in</a>
+                    {% endif %}
                 </div>
                 <div class="nav-mobile-gift">
                     <div class="nav-gift-wrap">
@@ -59,13 +62,11 @@
                     </button>
                     <div id="nav-menu" class="nav-menu" aria-hidden="true">
                         <a href="{% url 'courses:course_list' %}" class="nav-menu-mobile-only">Explore Courses</a>
-                        <a href="{% url 'courses:gift_vouchers' %}" class="nav-menu-mobile-only">Gift Vouchers</a>
-                        <a href="{% url 'bookings:basket' %}">Basket{% if basket_item_count %} ({{ basket_item_count }}){% endif %}</a>
-                        <a href="{% url 'courses:venue_list' %}">Venues</a>
-                        <a href="{% url 'courses:faq' %}">FAQ</a>
-                        <a href="{% url 'courses:contact' %}">Contact</a>
-                        {% if user.is_authenticated %}
+                        {% if request.customer %}
                         <a href="{% url 'account:my_bookings' %}" class="nav-menu-mobile-only">My bookings</a>
+                        {% endif %}
+                        <a href="{% url 'courses:gift_vouchers' %}" class="nav-menu-mobile-only">Gift Vouchers</a>
+                        {% if request.customer %}
                         <form method="post" action="{% url 'account:logout' %}" class="nav-logout-form nav-menu-mobile-only">
                             {% csrf_token %}
                             <button type="submit" class="nav-logout-btn">Sign out</button>
@@ -74,6 +75,10 @@
                         <a href="{% url 'account:login' %}" class="nav-menu-mobile-only">Sign in</a>
                         <a href="{% url 'account:signup' %}" class="nav-menu-mobile-only">Sign up</a>
                         {% endif %}
+                        <a href="{% url 'bookings:basket' %}">Basket{% if basket_item_count %} ({{ basket_item_count }}){% endif %}</a>
+                        <a href="{% url 'courses:venue_list' %}">Venues</a>
+                        <a href="{% url 'courses:faq' %}">FAQ</a>
+                        <a href="{% url 'courses:contact' %}">Contact</a>
                     </div>
                 </div>
             </div>
@@ -93,6 +98,8 @@
                     <li><a href="{% url 'courses:venue_list' %}">Venues</a></li>
                     <li><a href="{% url 'courses:gift_vouchers' %}">Gift vouchers</a></li>
                     <li><a href="{% url 'courses:faq' %}">FAQ</a></li>
+                    <li><a href="{% url 'courses:terms_and_conditions' %}">Terms &amp; Conditions</a></li>
+                    <li><a href="{% url 'courses:privacy_policy' %}">Privacy Policy</a></li>
                     <li><a href="{% url 'courses:contact' %}">Contact</a></li>
                     <li><a href="{% url 'courses:site_map' %}">Site map</a></li>
                     <li><a href="{% url 'sitemap' %}">XML sitemap</a></li>
@@ -101,8 +108,11 @@
             <p class="site-footer-copy">&copy; {% now "Y" %} Photography Courses. All rights reserved.</p>
         </div>
     </footer>
+
+    {% include 'partials/newsletter_widget.html' %}
     
     {% block extra_js %}{% endblock %}
+    <script src="{% static 'js/newsletter-modal.js' %}?v=4"></script>
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {

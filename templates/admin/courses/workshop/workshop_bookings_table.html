@@ -29,6 +29,9 @@
                         <th scope="col" class="sortable column-student_phone">
                             <div class="text">{% trans 'Phone' %}</div>
                         </th>
+                        <th scope="col" class="sortable column-loan_camera">
+                            <div class="text">{% trans 'Loan camera' %}</div>
+                        </th>
                         <th scope="col" class="sortable column-status">
                             <div class="text">{% trans 'Status' %}</div>
                         </th>
@@ -62,6 +65,13 @@
                             <a href="mailto:{{ booking.student_email }}">{{ booking.student_email }}</a>
                         </td>
                         <td class="field-student_phone">{{ booking.student_phone|default:"—" }}</td>
+                        <td class="field-loan_camera">
+                            {% if booking.loan_camera %}
+                            {% trans 'Yes' %}
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
                         <td class="field-status">{{ booking.get_status_display }}</td>
                         <td class="field-payment_status">
                             {% if booking.payment %}

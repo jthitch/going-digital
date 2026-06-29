@@ -1,7 +1,7 @@
 from django import forms
-from django.contrib import admin
-from django.http import JsonResponse
-from django.urls import path
+from django.contrib import admin, messages
+from django.http import HttpResponseRedirect, JsonResponse
+from django.urls import path, reverse
 from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_GET
@@ -12,7 +12,8 @@ from .admin_mixins import (
     RegionScopedVenueAdminMixin,
     RegionScopedWorkshopAdminMixin,
 )
-from .region_scope import user_has_full_region_access
+from .region_scope import user_can_access_workshop, user_has_full_region_access
+from .workshop_duplicate import duplicate_workshop_querystring, workshop_duplicate_initial
 from .forms import (
     CourseAdminForm,
     CourseCategoryAdminForm,
@@ -450,9 +451,32 @@ class CourseAdmin(admin.ModelAdmin):
     ]
 
 
+@admin.action(description='Duplicate workshop')
+def duplicate_workshop_action(modeladmin, request, queryset):
+    if queryset.count() != 1:
+        modeladmin.message_user(
+            request,
+            'Select exactly one workshop to duplicate.',
+            level=messages.ERROR,
+        )
+        return
+    workshop = queryset.first()
+    if not user_can_access_workshop(request.user, workshop):
+        modeladmin.message_user(
+            request,
+            'You cannot duplicate this workshop.',
+            level=messages.ERROR,
+        )
+        return
+    add_url = reverse('admin:courses_workshop_add')
+    return HttpResponseRedirect(f'{add_url}?{duplicate_workshop_querystring(workshop)}')
+
+
 @admin.register(Workshop)
 class WorkshopAdmin(RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
     form = WorkshopAdminForm
+    change_form_template = 'admin/courses/workshop/change_form.html'
+    actions = [duplicate_workshop_action]
     autocomplete_fields = ['course', 'venue']
     list_display = [
         'id',
@@ -507,7 +531,52 @@ class WorkshopAdmin(RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
             readonly = [f for f in readonly if f != 'bookings_display']
         return readonly
 
+    def get_changeform_initial_data(self, request):
+        initial = super().get_changeform_initial_data(request)
+        from_pk = request.GET.get('duplicate_from')
+        if not from_pk:
+            return initial
+        try:
+            from_pk = int(from_pk)
+        except (TypeError, ValueError):
+            return initial
+        source = (
+            Workshop.objects.filter(pk=from_pk)
+            .prefetch_related('gallery_images')
+            .select_related('course', 'venue')
+            .first()
+        )
+        if not source or not user_can_access_workshop(request.user, source):
+            return initial
+        initial.update(workshop_duplicate_initial(source))
+        return initial
+
+    def add_view(self, request, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        from_pk = request.GET.get('duplicate_from')
+        if from_pk:
+            try:
+                from_pk = int(from_pk)
+            except (TypeError, ValueError):
+                from_pk = None
+            if from_pk:
+                source = Workshop.objects.filter(pk=from_pk).select_related('course', 'venue').first()
+                if source and user_can_access_workshop(request.user, source):
+                    messages.info(
+                        request,
+                        f'Copied settings from {source}. Choose the new workshop date and save.',
+                    )
+                    extra_context['is_workshop_duplicate'] = True
+        return super().add_view(request, form_url, extra_context)
+
     def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        obj = self.get_object(request, object_id)
+        if obj and self.has_add_permission(request) and user_can_access_workshop(request.user, obj):
+            add_url = reverse('admin:courses_workshop_add')
+            extra_context['duplicate_workshop_url'] = (
+                f'{add_url}?{duplicate_workshop_querystring(obj)}'
+            )
         self._current_request = request
         return super().change_view(request, object_id, form_url, extra_context)
 

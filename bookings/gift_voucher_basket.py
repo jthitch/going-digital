@@ -70,30 +70,8 @@ def get_stripe_gateway_id():
 
 def get_or_create_customer(email, firstname, lastname, phone=''):
     """Get or create gd_customer by email. Returns (customer_id, created)."""
-    firstname = (firstname or 'Customer').strip()
-    lastname = (lastname or '').strip()
-    if not lastname and firstname:
-        parts = firstname.split(maxsplit=1)
-        firstname = parts[0]
-        lastname = parts[1] if len(parts) > 1 else ''
-
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT id FROM gd_customer WHERE email = %s", [email])
-        row = cursor.fetchone()
-        if row:
-            return row[0], False
-
-        now = timezone.now().isoformat()
-        cursor.execute(
-            """
-            INSERT INTO gd_customer
-            (active, archived, guest_account, email, firstname, lastname, contact_number,
-             newsletter, use_for_primary_booking, created_at, updated_at)
-            VALUES (1, 0, 0, %s, %s, %s, %s, 0, 1, %s, %s)
-            """,
-            [email, firstname or 'Customer', lastname or '', phone or '', now, now]
-        )
-        return cursor.lastrowid, True
+    from core.customer_service import get_or_create_customer as _get_or_create
+    return _get_or_create(email, firstname, lastname, phone)
 
 
 def create_gift_voucher_basket(customer_id, user_id, amount, quantity, total,
@@ -157,10 +135,24 @@ def get_vouchers_for_basket(basket_id):
     """Get voucher codes created for this basket (after webhook has run)."""
     with connection.cursor() as cursor:
         cursor.execute(
-            "SELECT voucher_code, value FROM gd_voucher WHERE basket_id = %s ORDER BY id",
-            [basket_id]
+            """
+            SELECT voucher_code, value, expiry_date
+            FROM gd_voucher
+            WHERE basket_id = %s
+            ORDER BY id
+            """,
+            [basket_id],
         )
         return cursor.fetchall()
+
+
+def get_voucher_for_basket_index(basket_id, index):
+    """Return (code, value, expiry_date) for voucher at zero-based index, or None."""
+    vouchers = get_vouchers_for_basket(basket_id)
+    try:
+        return vouchers[int(index)]
+    except (IndexError, TypeError, ValueError):
+        return None
 
 
 def get_basket(basket_id):

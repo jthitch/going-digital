@@ -1,7 +1,11 @@
 """Calendar links and .ics content for workshop booking emails."""
 from urllib.parse import quote
 
+from django.conf import settings
+from django.urls import reverse
 from django.utils import timezone
+
+from courses.models import Tutor
 
 
 def _ics_datetime(dt):
@@ -81,3 +85,84 @@ def build_workshop_calendar(*, start, end, title, description, location, uid):
         'outlook_calendar_url': outlook_calendar_url,
         'calendar_ics': calendar_ics,
     }
+
+
+def _absolute_url(path):
+    base = getattr(settings, 'SITE_URL', '').rstrip('/')
+    if base and path.startswith('/'):
+        return f'{base}{path}'
+    return path
+
+
+def calendar_data_for_booking(booking):
+    """Google/Outlook links and .ics body for a booking (my bookings, emails)."""
+    workshop = getattr(booking, 'workshop', None)
+    if not workshop or not workshop.start_date:
+        return {
+            'google_calendar_url': '',
+            'outlook_calendar_url': '',
+            'calendar_ics': '',
+            'calendar_ics_filename': '',
+            'has_calendar': False,
+        }
+
+    course = workshop.course if workshop else None
+    venue = workshop.venue if workshop else None
+
+    tutor_name = ''
+    tutor_email = ''
+    if workshop.tutor_id:
+        tutor = Tutor.objects.filter(pk=workshop.tutor_id).first()
+        if tutor:
+            tutor_name = str(tutor)
+            tutor_email = (tutor.email or '').strip()
+
+    course_title = course.title if course else 'Workshop'
+    location_name = venue.name if venue else 'TBC'
+    location_city = venue.city if venue else ''
+    location_address = ''
+    if venue:
+        location_address = (venue.venue_address or venue.location or '').strip()
+
+    workshop_url = _absolute_url(workshop.get_absolute_url()) if workshop else ''
+
+    calendar_location = ', '.join(
+        part for part in [location_name, location_city, location_address] if part
+    )
+    calendar_description = (
+        f'Booking reference: {booking.booking_reference}\n'
+        f'Course: {course_title}\n'
+    )
+    if workshop_url:
+        calendar_description += f'Details: {workshop_url}\n'
+    if tutor_name:
+        calendar_description += f'Tutor: {tutor_name}'
+        if tutor_email:
+            calendar_description += f' ({tutor_email})'
+
+    calendar = build_workshop_calendar(
+        start=workshop.start_date,
+        end=workshop.end_date,
+        title=f'{course_title} — Going Digital',
+        description=calendar_description.strip(),
+        location=calendar_location or 'TBC',
+        uid=f'{booking.booking_reference}@goingdigital.co.uk',
+    )
+
+    return {
+        **calendar,
+        'calendar_ics_filename': f'going-digital-{booking.booking_reference}.ics',
+        'has_calendar': bool(calendar['google_calendar_url']),
+    }
+
+
+def attach_calendar_to_booking(booking):
+    """Set booking.calendar with download URL for templates."""
+    cal = calendar_data_for_booking(booking)
+    if cal.get('calendar_ics'):
+        cal['ics_download_url'] = reverse(
+            'account:booking_calendar',
+            args=[booking.booking_reference],
+        )
+    booking.calendar = cal
+    return booking

@@ -54,4 +54,7 @@
 {% if workshop_url %}
 <p style="margin:0;"><a href="{{ workshop_url }}" style="color:#0066cc;">View workshop details on our website</a></p>
 {% endif %}
+
+{% include "emails/partials/facebook_groups_cta.html" %}
+{% include "emails/partials/facebook_share_cta.html" %}
 {% endblock %}

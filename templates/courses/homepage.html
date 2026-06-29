@@ -6,6 +6,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/homepage.css' %}">
+<link rel="stylesheet" href="{% static 'css/google-rating-badge.css' %}">
 
 <!-- Schema.org Structured Data for SEO -->
 <script type="application/ld+json">
@@ -131,6 +132,7 @@
                     <p class="hero-subtitle">{% if course_count %}{{ course_count }}+ photography courses across the UK{% if location_count %}, at {{ location_count }}+ venues{% endif %}{% else %}Photography courses across the UK{% endif %} — from beginner to aspiring professional</p>
                     <a href="{% url 'courses:course_list' %}" class="btn-hero">Explore Courses</a>
                     <p class="hero-tagline">Inspiring photographers since 2005</p>
+                    {% include 'partials/hero_google_rating.html' %}
                 </div>
             </div>
             {% endfor %}
@@ -143,6 +145,7 @@
                     <p class="hero-subtitle">{% if course_count %}{{ course_count }}+ photography courses across the UK{% if location_count %}, at {{ location_count }}+ venues{% endif %}{% else %}Photography courses across the UK{% endif %} — from beginner to aspiring professional</p>
                     <a href="{% url 'courses:course_list' %}" class="btn-hero">Explore Courses</a>
                     <p class="hero-tagline">Inspiring photographers since 2005</p>
+                    {% include 'partials/hero_google_rating.html' %}
                 </div>
             </div>
         {% endif %}
@@ -156,74 +159,7 @@
     {% endif %}
 </section>
 
-<!-- Testimonials Section -->
-{% if testimonials %}
-<section class="testimonials-section">
-    <div class="testimonials-conveyor-container">
-        <div class="testimonials-conveyor" id="testimonials-conveyor">
-            {% for testimonial in testimonials %}
-            <div class="testimonial-item">
-                <div class="testimonial-quote">
-                    <svg class="quote-icon" width="30" height="30" viewBox="0 0 40 40" fill="none">
-                        <path d="M10 20C10 15 13 12 16 10C13 8 11 5 11 2C11 1 10 0 9 0C4 0 0 4 0 10C0 18 4 25 10 30V20Z" fill="currentColor" opacity="0.2"/>
-                        <path d="M29 20C29 15 32 12 35 10C32 8 30 5 30 2C30 1 29 0 28 0C23 0 19 4 19 10C19 18 23 25 29 30V20Z" fill="currentColor" opacity="0.2"/>
-                    </svg>
-                    <p class="testimonial-text">"{{ testimonial.testimonial_text }}"</p>
-                    <div class="testimonial-name-below">{{ testimonial.name }}{% if testimonial.role %} — {{ testimonial.role }}{% endif %}</div>
-                </div>
-                <div class="testimonial-rating">
-                    <div class="stars">
-                        {% for i in "12345"|make_list %}
-                            <span class="star {% if forloop.counter <= testimonial.rating %}filled{% endif %}">★</span>
-                        {% endfor %}
-                    </div>
-                    {% if testimonial.venue or testimonial.course_date %}
-                    <div class="testimonial-meta-info">
-                        {% if testimonial.venue %}
-                        <span class="testimonial-venue">📍 {{ testimonial.venue }}</span>
-                        {% endif %}
-                        {% if testimonial.course_date %}
-                        <span class="testimonial-date">{{ testimonial.course_date|date:"d F Y" }}</span>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-            <!-- Duplicate for seamless loop -->
-            {% for testimonial in testimonials %}
-            <div class="testimonial-item">
-                <div class="testimonial-quote">
-                    <svg class="quote-icon" width="30" height="30" viewBox="0 0 40 40" fill="none">
-                        <path d="M10 20C10 15 13 12 16 10C13 8 11 5 11 2C11 1 10 0 9 0C4 0 0 4 0 10C0 18 4 25 10 30V20Z" fill="currentColor" opacity="0.2"/>
-                        <path d="M29 20C29 15 32 12 35 10C32 8 30 5 30 2C30 1 29 0 28 0C23 0 19 4 19 10C19 18 23 25 29 30V20Z" fill="currentColor" opacity="0.2"/>
-                    </svg>
-                    <p class="testimonial-text">"{{ testimonial.testimonial_text }}"</p>
-                    <div class="testimonial-name-below">{{ testimonial.name }}{% if testimonial.role %} — {{ testimonial.role }}{% endif %}</div>
-                </div>
-                <div class="testimonial-rating">
-                    <div class="stars">
-                        {% for i in "12345"|make_list %}
-                            <span class="star {% if forloop.counter <= testimonial.rating %}filled{% endif %}">★</span>
-                        {% endfor %}
-                    </div>
-                    {% if testimonial.venue or testimonial.course_date %}
-                    <div class="testimonial-meta-info">
-                        {% if testimonial.venue %}
-                        <span class="testimonial-venue">📍 {{ testimonial.venue }}</span>
-                        {% endif %}
-                        {% if testimonial.course_date %}
-                        <span class="testimonial-date">{{ testimonial.course_date|date:"d F Y" }}</span>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</section>
-{% endif %}
+{% include 'partials/google_reviews_trust.html' %}
 
 <!-- Photography Journey Guide - Level-Based Structure -->
 <section id="journey" class="journey-section">
