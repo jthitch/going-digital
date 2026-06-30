@@ -45,7 +45,7 @@ from payments.checkout_session_context import (
     store_checkout_success_context,
 )
 
-from .checkout_completion import complete_checkout_session
+from .checkout_completion import complete_checkout_session, stripe_metadata_dict
 from .forms import VoucherCheckoutForm
 from .models import Payment
 
@@ -788,7 +788,7 @@ class PaymentSuccessView(TemplateView):
             if STRIPE_AVAILABLE and payment and payment.intent_type == 'checkout_session':
                 try:
                     stripe_session = stripe.checkout.Session.retrieve(session_id)
-                    metadata.update(dict(stripe_session.metadata or {}))
+                    metadata.update(stripe_metadata_dict(stripe_session.metadata))
                 except stripe.error.StripeError:
                     pass
 

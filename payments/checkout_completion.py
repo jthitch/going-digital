@@ -14,6 +14,18 @@ def _session_value(session, key, default=None):
     return getattr(session, key, default)
 
 
+def stripe_metadata_dict(metadata):
+    """Convert Stripe Checkout metadata (StripeObject or dict) to a plain dict."""
+    if not metadata:
+        return {}
+    if isinstance(metadata, dict):
+        return dict(metadata)
+    try:
+        return {key: metadata[key] for key in metadata.keys()}
+    except (AttributeError, KeyError, TypeError):
+        return {}
+
+
 def checkout_session_is_paid(session):
     """True when Stripe reports the checkout session as successfully paid."""
     payment_status = _session_value(session, 'payment_status')
@@ -58,9 +70,9 @@ def complete_checkout_session(session, *, source='checkout.session.completed'):
         )
 
     metadata = payment.metadata or {}
-    session_metadata = _session_value(session, 'metadata') or {}
+    session_metadata = stripe_metadata_dict(_session_value(session, 'metadata'))
     if not metadata and session_metadata:
-        metadata = dict(session_metadata)
+        metadata = session_metadata
 
     try:
         if 'gift_voucher_basket_id' in metadata:
