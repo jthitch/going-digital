@@ -1395,3 +1395,36 @@
         max-width: 300px;
     }
 }
+
+.homepage-faq {
+    padding: 3rem 1.5rem;
+    background: var(--bg-secondary, #f8f9fa);
+}
+
+.homepage-faq .container {
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.homepage-faq-list {
+    margin: 1.5rem 0 0;
+}
+
+.homepage-faq-item {
+    margin-bottom: 1.25rem;
+}
+
+.homepage-faq-item dt {
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+.homepage-faq-item dd {
+    margin: 0;
+    color: var(--text-secondary, #555);
+    line-height: 1.6;
+}
+
+.homepage-faq-more {
+    margin-top: 1.5rem;
+}

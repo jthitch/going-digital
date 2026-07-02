@@ -2535,3 +2535,41 @@ body.map-filter-modal-open {
         aspect-ratio: 4 / 5;
     }
 }
+
+/* Crawlable pagination (in addition to infinite scroll) */
+.course-list-pagination {
+    margin: 2rem auto 0;
+    max-width: var(--content-max-width, 1200px);
+    padding: 0 1rem;
+}
+
+.course-list-pagination__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.course-list-pagination__list a,
+.course-list-pagination__list span[aria-current="page"] {
+    display: inline-block;
+    min-width: 2.25rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 0.35rem;
+    text-align: center;
+    text-decoration: none;
+}
+
+.course-list-pagination__list a {
+    border: 1px solid var(--border-color, #dee2e6);
+    color: var(--primary-color, #0066cc);
+}
+
+.course-list-pagination__list span[aria-current="page"] {
+    background: var(--primary-color, #0066cc);
+    color: #fff;
+    font-weight: 600;
+}

@@ -8,6 +8,8 @@
     
     <title>{% block title %}Photography Courses{% endblock %}</title>
     
+    {% include 'partials/seo_head.html' %}
+    
     {% load static %}
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{% static 'img/favicon/favicon.png' %}">
@@ -103,6 +105,7 @@
                     <li><a href="{% url 'courses:contact' %}">Contact</a></li>
                     <li><a href="{% url 'courses:site_map' %}">Site map</a></li>
                     <li><a href="{% url 'sitemap' %}">XML sitemap</a></li>
+                    <li><a href="{% url 'llms_txt' %}">llms.txt</a></li>
                 </ul>
             </nav>
             <p class="site-footer-copy">&copy; {% now "Y" %} Photography Courses. All rights reserved.</p>

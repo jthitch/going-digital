@@ -4,6 +4,12 @@
 {% block title %}{{ meta_title|default:venue.name }}{% endblock %}
 {% block meta_description %}{{ meta_description }}{% endblock %}
 
+{% block extra_head %}
+{% if venue_schema_json %}
+<script type="application/ld+json">{{ venue_schema_json|safe }}</script>
+{% endif %}
+{% endblock %}
+
 {% block content %}
 <article class="venue-detail">
     <header class="venue-header">

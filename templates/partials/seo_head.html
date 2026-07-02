@@ -1,0 +1,40 @@
+{% load static %}
+{% block seo_robots %}
+{% if seo_staging_noindex %}
+<meta name="robots" content="noindex, nofollow">
+{% elif seo_noindex %}
+<meta name="robots" content="noindex, follow">
+{% endif %}
+{% endblock %}
+{% block seo_canonical %}
+{% if canonical_url %}
+<link rel="canonical" href="{{ canonical_url }}">
+{% endif %}
+{% endblock %}
+{% block seo_prev_next %}
+{% if seo_prev_url %}<link rel="prev" href="{{ seo_prev_url }}">{% endif %}
+{% if seo_next_url %}<link rel="next" href="{{ seo_next_url }}">{% endif %}
+{% endblock %}
+{% block seo_open_graph %}
+<meta property="og:site_name" content="Going Digital">
+<meta property="og:locale" content="en_GB">
+{% if og_title %}<meta property="og:title" content="{{ og_title }}">{% endif %}
+{% if og_description %}<meta property="og:description" content="{{ og_description }}">{% endif %}
+{% if og_type %}<meta property="og:type" content="{{ og_type }}">{% else %}<meta property="og:type" content="website">{% endif %}
+{% if og_url %}<meta property="og:url" content="{{ og_url }}">{% elif canonical_url %}<meta property="og:url" content="{{ canonical_url }}">{% endif %}
+{% if og_image %}
+<meta property="og:image" content="{{ og_image }}">
+{% elif seo_default_og_image %}
+<meta property="og:image" content="{{ seo_default_og_image }}">
+{% endif %}
+{% endblock %}
+{% block seo_twitter %}
+<meta name="twitter:card" content="{% if og_image or seo_default_og_image %}summary_large_image{% else %}summary{% endif %}">
+{% if og_title %}<meta name="twitter:title" content="{{ og_title }}">{% endif %}
+{% if og_description %}<meta name="twitter:description" content="{{ og_description }}">{% endif %}
+{% if og_image %}
+<meta name="twitter:image" content="{{ og_image }}">
+{% elif seo_default_og_image %}
+<meta name="twitter:image" content="{{ seo_default_og_image }}">
+{% endif %}
+{% endblock %}

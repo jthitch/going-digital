@@ -10,25 +10,24 @@
     <link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=24">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
-    <!-- JSON-LD Structured Data for SEO -->
     <script type="application/ld+json">
     {{ schema_data|safe }}
     </script>
-    
-    <!-- Open Graph / Social Media -->
-    <meta property="og:title" content="{{ meta_title }}">
-    <meta property="og:description" content="{{ course.short_description }}">
-    {% if header_images %}
-    <meta property="og:image" content="{{ request.build_absolute_uri }}{{ header_images.0.url }}">
-    {% elif course.image %}
-    <meta property="og:image" content="{{ request.build_absolute_uri }}{{ course.image.url }}">
-    {% endif %}
-    <meta property="og:type" content="product">
-    <meta property="og:url" content="{{ request.build_absolute_uri }}">
 {% endblock %}
 
 {% block content %}
 <article class="course-detail">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="{% url 'courses:course_list' %}">Photography courses</a>
+        <span aria-hidden="true"> / </span>
+        {% if is_location_specific %}
+        <a href="{% url 'courses:course_detail' slug=course.slug %}">{{ course.title }}</a>
+        <span aria-hidden="true"> / </span>
+        <span>{% if featured_instance.location %}{{ featured_instance.location.name }}{% else %}Venue{% endif %}</span>
+        {% else %}
+        <span>{{ course.title }}</span>
+        {% endif %}
+    </nav>
     <!-- H1: Course Name -->
     <h1>{{ course.title }}</h1>
     
@@ -341,17 +340,15 @@
         {% endif %}
     </section>
     
-    <!-- FAQs with FAQPage Schema -->
+    <!-- FAQs (JSON-LD provided in head; visible copy for users and AEO) -->
     {% if course.faqs.exists %}
-    <section class="faqs" itemscope itemtype="https://schema.org/FAQPage">
+    <section class="faqs">
         <h2>Frequently Asked Questions</h2>
         <dl>
             {% for faq in course.faqs.all %}
-            <div itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">
-                <dt itemprop="name">{{ faq.question }}</dt>
-                <dd itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer">
-                    <span itemprop="text">{{ faq.answer|linebreaks }}</span>
-                </dd>
+            <div>
+                <dt>{{ faq.question }}</dt>
+                <dd>{{ faq.answer|linebreaks }}</dd>
             </div>
             {% endfor %}
         </dl>

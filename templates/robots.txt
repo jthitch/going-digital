@@ -7,3 +7,6 @@ Disallow: /payments/
 Disallow: /api/
 
 Sitemap: {{ sitemap_url }}
+
+# Machine-readable site summary for AI assistants
+# llms.txt: {{ llms_url }}

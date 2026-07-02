@@ -8,111 +8,8 @@
 <link rel="stylesheet" href="{% static 'css/homepage.css' %}">
 <link rel="stylesheet" href="{% static 'css/google-rating-badge.css' %}">
 
-<!-- Schema.org Structured Data for SEO -->
 <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "WebSite",
-      "@id": "https://goingdigital.co.uk/#website",
-      "url": "https://goingdigital.co.uk/",
-      "name": "Going Digital Photography Courses",
-      "description": "Professional photography courses and workshops for all skill levels. Learn photography from beginner to professional with Going Digital.",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "https://goingdigital.co.uk/photography-courses/?q={search_term_string}",
-        "query-input": "required name=search_term_string"
-      }
-    },
-    {
-      "@type": "LocalBusiness",
-      "@id": "https://goingdigital.co.uk/#business",
-      "name": "Going Digital",
-      "image": "https://goingdigital.co.uk/static/img/logo/logo-dark.png",
-      "url": "https://goingdigital.co.uk",
-      "telephone": "",
-      "priceRange": "££",
-      "address": {
-        "@type": "PostalAddress",
-        "addressCountry": "GB"
-      },
-      "geo": {},
-      "sameAs": [],
-      "description": "Going Digital offers {% if course_count %}{{ course_count }}+ {% endif %}photography courses and workshops across the UK, from beginner to aspiring professional. Learn photography skills through hands-on training.",
-      "serviceArea": {
-        "@type": "Country",
-        "name": "United Kingdom"
-      },
-      "areaServed": {
-        "@type": "Country",
-        "name": "United Kingdom"
-      }
-    },
-    {
-      "@type": "FAQPage",
-      "@id": "https://goingdigital.co.uk/#faqpage",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "What photography courses are available near me?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Going Digital offers photography courses and workshops across the UK for all skill levels, from beginner to aspiring professional. Our courses include beginner photography courses, intermediate skills training, and advanced photography workshops. We cover various genres including portrait, landscape, wildlife, and sports photography. Visit goingdigital.co.uk to find photography courses in your area."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Where can I find photography workshops in my local area?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Going Digital provides photography workshops in multiple locations across the UK. Our photography workshops are designed for hands-on learning and are available for beginners through to advanced photographers. Check goingdigital.co.uk to find photography workshops near you, including residential photography courses and bespoke training options."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Are photography courses suitable for complete beginners?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Yes, Going Digital's photography courses are perfect for complete beginners. Our Level 1 courses, including 'Get Off Auto', are ideal for people new to photography or anyone not comfortable with all the features on their camera. We start with the basics and guide you through your photography journey step by step. All skill levels are welcome at goingdigital.co.uk."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "What is included in photography workshops?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Going Digital's photography workshops provide hands-on, practical learning experiences. Workshops include instructor-led sessions, real-world practice, before and after examples, and personalized feedback. Our workshops cover camera settings, composition techniques, lighting, and genre-specific photography skills. Visit goingdigital.co.uk to explore our range of photography workshops and courses."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "How do I book a photography course?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "You can book photography courses and workshops through Going Digital's website at goingdigital.co.uk. Browse our course listings by level, category, or location, select your preferred date and location, and complete your booking online. We offer courses for all skill levels from beginner to advanced, as well as residential photography courses and bespoke training options."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "What photography skills will I learn in a course?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Going Digital's photography courses teach essential skills including camera settings and manual controls, composition and framing techniques, understanding light and exposure, focusing and depth of field, and genre-specific techniques for portrait, landscape, wildlife, and sports photography. Advanced courses cover more complex techniques and professional workflows. Visit goingdigital.co.uk to see detailed course content."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Do you offer residential photography courses?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Yes, Going Digital offers immersive residential photography courses in stunning locations. These intensive photography experiences allow you to fully focus on developing your photography skills while exploring beautiful locations. Residential courses provide extended learning opportunities with expert guidance. Find out more about our residential photography courses at goingdigital.co.uk."
-          }
-        }
-      ]
-    }
-  ]
-}
+{{ homepage_schema_json|safe }}
 </script>
 {% endblock %}
 
@@ -356,6 +253,22 @@
     </div>
 </section>
 {% endif %}
+
+<!-- Call to Action Section -->
+<section class="homepage-faq" aria-labelledby="homepage-faq-heading">
+    <div class="container">
+        <h2 id="homepage-faq-heading">Common questions</h2>
+        <dl class="homepage-faq-list">
+            {% for question, answer in homepage_faq_items %}
+            <div class="homepage-faq-item">
+                <dt>{{ question }}</dt>
+                <dd>{{ answer }}</dd>
+            </div>
+            {% endfor %}
+        </dl>
+        <p class="homepage-faq-more"><a href="{% url 'courses:faq' %}">Read all frequently asked questions</a></p>
+    </div>
+</section>
 
 <!-- Call to Action Section -->
 <section class="cta-section">

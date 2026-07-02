@@ -9,6 +9,9 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=24">
+{% if course_list_schema_json %}
+<script type="application/ld+json">{{ course_list_schema_json|safe }}</script>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -97,6 +100,22 @@
         <!-- Infinite scroll sentinel - triggers load when visible -->
         <div id="infinite-scroll-sentinel" class="infinite-scroll-sentinel" aria-hidden="true"></div>
     </section>
+
+    {% if pagination_links %}
+    <nav class="course-list-pagination" aria-label="Course list pages">
+        <ul class="course-list-pagination__list">
+            {% for link in pagination_links %}
+            <li>
+                {% if link.current %}
+                <span aria-current="page">{{ link.number }}</span>
+                {% else %}
+                <a href="{{ link.url }}">{{ link.number }}</a>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </nav>
+    {% endif %}
     
     <!-- Infinite scroll loading indicator -->
     <div id="infinite-scroll-loading" class="infinite-scroll-loading hidden" aria-live="polite">

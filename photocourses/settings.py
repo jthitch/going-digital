@@ -99,6 +99,7 @@ _template_context_processors = [
     'bookings.context_processors.basket_context',
     'website.context_processors.google_reviews',
     'website.context_processors.newsletter_modal',
+    'website.context_processors.seo',
 ]
 if DEBUG:
     _template_context_processors.insert(0, 'django.template.context_processors.debug')

@@ -4,6 +4,7 @@ Course views - server-rendered for SEO.
 import json
 import random
 from pathlib import Path
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.staticfiles.storage import staticfiles_storage
@@ -32,6 +33,16 @@ from .workshop_querysets import (
     workshop_is_open_dated,
 )
 from website.models import GiftVoucherPageImage, HeroImage, BeforeAfterImage, FAQ
+from website.seo import (
+    HOMEPAGE_FAQ_ITEMS,
+    ORGANIZATION_NAME,
+    absolute_url,
+    breadcrumb_schema,
+    homepage_faq_schema,
+    local_business_schema,
+    site_base_url,
+)
+from website.google_reviews import get_google_reviews_display
 from .serializers import WorkshopSerializer
 from .display_images import attach_gd_images_to_workshops, collect_header_images, primary_image_url
 from .list_card import list_card_workshops, serialize_list_card
@@ -287,6 +298,42 @@ class HomePageView(TemplateView):
             Q(workshops__open_dated=1) | Q(workshops__date__gte=timezone.now())
         ).distinct().count()
         
+        google_reviews = get_google_reviews_display()
+        base = site_base_url(self.request)
+        course_count = context['course_count']
+        homepage_graph = [
+            {
+                '@type': 'WebSite',
+                '@id': f'{base}/#website',
+                'url': f'{base}/',
+                'name': f'{ORGANIZATION_NAME} Photography Courses',
+                'description': (
+                    f'Professional photography courses and workshops across the UK. '
+                    f'{course_count}+ courses for beginners through to advanced photographers.'
+                ),
+                'publisher': {'@id': f'{base}/#organization'},
+                'potentialAction': {
+                    '@type': 'SearchAction',
+                    'target': f'{base}/photography-courses/?q={{search_term_string}}',
+                    'query-input': 'required name=search_term_string',
+                },
+            },
+            local_business_schema(self.request, google_reviews=google_reviews),
+            homepage_faq_schema(base),
+        ]
+        context['homepage_schema_json'] = json.dumps(
+            {'@context': 'https://schema.org', '@graph': homepage_graph},
+            ensure_ascii=False,
+        )
+        context['homepage_faq_items'] = HOMEPAGE_FAQ_ITEMS
+        context['og_title'] = 'Photography Courses - Start Your Photography Journey'
+        context['og_description'] = (
+            f'Master photography from beginner to aspiring professional. '
+            f'{course_count}+ courses across the UK.'
+        )
+        context['og_url'] = f'{base}/'
+        context['canonical_url'] = f'{base}/'
+
         return context
 
 
@@ -588,6 +635,78 @@ class CourseListView(ListView):
         params = {k: v for k, v in self.request.GET.items() if k != 'page'}
         base = reverse('courses:course_list')
         context['infinite_scroll_url'] = (base + '?' + urlencode(params)) if params else base
+
+        filter_keys = ('q', 'category', 'level', 'city', 'date_from', 'date_to', 'instructor', 'view')
+        has_filters = any((self.request.GET.get(key) or '').strip() for key in filter_keys)
+        context['seo_noindex'] = has_filters
+        list_base = reverse('courses:course_list')
+        page_obj = context.get('page_obj')
+
+        def _list_page_url(page_number):
+            query = {k: v for k, v in self.request.GET.items() if k != 'page' and v}
+            if page_number > 1:
+                query['page'] = str(page_number)
+            qs = urlencode(query)
+            path = f'{list_base}?{qs}' if qs else list_base
+            return self.request.build_absolute_uri(path)
+
+        if has_filters:
+            context['canonical_url'] = self.request.build_absolute_uri(list_base)
+        elif page_obj:
+            context['canonical_url'] = _list_page_url(page_obj.number)
+            if page_obj.has_previous():
+                context['seo_prev_url'] = _list_page_url(page_obj.previous_page_number())
+            if page_obj.has_next():
+                context['seo_next_url'] = _list_page_url(page_obj.next_page_number())
+        else:
+            context['canonical_url'] = self.request.build_absolute_uri(list_base)
+
+        context['og_title'] = 'Browse Photography Courses Across the UK'
+        context['og_description'] = (
+            'Browse hands-on photography courses and workshops across the UK. '
+            'Filter by date, skill level, category, or map.'
+        )
+        context['og_url'] = context['canonical_url']
+
+        courses_on_page = list(context.get('courses') or [])
+        if courses_on_page:
+            item_list = [
+                {
+                    '@type': 'ListItem',
+                    'position': index,
+                    'name': course.title,
+                    'url': absolute_url(
+                        self.request,
+                        'courses:course_detail',
+                        kwargs={'slug': course.slug},
+                    ),
+                }
+                for index, course in enumerate(courses_on_page, start=1)
+            ]
+            context['course_list_schema_json'] = json.dumps(
+                {
+                    '@context': 'https://schema.org',
+                    '@type': 'CollectionPage',
+                    'name': 'Photography Courses',
+                    'description': context['og_description'],
+                    'url': context['canonical_url'],
+                    'mainEntity': {
+                        '@type': 'ItemList',
+                        'itemListElement': item_list,
+                    },
+                },
+                ensure_ascii=False,
+            )
+
+        pagination_links = []
+        if page_obj and page_obj.paginator.num_pages > 1 and not has_filters:
+            for num in page_obj.paginator.page_range:
+                pagination_links.append({
+                    'number': num,
+                    'url': _list_page_url(num),
+                    'current': num == page_obj.number,
+                })
+        context['pagination_links'] = pagination_links
         
         return context
 
@@ -670,6 +789,48 @@ class VenueDetailView(DetailView):
         context['meta_title'] = (
             (gd_content.meta_title or '').strip() if gd_content else ''
         ) or f"{venue.venue_name} - Photography Courses Venue"
+        venue_url = absolute_url(
+            self.request,
+            'courses:venue_detail',
+            kwargs={'location_slug': venue.slug},
+        )
+        context['canonical_url'] = venue_url
+        context['og_title'] = context['meta_title']
+        context['og_description'] = context['meta_description']
+        context['og_url'] = venue_url
+        if context['venue_images']:
+            context['og_image'] = self.request.build_absolute_uri(context['venue_images'][0].image.url)
+
+        place_schema = {
+            '@type': 'Place',
+            'name': venue.venue_name,
+            'description': context['meta_description'],
+            'url': venue_url,
+            'address': {
+                '@type': 'PostalAddress',
+                'streetAddress': venue.venue_address or '',
+                'addressLocality': venue.location or '',
+                'addressCountry': 'GB',
+            },
+        }
+        if venue.latitude and venue.longitude:
+            place_schema['geo'] = {
+                '@type': 'GeoCoordinates',
+                'latitude': float(venue.latitude),
+                'longitude': float(venue.longitude),
+            }
+        graph = [
+            place_schema,
+            breadcrumb_schema([
+                ('Photography courses', absolute_url(self.request, 'courses:course_list')),
+                ('Venues', absolute_url(self.request, 'courses:venue_list')),
+                (venue.venue_name, None),
+            ]),
+        ]
+        context['venue_schema_json'] = json.dumps(
+            {'@context': 'https://schema.org', '@graph': graph},
+            ensure_ascii=False,
+        )
         return context
 
 
@@ -793,28 +954,50 @@ class CourseDetailView(DetailView):
         context['meta_title'] = course.meta_title or f"{course.title} - Photography Courses"
         context['meta_description'] = course.meta_description or course.short_description
         context['meta_keywords'] = course.meta_keywords or f"{course.category}, {course.level}, photography course"
+
+        if context.get('is_location_specific') and getattr(course, '_filtered_location_slug', None):
+            context['canonical_url'] = absolute_url(
+                self.request,
+                'courses:course_detail_by_location',
+                kwargs={'slug': course.slug, 'location_slug': course._filtered_location_slug},
+            )
+        else:
+            context['canonical_url'] = absolute_url(
+                self.request,
+                'courses:course_detail',
+                kwargs={'slug': course.slug},
+            )
+        context['og_title'] = context['meta_title']
+        context['og_description'] = course.short_description or context['meta_description']
+        context['og_url'] = context['canonical_url']
+        context['og_type'] = 'product'
         
         featured = context.get('featured_instance')
         if featured:
             attach_gd_images_to_workshops([featured])
-        context['header_images'] = collect_header_images(
+        header_images = collect_header_images(
             course,
             workshop=featured if context.get('is_location_specific') else None,
         )
+        context['header_images'] = header_images
+        if header_images:
+            context['og_image'] = self.request.build_absolute_uri(header_images[0].url)
+        elif course.image and course.image.url:
+            context['og_image'] = self.request.build_absolute_uri(course.image.url)
         
         return context
     
     def get_schema_data(self, course):
         """Generate JSON-LD structured data for schema.org."""
-        import json
-        from decimal import Decimal
-        
         course_schema = {
-            "@context": "https://schema.org",
             "@type": "Course",
             "name": course.title,
             "description": course.description,
-            "provider": {"@type": "Organization", "name": "Photography Courses"},
+            "provider": {
+                "@type": "Organization",
+                "name": ORGANIZATION_NAME,
+                "url": site_base_url(self.request),
+            },
             "courseCode": course.slug,
             "educationalLevel": course.get_level_display(),
             "coursePrerequisites": course.prerequisites or None,
@@ -885,12 +1068,33 @@ class CourseDetailView(DetailView):
                     for faq in course.faqs.all()
                 ]
             }
-        
-        schemas = [course_schema]
+
+        breadcrumb_items = [
+            ('Photography courses', absolute_url(self.request, 'courses:course_list')),
+        ]
+        location_slug = getattr(course, '_filtered_location_slug', None)
+        if location_slug:
+            breadcrumb_items.append(
+                (course.title, absolute_url(self.request, 'courses:course_detail', kwargs={'slug': course.slug})),
+            )
+            instances = getattr(course, '_filtered_instances', [])
+            venue_name = (
+                instances[0].venue.name
+                if instances and instances[0].venue
+                else location_slug.replace('-', ' ').title()
+            )
+            breadcrumb_items.append((venue_name, None))
+        else:
+            breadcrumb_items.append((course.title, None))
+
+        graph = [course_schema, breadcrumb_schema(breadcrumb_items)]
         if faq_schema:
-            schemas.append(faq_schema)
-        
-        return json.dumps(schemas, indent=2)
+            graph.append(faq_schema)
+
+        return json.dumps(
+            {'@context': 'https://schema.org', '@graph': graph},
+            ensure_ascii=False,
+        )
 
 
 class CourseSearchAPIView(APIView):
@@ -1150,8 +1354,31 @@ class RobotsTxtView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['sitemap_url'] = self.request.build_absolute_uri(reverse('sitemap'))
+        context['llms_url'] = self.request.build_absolute_uri(reverse('llms_txt'))
         return context
 
     def render_to_response(self, context, **response_kwargs):
         response_kwargs.setdefault('content_type', 'text/plain')
+        return super().render_to_response(context, **response_kwargs)
+
+
+class LlmsTxtView(TemplateView):
+    """Machine-readable site summary for answer engines (llms.txt)."""
+    template_name = 'llms.txt'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        base = site_base_url(self.request)
+        context['site_base_url'] = base
+        context['course_count'] = Course.objects.filter(active=True).count()
+        context['faq_url'] = absolute_url(self.request, 'courses:faq')
+        context['course_list_url'] = absolute_url(self.request, 'courses:course_list')
+        context['contact_url'] = absolute_url(self.request, 'courses:contact')
+        context['gift_vouchers_url'] = absolute_url(self.request, 'courses:gift_vouchers')
+        context['site_map_url'] = absolute_url(self.request, 'courses:site_map')
+        context['xml_sitemap_url'] = self.request.build_absolute_uri(reverse('sitemap'))
+        return context
+
+    def render_to_response(self, context, **response_kwargs):
+        response_kwargs.setdefault('content_type', 'text/plain; charset=utf-8')
         return super().render_to_response(context, **response_kwargs)

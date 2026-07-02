@@ -11,7 +11,7 @@ from django.views.generic import RedirectView
 from django.contrib.staticfiles.storage import staticfiles_storage
 
 from courses.sitemaps import StaticViewSitemap, CourseOverviewSitemap, WorkshopSitemap, VenueSitemap
-from courses.views import RobotsTxtView
+from courses.views import RobotsTxtView, LlmsTxtView
 from core.forms import GdUserPasswordResetForm
 from core.views_newsletter import NewsletterSubscribeView
 from website.views import DevSiteAccessView
@@ -56,6 +56,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('favicon.ico', RedirectView.as_view(url=staticfiles_storage.url('img/favicon/favicon.png'), permanent=True)),
     path('robots.txt', RobotsTxtView.as_view(), name='robots_txt'),
+    path('llms.txt', LlmsTxtView.as_view(), name='llms_txt'),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='sitemap'),
     path('', include('courses.urls')),
     path('account/', include('core.urls')),

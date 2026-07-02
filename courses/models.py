@@ -805,6 +805,8 @@ class Workshop(models.Model):
     # Compatibility properties for code expecting CourseInstance-like API
     @property
     def start_date(self):
+        if self.open_dated:
+            return None
         return self.date
 
     @property

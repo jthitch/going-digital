@@ -25,7 +25,7 @@ urlpatterns = [
 
     # FAQ page (frequently-asked-questions matches original site URL for SEO)
     path('frequently-asked-questions/', views.FAQView.as_view(), name='faq'),
-    path('faq/', RedirectView.as_view(pattern_name='courses:faq', permanent=False)),
+    path('faq/', RedirectView.as_view(pattern_name='courses:faq', permanent=True)),
 
     # Terms and conditions (matches original site URL for SEO)
     path('terms-and-conditions/', views.TermsAndConditionsView.as_view(), name='terms_and_conditions'),

@@ -21,6 +21,9 @@ DEV_SITE_SESSION_KEY = 'dev_site_access_granted'
 # Paths that must not require the dev passcode (no browser session, e.g. Stripe CLI webhooks).
 DEV_SITE_ACCESS_EXEMPT_PREFIXES = (
     '/payments/webhook/',
+    '/robots.txt',
+    '/llms.txt',
+    '/sitemap.xml',
 )
 
 

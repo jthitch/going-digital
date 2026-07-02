@@ -1,5 +1,8 @@
 """Template context for website-wide UI."""
+from django.conf import settings as django_settings
 from django.templatetags.static import static
+
+from website.seo import DEFAULT_OG_IMAGE_STATIC, site_base_url
 
 
 def google_reviews(request):
@@ -44,4 +47,16 @@ def newsletter_modal(request):
             'desktop_bg_size': settings.desktop_background_size,
             'mobile_bg_size': settings.mobile_background_size,
         },
+    }
+
+
+def seo(request):
+    """Site-wide SEO defaults for templates."""
+    base = site_base_url(request)
+    return {
+        'site_base_url': base,
+        'seo_default_og_image': request.build_absolute_uri(static(DEFAULT_OG_IMAGE_STATIC)),
+        'seo_staging_noindex': getattr(
+            django_settings, 'DEV_SITE_ACCESS_ENABLED', django_settings.DEBUG,
+        ),
     }

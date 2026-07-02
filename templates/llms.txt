@@ -1,0 +1,41 @@
+# Going Digital — llms.txt
+# Guidance for AI assistants and answer engines summarising this site.
+
+# {{ site_base_url }}
+
+> Going Digital runs hands-on photography courses and workshops across the United Kingdom for beginners through to advanced photographers. Customers browse courses online, choose a venue and date, and book securely online. Gift vouchers are available.
+
+## Primary pages
+
+- Home: {{ site_base_url }}/
+- Browse courses: {{ course_list_url }}
+- FAQ: {{ faq_url }}
+- Venues: {{ site_base_url }}/venues/
+- Gift vouchers: {{ gift_vouchers_url }}
+- Contact: {{ contact_url }}
+- Human-readable site map: {{ site_map_url }}
+- XML sitemap: {{ xml_sitemap_url }}
+
+## Booking
+
+1. Open a course page or venue-specific workshop page.
+2. Select an available date (some one-to-one courses are open dated — date agreed after booking).
+3. Complete checkout; payment is processed via Stripe.
+4. Account area: {{ site_base_url }}/account/ for bookings.
+
+## Content scope
+
+- Approximately {{ course_count }} active photography courses.
+- Course levels include beginner, intermediate, advanced, masterclass, and various.
+- Categories include landscape, portrait, wildlife, editing, and more.
+- Workshop pages include venue, pricing, availability, and instructor information where set.
+
+## Policies
+
+- Terms: {{ site_base_url }}/terms-and-conditions/
+- Privacy: {{ site_base_url }}/privacy-policy/
+
+## Optional
+
+- Do not index staging environments protected by a passcode.
+- Admin and checkout URLs are disallowed in robots.txt.
