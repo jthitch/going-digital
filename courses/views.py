@@ -946,6 +946,15 @@ class CourseDetailView(DetailView):
         context['min_price'] = min(prices) if prices else None
         context['has_multiple_prices'] = len(set(prices)) > 1 if prices else False
 
+        bookable_instances = [
+            instance for instance in instances_list
+            if instance.enrollment_open and not instance.is_full
+        ]
+        context['bookable_instance_count'] = len(bookable_instances)
+        context['single_bookable_instance'] = (
+            bookable_instances[0] if len(bookable_instances) == 1 else None
+        )
+
         context['instances_date_min'] = min(filter_dates) if filter_dates else None
         context['instances_date_max'] = max(filter_dates) if filter_dates else None
         context['show_instance_filters'] = len(all_instances) > 1

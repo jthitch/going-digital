@@ -89,8 +89,14 @@
         </div>
         {% endif %}
         <div class="fact-item fact-item-see-courses">
-            {% if is_location_specific and featured_instance and featured_instance.enrollment_open and not featured_instance.is_full %}
-            <a href="{% url 'bookings:create' featured_instance.id %}" class="btn-see-courses btn-book-now-desktop">Book Now - £{{ featured_instance.price }}</a>
+            {% if is_location_specific and bookable_instance_count %}
+                {% if single_bookable_instance %}
+            <a href="{% url 'bookings:create' single_bookable_instance.id %}" class="btn-see-courses btn-book-now-desktop">Book Now - £{{ single_bookable_instance.price }}</a>
+                {% else %}
+            <a href="#available-dates-locations" class="btn-see-courses btn-book-now-desktop">Choose a date</a>
+                {% endif %}
+            {% elif is_location_specific %}
+            <a href="#available-dates-locations" class="btn-see-courses btn-see-courses-overview">See dates</a>
             {% else %}
             <a href="#available-dates-locations" class="btn-see-courses btn-see-courses-overview">See courses</a>
             {% endif %}
@@ -245,6 +251,9 @@
     {% if is_location_specific %}
     <section class="course-instances course-instances--workshop-page" id="available-dates-locations">
         {% if instances_by_city %}
+        {% if bookable_instance_count > 1 %}
+        <h2 class="workshop-book-list__title">Choose your date</h2>
+        {% endif %}
         <ul class="workshop-book-list">
             {% for city, instances in instances_by_city.items %}
             {% for instance in instances %}
@@ -406,10 +415,14 @@
 <!-- React component for booking (progressive enhancement) -->
 <div id="booking-widget" data-course-instance-id="{% if featured_instance %}{{ featured_instance.id }}{% endif %}"></div>
 
-{% if is_location_specific and featured_instance and featured_instance.enrollment_open and not featured_instance.is_full %}
+{% if is_location_specific and bookable_instance_count %}
 <!-- Floating Book Now bar - mobile only, hides when user scrolls to booking section -->
 <div id="floating-book-bar" class="floating-book-bar">
-    <a href="{% url 'bookings:create' featured_instance.id %}" class="floating-book-btn">Book Now - £{{ featured_instance.price }}</a>
+    {% if single_bookable_instance %}
+    <a href="{% url 'bookings:create' single_bookable_instance.id %}" class="floating-book-btn">Book Now - £{{ single_bookable_instance.price }}</a>
+    {% else %}
+    <a href="#available-dates-locations" class="floating-book-btn floating-book-btn--choose-date">Choose a date</a>
+    {% endif %}
 </div>
 {% endif %}
 {% endblock %}
@@ -659,6 +672,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
+{% endif %}
+{% if is_location_specific and bookable_instance_count %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var floatingBar = document.getElementById('floating-book-bar');

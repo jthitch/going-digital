@@ -8,7 +8,7 @@
 <!-- Leaflet CSS for map -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=24">
+<link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=29">
 {% if course_list_schema_json %}
 <script type="application/ld+json">{{ course_list_schema_json|safe }}</script>
 {% endif %}
@@ -182,6 +182,7 @@ function showGridView() {
     
     clearMapSidebarFilter();
     closeCourseFilterModal();
+    closeCourseSearchPanel();
     
     document.body.classList.remove('map-view-active');
     syncMapViewToggleButtons(false);
@@ -251,7 +252,46 @@ function setupCategoryFilterExpand(moreBtnId, extraId) {
     }
 }
 
+function closeCourseSearchPanel() {
+    var bar = document.getElementById('course-filter-bar');
+    var panel = document.getElementById('course-search-panel');
+    var openBtn = document.getElementById('course-search-open');
+    var backdrop = document.getElementById('course-search-backdrop');
+    if (!bar || !panel) return;
+    panel.hidden = true;
+    bar.classList.remove('is-search-open');
+    document.body.classList.remove('map-filter-search-open');
+    if (backdrop) backdrop.hidden = true;
+    if (openBtn) {
+        openBtn.setAttribute('aria-expanded', 'false');
+        openBtn.focus();
+    }
+}
+
+function openCourseSearchPanel() {
+    var bar = document.getElementById('course-filter-bar');
+    var panel = document.getElementById('course-search-panel');
+    var openBtn = document.getElementById('course-search-open');
+    var backdrop = document.getElementById('course-search-backdrop');
+    if (!bar || !panel) return;
+    panel.hidden = false;
+    bar.classList.add('is-search-open');
+    document.body.classList.add('map-filter-search-open');
+    if (window.matchMedia('(max-width: 767px)').matches && backdrop) {
+        backdrop.hidden = false;
+    }
+    if (openBtn) openBtn.setAttribute('aria-expanded', 'true');
+    var searchInput = panel.querySelector('input[name="q"]');
+    if (searchInput) {
+        setTimeout(function() { searchInput.focus(); }, 50);
+    }
+    if (window.initMapDateRangePickers) {
+        window.initMapDateRangePickers(panel);
+    }
+}
+
 function openCourseFilterModal() {
+    closeCourseSearchPanel();
     var modal = document.getElementById('course-filter-modal');
     var openBtn = document.getElementById('course-filters-open');
     if (!modal) return;
@@ -277,11 +317,40 @@ function closeCourseFilterModal() {
 }
 
 function setupCourseFilterBar() {
+    var openSearchBtn = document.getElementById('course-search-open');
+    var closeSearchBtn = document.getElementById('course-search-close');
+    var searchBackdrop = document.getElementById('course-search-backdrop');
     var openBtn = document.getElementById('course-filters-open');
     var closeBtn = document.getElementById('course-filter-modal-close');
     var backdrop = document.getElementById('course-filter-modal-backdrop');
     var quickForm = document.getElementById('course-filter-quick-form');
-    var searchInput = quickForm ? quickForm.querySelector('input[name="q"]') : null;
+    var searchPanel = document.getElementById('course-search-panel');
+    var searchInput = searchPanel ? searchPanel.querySelector('input[name="q"]') : null;
+
+    if (openSearchBtn) {
+        openSearchBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var bar = document.getElementById('course-filter-bar');
+            if (document.body.classList.contains('map-filter-search-open')) {
+                closeCourseSearchPanel();
+            } else {
+                openCourseSearchPanel();
+            }
+        });
+    }
+    if (closeSearchBtn) closeSearchBtn.addEventListener('click', closeCourseSearchPanel);
+    if (searchBackdrop) searchBackdrop.addEventListener('click', closeCourseSearchPanel);
+
+    if (searchPanel) {
+        searchPanel.querySelectorAll('.search-panel-field__select, .map-filter-select').forEach(function(select) {
+            select.addEventListener('mousedown', function(e) {
+                e.stopPropagation();
+            });
+            select.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+        });
+    }
 
     if (openBtn) {
         openBtn.addEventListener('click', function(e) {
@@ -304,6 +373,10 @@ function setupCourseFilterBar() {
             if (document.querySelector('.flatpickr-calendar.open')) return;
             if (document.body.classList.contains('map-filter-modal-open')) {
                 closeCourseFilterModal();
+                return;
+            }
+            if (document.body.classList.contains('map-filter-search-open')) {
+                closeCourseSearchPanel();
             }
         }
     });
