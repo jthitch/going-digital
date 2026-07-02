@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.views import View
 
 from bookings.models import Booking
+from core.models import Customer
 
 from bookings.calendar import attach_calendar_to_booking, calendar_data_for_booking
 from bookings.suggested_courses import suggested_courses_for_user_bookings
@@ -20,6 +21,8 @@ from core.customer_auth import (
 )
 from core.forms_student import (
     CompleteAccountPasswordForm,
+    CustomerPasswordResetConfirmForm,
+    CustomerPasswordResetRequestForm,
     StudentLoginForm,
     StudentSignupForm,
 )
@@ -219,6 +222,91 @@ class CompleteAccountSetupView(View):
             'setup': setup,
             'form': form,
         })
+
+
+class CustomerPasswordResetView(View):
+    template_name = 'account/password_reset.html'
+
+    def get(self, request):
+        if is_customer_authenticated(request):
+            return redirect(reverse('account:my_bookings'))
+        return render(request, self.template_name, {
+            'form': CustomerPasswordResetRequestForm(),
+        })
+
+    def post(self, request):
+        if is_customer_authenticated(request):
+            return redirect(reverse('account:my_bookings'))
+
+        form = CustomerPasswordResetRequestForm(request.POST)
+        if form.is_valid():
+            from core.customer_password_reset import (
+                eligible_for_password_reset,
+                send_customer_password_reset_email,
+            )
+
+            email = form.cleaned_data['email']
+            customer = Customer.objects.filter(email__iexact=email).first()
+            if customer and eligible_for_password_reset(customer):
+                try:
+                    send_customer_password_reset_email(customer, request)
+                except Exception:
+                    messages.error(
+                        request,
+                        'We could not send a reset email right now. Please try again later.',
+                    )
+                    return render(request, self.template_name, {'form': form})
+            return redirect(reverse('account:password_reset_done'))
+
+        return render(request, self.template_name, {'form': form})
+
+
+class CustomerPasswordResetDoneView(View):
+    template_name = 'account/password_reset_done.html'
+
+    def get(self, request):
+        return render(request, self.template_name)
+
+
+class CustomerPasswordResetConfirmView(View):
+    template_name = 'account/password_reset_confirm.html'
+    invalid_template_name = 'account/password_reset_invalid.html'
+
+    def get(self, request, token):
+        from core.customer_password_reset import customer_for_reset_token
+
+        customer = customer_for_reset_token(token)
+        if not customer:
+            return render(request, self.invalid_template_name)
+        return render(request, self.template_name, {
+            'form': CustomerPasswordResetConfirmForm(customer=customer),
+            'token': token,
+        })
+
+    def post(self, request, token):
+        from core.customer_password_reset import customer_for_reset_token
+
+        customer = customer_for_reset_token(token)
+        if not customer:
+            return render(request, self.invalid_template_name)
+
+        form = CustomerPasswordResetConfirmForm(request.POST, customer=customer)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Your password has been updated. You can sign in now.')
+            return redirect(reverse('account:password_reset_complete'))
+
+        return render(request, self.template_name, {
+            'form': form,
+            'token': token,
+        })
+
+
+class CustomerPasswordResetCompleteView(View):
+    template_name = 'account/password_reset_complete.html'
+
+    def get(self, request):
+        return render(request, self.template_name)
 
 
 def student_logout(request):

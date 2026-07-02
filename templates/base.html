@@ -41,14 +41,6 @@
                         </a>
                         <span class="nav-gift-label">Giftcards</span>
                     </div>
-                    {% if request.customer %}
-                    <form method="post" action="{% url 'account:logout' %}" class="nav-logout-form nav-logout-form--desktop">
-                        {% csrf_token %}
-                        <button type="submit" class="nav-logout-btn">Sign out</button>
-                    </form>
-                    {% else %}
-                    <a href="{% url 'account:login' %}" class="nav-link-item">Sign in</a>
-                    {% endif %}
                 </div>
                 <div class="nav-mobile-gift">
                     <div class="nav-gift-wrap">
@@ -63,20 +55,20 @@
                         <span class="burger-line"></span>
                     </button>
                     <div id="nav-menu" class="nav-menu" aria-hidden="true">
+                        {% if request.customer %}
+                        <form method="post" action="{% url 'account:logout' %}" class="nav-logout-form">
+                            {% csrf_token %}
+                            <button type="submit" class="nav-logout-btn">Sign out</button>
+                        </form>
+                        {% else %}
+                        <a href="{% url 'account:login' %}">Sign in</a>
+                        <a href="{% url 'account:signup' %}">Sign up</a>
+                        {% endif %}
                         <a href="{% url 'courses:course_list' %}" class="nav-menu-mobile-only">Explore Courses</a>
                         {% if request.customer %}
                         <a href="{% url 'account:my_bookings' %}" class="nav-menu-mobile-only">My bookings</a>
                         {% endif %}
                         <a href="{% url 'courses:gift_vouchers' %}" class="nav-menu-mobile-only">Gift Vouchers</a>
-                        {% if request.customer %}
-                        <form method="post" action="{% url 'account:logout' %}" class="nav-logout-form nav-menu-mobile-only">
-                            {% csrf_token %}
-                            <button type="submit" class="nav-logout-btn">Sign out</button>
-                        </form>
-                        {% else %}
-                        <a href="{% url 'account:login' %}" class="nav-menu-mobile-only">Sign in</a>
-                        <a href="{% url 'account:signup' %}" class="nav-menu-mobile-only">Sign up</a>
-                        {% endif %}
                         <a href="{% url 'bookings:basket' %}">Basket{% if basket_item_count %} ({{ basket_item_count }}){% endif %}</a>
                         <a href="{% url 'courses:venue_list' %}">Venues</a>
                         <a href="{% url 'courses:faq' %}">FAQ</a>

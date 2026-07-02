@@ -133,8 +133,8 @@
                         </address>
                     </div>
                     {% endif %}
-                    {% if featured_instance.byline %}
-                        {{ featured_instance.byline|safe }}
+                    {% if featured_instance.byline_display_html %}
+                        {{ featured_instance.byline_display_html|safe }}
                     {% elif not v or not v.venue_address and not v.location %}
                         <p class="course-tab-empty">Workshop details are not available yet.</p>
                     {% endif %}
@@ -242,6 +242,46 @@
     <div class="google-rating-badge-wrap">
         {% include 'partials/google_rating_badge.html' %}
     </div>
+    {% if is_location_specific %}
+    <section class="course-instances course-instances--workshop-page" id="available-dates-locations">
+        {% if instances_by_city %}
+        <ul class="workshop-book-list">
+            {% for city, instances in instances_by_city.items %}
+            {% for instance in instances %}
+            <li class="workshop-book-card">
+                <div class="workshop-book-card__details">
+                    <p class="workshop-book-card__location">
+                        <span class="location-tag location-tag-venue">{{ instance.location.name }}</span>
+                    </p>
+                    <p class="workshop-book-card__datetime">
+                        {% if instance.is_open_dated %}
+                        <strong>Date by arrangement</strong>
+                        <span>Agreed with your tutor after booking</span>
+                        {% else %}
+                        <strong>{{ instance.start_date|date:"d F Y" }}</strong>
+                        <span>{{ instance.start_date|date:"g:i A" }} – {{ instance.end_date|date:"g:i A" }}</span>
+                        {% endif %}
+                    </p>
+                    <p class="workshop-book-card__spaces">Spaces: {{ instance.spaces_available }} available</p>
+                </div>
+                <div class="workshop-book-card__action">
+                    {% if instance.is_full %}
+                    <span class="status-badge full">Fully Booked</span>
+                    {% elif instance.enrollment_open %}
+                    <a href="{% url 'bookings:create' instance.id %}" class="btn-book btn-primary">Book Now - £{{ instance.price }}</a>
+                    {% else %}
+                    <span class="status-badge closed">Enrollment Closed</span>
+                    {% endif %}
+                </div>
+            </li>
+            {% endfor %}
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No upcoming dates available at this time. Please check back soon or contact us for more information.</p>
+        {% endif %}
+    </section>
+    {% else %}
     <section class="course-instances" id="available-dates-locations">
         <h2>Available Dates & Locations</h2>
         {% if instances_by_city %}
@@ -321,9 +361,15 @@
                         {% if instance.byline_plain %}
                         <div class="instance-col-byline">
                             <div class="instance-byline" data-byline-expandable>
-                                <div class="instance-byline-preview">{{ instance.byline_preview_80|linebreaksbr }}</div>
-                                {% if instance.byline_needs_expand %}
-                                <div class="instance-byline-full" hidden>{{ instance.byline|safe }}</div>
+                                <div class="instance-byline-preview">
+                                    {% if instance.byline_needs_expand %}
+                                    {{ instance.byline_preview_80|linebreaksbr }}
+                                    {% else %}
+                                    {{ instance.byline_display_html|safe }}
+                                {% endif %}
+                            </div>
+                            {% if instance.byline_needs_expand %}
+                            <div class="instance-byline-full" hidden>{{ instance.byline_display_html|safe }}</div>
                                 <button type="button" class="instance-byline-toggle" aria-expanded="false">See more</button>
                                 {% endif %}
                             </div>
@@ -339,6 +385,7 @@
             <p>No upcoming dates available at this time. Please check back soon or contact us for more information.</p>
         {% endif %}
     </section>
+    {% endif %}
     
     <!-- FAQs (JSON-LD provided in head; visible copy for users and AEO) -->
     {% if course.faqs.exists %}

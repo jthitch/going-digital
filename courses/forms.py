@@ -14,7 +14,7 @@ from django_recaptcha.widgets import ReCaptchaV2Checkbox
 from core.models import User
 
 from .display_images import workshop_gallery_image_ids
-from .gd_image_upload import validate_image_upload
+from .gd_image_upload import upload_help_text, validate_image_upload
 from .workshop_duplicate import CLONED_FROM_WORKSHOP_INITIAL_KEY
 from .models import (
     Content,
@@ -963,7 +963,7 @@ class WorkshopAdminForm(forms.ModelForm):
     image_upload = forms.ImageField(
         required=False,
         label='Upload image',
-        help_text='Optional. JPG, PNG, GIF, or WebP up to 10 MB.',
+        help_text=upload_help_text(),
     )
 
     class Meta:

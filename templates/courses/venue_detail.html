@@ -82,8 +82,8 @@
                             {% endif %}
                             {% endif %}
                         </span>
-                        {% if instance.byline %}
-                        <span class="instance-byline">{{ instance.byline|safe }}</span>
+                        {% if instance.byline_display_html %}
+                        <span class="instance-byline">{{ instance.byline_display_html|safe }}</span>
                         {% endif %}
                         <span class="instance-price">£{{ instance.price }}</span>
                     </a>

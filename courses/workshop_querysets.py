@@ -11,6 +11,16 @@ def workshop_is_open_dated(workshop):
     return bool(getattr(workshop, 'open_dated', 0))
 
 
+def workshop_checkout_date_label(workshop):
+    """Display date for checkout/Stripe; safe when workshop has no fixed date."""
+    if workshop_is_open_dated(workshop):
+        return OPEN_DATED_LABEL
+    start = getattr(workshop, 'start_date', None) or getattr(workshop, 'date', None)
+    if start:
+        return start.strftime('%d %B %Y')
+    return 'Date TBC'
+
+
 def bookable_workshop_visibility_q(*, now=None):
     """
     Workshops visible on the public site: active and either open-dated or scheduled ahead.

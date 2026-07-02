@@ -24,6 +24,7 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.views import View
 from bookings.models import Booking
 from bookings.gift_voucher_basket import get_basket
+from courses.workshop_querysets import workshop_checkout_date_label
 from bookings.workshop_basket import (
     apply_voucher_to_gd_basket,
     clear_voucher_from_gd_basket,
@@ -151,7 +152,7 @@ def _start_stripe_checkout(request, booking):
                             f"{booking.workshop.course.title if booking.workshop.course else 'Workshop'}"
                             f" - {booking.workshop.venue.name if booking.workshop.venue else 'TBC'}"
                         ),
-                        'description': f"Course on {booking.workshop.start_date.strftime('%d %B %Y')}",
+                        'description': f"Course on {workshop_checkout_date_label(booking.workshop)}",
                     },
                     'unit_amount': unit_amount,
                 },
@@ -353,7 +354,7 @@ def _start_stripe_basket_checkout(request, basket_id, ctx):
                     ),
                     'description': (
                         f"{booking.student_first_name} {booking.student_last_name} · "
-                        f"{workshop.start_date.strftime('%d %B %Y')}"
+                        f"{workshop_checkout_date_label(workshop)}"
                     ),
                 },
                 'unit_amount': int(booking.price_paid * 100),

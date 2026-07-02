@@ -356,7 +356,7 @@ body > header nav {
     background: var(--bg-secondary);
 }
 
-/* Desktop burger menu: only FAQ + Contact (Explore/Gift stay in the bar) */
+/* Desktop burger menu: auth + Basket, Venues, FAQ, Contact (Explore/Gift stay in the bar) */
 @media (min-width: 768px) {
     .nav-menu-mobile-only {
         display: none !important;
@@ -1129,6 +1129,94 @@ address.instance-address-inline {
     max-width: 16rem;
     text-align: center;
     box-sizing: border-box;
+}
+
+/* Location-specific workshop page: compact book panel */
+.course-instances--workshop-page {
+    margin-top: 0;
+}
+
+.workshop-book-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.workshop-book-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-primary);
+}
+
+.workshop-book-card__details {
+    flex: 1 1 14rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.workshop-book-card__location {
+    margin: 0;
+}
+
+.workshop-book-card__datetime {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.workshop-book-card__datetime strong {
+    font-size: 1.05rem;
+    color: var(--text-primary);
+}
+
+.workshop-book-card__datetime span {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+
+.workshop-book-card__spaces {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+
+.workshop-book-card__action {
+    flex: 0 0 auto;
+}
+
+.workshop-book-card__action .btn-book {
+    width: auto;
+    min-width: 12rem;
+    max-width: none;
+    white-space: nowrap;
+}
+
+.workshop-book-card__action .status-badge {
+    display: inline-block;
+}
+
+@media (max-width: 640px) {
+    .workshop-book-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .workshop-book-card__action .btn-book {
+        width: 100%;
+        min-width: 0;
+    }
 }
 
 .instance-col-byline {

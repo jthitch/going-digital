@@ -54,7 +54,11 @@
             </div>
 
             {% if form.non_field_errors %}
-            <div class="error-message" role="alert">{{ form.non_field_errors }}</div>
+            <div class="error-message" role="alert">
+                {% for error in form.non_field_errors %}
+                <p class="error-message-text">{{ error }}</p>
+                {% endfor %}
+            </div>
             {% endif %}
 
             <div class="account-form-actions">

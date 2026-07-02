@@ -865,9 +865,15 @@ class Workshop(models.Model):
 
     @property
     def byline_plain(self):
-        from django.utils.html import strip_tags
+        from courses.html_text import rich_html_to_plain_text
 
-        return strip_tags(self.byline or '').strip()
+        return rich_html_to_plain_text(self.byline or '')
+
+    @property
+    def byline_display_html(self):
+        from courses.html_text import rich_html_for_display
+
+        return rich_html_for_display(self.byline or '')
 
     @property
     def byline_needs_expand(self):
@@ -1243,6 +1249,13 @@ class CourseMedia(models.Model):
         if self.media_type == self.MEDIA_TYPE_VIDEO:
             return f"Video: {self.video_url or self.video_file.name or '—'}"
         return f"Course media #{self.id}"
+
+    def save(self, *args, **kwargs):
+        if self.media_type == self.MEDIA_TYPE_IMAGE and self.image:
+            from courses.image_optimize import optimize_django_field_file
+
+            optimize_django_field_file(self.image)
+        super().save(*args, **kwargs)
 
     @property
     def video_embed_url(self):

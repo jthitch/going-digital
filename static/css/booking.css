@@ -97,6 +97,17 @@
     margin-top: 0.5rem;
 }
 
+.error-message ul,
+.error-message .errorlist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.error-message li {
+    margin: 0;
+}
+
 .form-field-error-text,
 .error-message-text {
     margin: 0;
@@ -1336,6 +1347,26 @@
 .account-switch a {
     color: var(--primary-color);
     font-weight: 600;
+}
+
+.account-forgot-password {
+    margin: 0.5rem 0 0;
+    text-align: right;
+    font-size: 0.875rem;
+}
+
+.account-forgot-password a {
+    color: var(--primary-color);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.account-forgot-password a:hover {
+    text-decoration: underline;
+}
+
+.account-help--left {
+    text-align: left;
 }
 
 .account-section-title {

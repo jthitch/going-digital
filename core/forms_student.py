@@ -220,3 +220,69 @@ class CompleteAccountPasswordForm(forms.Form):
             firstname=self.setup.get('firstname'),
             lastname=self.setup.get('lastname'),
         )
+
+
+class CustomerPasswordResetRequestForm(forms.Form):
+    email = forms.EmailField(
+        label='Email',
+        widget=forms.EmailInput(attrs={
+            'class': 'booking-field-input',
+            'autocomplete': 'email',
+            'autofocus': True,
+        }),
+    )
+
+    def clean_email(self):
+        return self.cleaned_data['email'].strip().lower()
+
+
+class CustomerPasswordResetConfirmForm(forms.Form):
+    password1 = forms.CharField(
+        label='New password',
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'booking-field-input',
+            'autocomplete': 'new-password',
+            'autofocus': True,
+        }),
+    )
+    password2 = forms.CharField(
+        label='Confirm new password',
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'booking-field-input',
+            'autocomplete': 'new-password',
+        }),
+    )
+
+    def __init__(self, *args, customer=None, **kwargs):
+        self.customer = customer
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned = super().clean()
+        password1 = cleaned.get('password1')
+        password2 = cleaned.get('password2')
+        if password1 and password2 and password1 != password2:
+            self.add_error('password2', 'Passwords do not match.')
+        if password1 and self.customer:
+            validate_password(
+                password1,
+                Customer(
+                    email=self.customer.email,
+                    firstname=self.customer.firstname,
+                    lastname=self.customer.lastname,
+                ),
+            )
+        return cleaned
+
+    def save(self):
+        from core.customer_password_reset import clear_password_reset_token
+
+        customer = self.customer
+        customer.set_password(self.cleaned_data['password1'])
+        customer.guest_account = 0
+        customer.updated_at = timezone.now()
+        customer.save(update_fields=['password', 'guest_account', 'updated_at'])
+        clear_password_reset_token(customer)
+        return customer

@@ -3,6 +3,10 @@ from django.urls import path
 
 from core.views_student import (
     CompleteAccountSetupView,
+    CustomerPasswordResetCompleteView,
+    CustomerPasswordResetConfirmView,
+    CustomerPasswordResetDoneView,
+    CustomerPasswordResetView,
     StudentLoginView,
     StudentSignupView,
     booking_calendar_ics,
@@ -16,6 +20,18 @@ app_name = 'account'
 urlpatterns = [
     path('login/', StudentLoginView.as_view(), name='login'),
     path('signup/', StudentSignupView.as_view(), name='signup'),
+    path('password-reset/', CustomerPasswordResetView.as_view(), name='password_reset'),
+    path('password-reset/sent/', CustomerPasswordResetDoneView.as_view(), name='password_reset_done'),
+    path(
+        'password-reset/confirm/<str:token>/',
+        CustomerPasswordResetConfirmView.as_view(),
+        name='password_reset_confirm',
+    ),
+    path(
+        'password-reset/complete/',
+        CustomerPasswordResetCompleteView.as_view(),
+        name='password_reset_complete',
+    ),
     path('complete-setup/', CompleteAccountSetupView.as_view(), name='complete_setup'),
     path('join-community/', post_booking_community, name='post_booking_community'),
     path('logout/', student_logout, name='logout'),
