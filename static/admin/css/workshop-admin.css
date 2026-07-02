@@ -29,6 +29,33 @@ body.app-courses.model-workshop.add-form .card-body fieldset.module.aligned .for
     max-width: 100% !important;
 }
 
+/* Loaded after django autocomplete.css — explicit border for course/venue Select2 */
+body.app-courses.model-workshop.change-form .select2-container--admin-autocomplete .select2-selection--single,
+body.app-courses.model-workshop.add-form .select2-container--admin-autocomplete .select2-selection--single,
+body.app-courses.model-workshop.change-form .select2-container--admin-autocomplete .select2-selection--multiple,
+body.app-courses.model-workshop.add-form .select2-container--admin-autocomplete .select2-selection--multiple {
+    border: 1px solid #ced4da !important;
+    background-color: #fff;
+    border-radius: 0.375rem;
+    min-height: calc(1.5em + 0.75rem + 2px);
+}
+
+body.app-courses.model-workshop.change-form .select2-container--admin-autocomplete.select2-container--focus .select2-selection,
+body.app-courses.model-workshop.add-form .select2-container--admin-autocomplete.select2-container--focus .select2-selection,
+body.app-courses.model-workshop.change-form .select2-container--admin-autocomplete.select2-container--open .select2-selection,
+body.app-courses.model-workshop.add-form .select2-container--admin-autocomplete.select2-container--open .select2-selection {
+    border-color: #86b7fe !important;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+html[data-bs-theme="dark"] body.app-courses.model-workshop.change-form .select2-container--admin-autocomplete .select2-selection--single,
+html[data-bs-theme="dark"] body.app-courses.model-workshop.add-form .select2-container--admin-autocomplete .select2-selection--single,
+html[data-bs-theme="dark"] body.app-courses.model-workshop.change-form .select2-container--admin-autocomplete .select2-selection--multiple,
+html[data-bs-theme="dark"] body.app-courses.model-workshop.add-form .select2-container--admin-autocomplete .select2-selection--multiple {
+    border-color: #565e64 !important;
+    background-color: var(--bs-body-bg, #343a40);
+}
+
 body.app-courses.model-workshop.change-form .card-body,
 body.app-courses.model-workshop.add-form .card-body {
     overflow-x: hidden;
@@ -63,6 +90,27 @@ body.app-courses.model-workshop.add-form .field-cameras_available .custom-contro
     min-height: 1.5rem;
     padding-left: 2.25rem;
     margin-bottom: 0;
+}
+
+body.app-courses.model-workshop.change-form .form-group.field-active,
+body.app-courses.model-workshop.add-form .form-group.field-active {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.25rem;
+    background: #f8f9fa;
+    border: 1px solid var(--gd-dashboard-card-border, #dee2e6);
+    border-radius: 0.375rem;
+}
+
+html[data-bs-theme="dark"] body.app-courses.model-workshop.change-form .form-group.field-active,
+html[data-bs-theme="dark"] body.app-courses.model-workshop.add-form .form-group.field-active {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: var(--bs-border-color, #565e64);
+}
+
+/* Loan camera count — only when "Cameras available" is on */
+body.app-courses.model-workshop.change-form:not(:has(#id_cameras_available:checked)) .form-group.field-number_of_loan_cameras_available,
+body.app-courses.model-workshop.add-form:not(:has(#id_cameras_available:checked)) .form-group.field-number_of_loan_cameras_available {
+    display: none;
 }
 
 body.app-courses.model-workshop.change-form .field-strapline .cke,
@@ -367,4 +415,89 @@ body.app-courses.model-workshop.change-form .gd-workshop-customers-card .table-r
 body.app-courses.model-workshop.change-form .gd-workshop-customers-card #result_list {
     width: 100%;
     margin-bottom: 0;
+}
+
+/* Open dated workshops: hide date/time when no fixed date is required */
+body.app-courses.model-workshop.change-form .form-group.field-date:has(#id_open_dated:checked),
+body.app-courses.model-workshop.add-form .form-group.field-date:has(#id_open_dated:checked) {
+    display: none !important;
+}
+
+body.app-courses.model-workshop.change-form .field-open_dated,
+body.app-courses.model-workshop.add-form .field-open_dated {
+    margin-bottom: 0.5rem;
+}
+
+/* Workshop date/time field */
+body.app-courses.model-workshop.change-form .form-group.field-date .col-sm-9.field-date,
+body.app-courses.model-workshop.add-form .form-group.field-date .col-sm-9.field-date {
+    max-width: var(--workshop-control-width);
+}
+
+.gd-workshop-datetime {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    width: 100%;
+    max-width: var(--workshop-control-width, 24em);
+}
+
+.gd-workshop-datetime__part {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    flex: 1 1 10rem;
+    min-width: 0;
+}
+
+.gd-workshop-datetime__label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--gd-text-muted, #6c757d);
+}
+
+body.app-courses.model-workshop.change-form .gd-workshop-date-input,
+body.app-courses.model-workshop.add-form .gd-workshop-date-input,
+body.app-courses.model-workshop.change-form .gd-workshop-time-input,
+body.app-courses.model-workshop.add-form .gd-workshop-time-input {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    background: #fff;
+    color: #212529;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color-scheme: light;
+    cursor: pointer;
+}
+
+body.app-courses.model-workshop.change-form .gd-workshop-date-input::-webkit-calendar-picker-indicator,
+body.app-courses.model-workshop.add-form .gd-workshop-date-input::-webkit-calendar-picker-indicator,
+body.app-courses.model-workshop.change-form .gd-workshop-time-input::-webkit-calendar-picker-indicator,
+body.app-courses.model-workshop.add-form .gd-workshop-time-input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 1;
+}
+
+body.app-courses.model-workshop.change-form .gd-workshop-date-input:focus,
+body.app-courses.model-workshop.add-form .gd-workshop-date-input:focus,
+body.app-courses.model-workshop.change-form .gd-workshop-time-input:focus,
+body.app-courses.model-workshop.add-form .gd-workshop-time-input:focus {
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+html[data-bs-theme="dark"] body.app-courses.model-workshop.change-form .gd-workshop-date-input,
+html[data-bs-theme="dark"] body.app-courses.model-workshop.add-form .gd-workshop-date-input,
+html[data-bs-theme="dark"] body.app-courses.model-workshop.change-form .gd-workshop-time-input,
+html[data-bs-theme="dark"] body.app-courses.model-workshop.add-form .gd-workshop-time-input {
+    background: var(--bs-body-bg, #343a40);
+    border-color: var(--bs-border-color, #565e64);
+    color: var(--bs-body-color);
+    color-scheme: dark;
 }

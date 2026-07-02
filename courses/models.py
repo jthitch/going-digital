@@ -708,6 +708,7 @@ class Workshop(models.Model):
     number_of_loan_cameras_available = models.IntegerField(default=0, db_column='number_of_loan_cameras_available')
     sticky = models.SmallIntegerField(default=0, db_column='sticky')
     active = models.SmallIntegerField(db_column='active')
+    open_dated = models.SmallIntegerField(default=0, db_column='open_dated')
     checksum = models.CharField(max_length=32, null=True, blank=True, db_column='checksum')
     date = SafeDateTimeField(null=True, blank=True, db_column='date')
     cost = models.IntegerField(default=0, db_column='cost')
@@ -736,7 +737,18 @@ class Workshop(models.Model):
 
     def __str__(self):
         venue_name = self.venue.name if self.venue else 'Unknown'
-        return f"{self.course.title if self.course else 'Workshop'} - {venue_name} ({self.date.strftime('%d %B %Y') if self.date else '?'})"
+        if self.open_dated:
+            date_label = 'Open dated'
+        elif self.date:
+            date_label = self.date.strftime('%d %B %Y')
+        else:
+            date_label = '?'
+        course_title = self.course.title if self.course else 'Workshop'
+        return f"{course_title} - {venue_name} ({date_label})"
+
+    @property
+    def is_open_dated(self):
+        return bool(self.open_dated)
 
     def get_region_display(self):
         """Return region name from gd_region, or empty if unset."""

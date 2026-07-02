@@ -7,13 +7,18 @@ from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_GET
 
 from .admin_mixins import (
+    LegacyAuditAdminMixin,
     PlatformAdminOnlyMixin,
     RegionScopedCourseAdminMixin,
     RegionScopedVenueAdminMixin,
     RegionScopedWorkshopAdminMixin,
 )
 from .region_scope import user_can_access_workshop, user_has_full_region_access
-from .workshop_duplicate import duplicate_workshop_querystring, workshop_duplicate_initial
+from .workshop_duplicate import (
+    duplicate_workshop_querystring,
+    get_duplicate_source_workshop,
+    workshop_duplicate_initial,
+)
 from .forms import (
     CourseAdminForm,
     CourseCategoryAdminForm,
@@ -39,7 +44,7 @@ from .models import (
 
 
 @admin.register(Image)
-class ImageAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
+class ImageAdmin(LegacyAuditAdminMixin, PlatformAdminOnlyMixin, admin.ModelAdmin):
     """Edit gd_image records (course images, etc.)."""
     form = ImageAdminForm
     list_display = [
@@ -86,19 +91,9 @@ class ImageAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
     class Media:
         css = {'all': ('admin/css/image-admin.css',)}
 
-    def save_model(self, request, obj, form, change):
-        from django.utils import timezone
-        now = timezone.now()
-        if not change:
-            obj.createdby_id = request.user.id
-            obj.created_at = now
-        obj.updatedby_id = request.user.id
-        obj.updated_at = now
-        super().save_model(request, obj, form, change)
-
 
 @admin.register(Content)
-class ContentAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
+class ContentAdmin(LegacyAuditAdminMixin, PlatformAdminOnlyMixin, admin.ModelAdmin):
     """Edit gd_content records (course page content, meta, etc.)."""
     list_display = ['id', 'content_title', 'active', 'content_type_id', 'parent', 'created_at']
     list_filter = ['active', 'exclude_from_search']
@@ -128,19 +123,9 @@ class ContentAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
         }),
     ]
 
-    def save_model(self, request, obj, form, change):
-        from django.utils import timezone
-        now = timezone.now()
-        if not change:
-            obj.createdby_id = request.user.id
-            obj.created_at = now
-        obj.updatedby_id = request.user.id
-        obj.updated_at = now
-        super().save_model(request, obj, form, change)
-
 
 @admin.register(CourseSkillLevel)
-class CourseSkillLevelAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
+class CourseSkillLevelAdmin(LegacyAuditAdminMixin, PlatformAdminOnlyMixin, admin.ModelAdmin):
     form = CourseSkillLevelAdminForm
     list_display = ['level_name', 'active', 'display_order']
     list_display_links = ['level_name']
@@ -153,19 +138,9 @@ class CourseSkillLevelAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
     def level_name(self, obj):
         return LEVEL_DISPLAY_NAMES.get(obj.pk) or obj.skill_level or '—'
 
-    def save_model(self, request, obj, form, change):
-        from django.utils import timezone
-        now = timezone.now()
-        if not change:
-            obj.createdby_id = request.user.id
-            obj.created_at = now
-        obj.updatedby_id = request.user.id
-        obj.updated_at = now
-        super().save_model(request, obj, form, change)
-
 
 @admin.register(CourseCategory)
-class CourseCategoryAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
+class CourseCategoryAdmin(LegacyAuditAdminMixin, PlatformAdminOnlyMixin, admin.ModelAdmin):
     form = CourseCategoryAdminForm
     list_display = ['course_category', 'parent', 'active', 'exclude_from_course_list', 'display_order']
     list_filter = ['active', 'exclude_from_course_list']
@@ -192,16 +167,6 @@ class CourseCategoryAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
             )
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 
-    def save_model(self, request, obj, form, change):
-        from django.utils import timezone
-        now = timezone.now()
-        if not change:
-            obj.createdby_id = request.user.id
-            obj.created_at = now
-        obj.updatedby_id = request.user.id
-        obj.updated_at = now
-        super().save_model(request, obj, form, change)
-
 
 @admin.register(Instructor)
 class InstructorAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
@@ -220,7 +185,7 @@ class CourseMediaInline(admin.TabularInline):
 
 
 @admin.register(Course)
-class CourseAdmin(admin.ModelAdmin):
+class CourseAdmin(LegacyAuditAdminMixin, RegionScopedCourseAdminMixin, admin.ModelAdmin):
     """Course admin - maps to legacy gd_course table. Content editable inline."""
     form = CourseAdminForm
     change_form_template = 'admin/courses/course/change_form.html'
@@ -235,16 +200,10 @@ class CourseAdmin(admin.ModelAdmin):
     list_display = ['course_name', 'course_skill_level', 'course_category', 'active', 'created_at']
 
     def save_model(self, request, obj, form, change):
-        from django.utils import timezone
-        now = timezone.now()
-        if not change:
-            obj.createdby_id = request.user.id
-            obj.created_at = now
-        obj.updatedby_id = request.user.id
-        obj.updated_at = now
         super().save_model(request, obj, form, change)
         if hasattr(form, '_save_content') and form.cleaned_data:
             form._save_content(obj, request)
+
     list_filter = ['active', 'course_skill_level', 'course_category', 'created_at']
     search_fields = ['course_name', 'course_description', 'description_for_workshop', 'slug']
     prepopulated_fields = {'slug': ('course_name',)}
@@ -473,7 +432,8 @@ def duplicate_workshop_action(modeladmin, request, queryset):
 
 
 @admin.register(Workshop)
-class WorkshopAdmin(RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
+class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
+    audit_set_user_id_on_create = True
     form = WorkshopAdminForm
     change_form_template = 'admin/courses/workshop/change_form.html'
     actions = [duplicate_workshop_action]
@@ -485,7 +445,7 @@ class WorkshopAdmin(RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
         'region_name',
         'get_tutor_display',
         'get_assistant_display',
-        'date',
+        'workshop_schedule',
         'cost',
         'max_places',
         'spaces_booked_percent',
@@ -501,6 +461,42 @@ class WorkshopAdmin(RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
         'image_preview',
         'created_at',
         'updated_at',
+    ]
+    fieldsets = [
+        (None, {
+            'fields': (
+                'active',
+                'course',
+                'venue',
+                'region',
+                'open_dated',
+                'date',
+                'tutor',
+                'assistant',
+                'alt_course',
+                'workshop_type',
+                'cost',
+                'deposit_required',
+                'max_places',
+                'places_booked',
+                'cameras_available',
+                'number_of_loan_cameras_available',
+                'strapline',
+                'byline',
+                'blurb',
+                'comments',
+                'reminder_message',
+                'approve',
+                'image_preview',
+                'images',
+                'image_upload',
+                'user_display',
+                'createdby_display',
+                'updatedby_display',
+                'created_at',
+                'updated_at',
+            ),
+        }),
     ]
 
     def _fieldsets_without_bookings(self, fieldsets):
@@ -533,40 +529,20 @@ class WorkshopAdmin(RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
 
     def get_changeform_initial_data(self, request):
         initial = super().get_changeform_initial_data(request)
-        from_pk = request.GET.get('duplicate_from')
-        if not from_pk:
-            return initial
-        try:
-            from_pk = int(from_pk)
-        except (TypeError, ValueError):
-            return initial
-        source = (
-            Workshop.objects.filter(pk=from_pk)
-            .prefetch_related('gallery_images')
-            .select_related('course', 'venue')
-            .first()
-        )
-        if not source or not user_can_access_workshop(request.user, source):
-            return initial
-        initial.update(workshop_duplicate_initial(source))
+        source = get_duplicate_source_workshop(request, prefetch_gallery=True)
+        if source:
+            initial.update(workshop_duplicate_initial(source))
         return initial
 
     def add_view(self, request, form_url='', extra_context=None):
         extra_context = extra_context or {}
-        from_pk = request.GET.get('duplicate_from')
-        if from_pk:
-            try:
-                from_pk = int(from_pk)
-            except (TypeError, ValueError):
-                from_pk = None
-            if from_pk:
-                source = Workshop.objects.filter(pk=from_pk).select_related('course', 'venue').first()
-                if source and user_can_access_workshop(request.user, source):
-                    messages.info(
-                        request,
-                        f'Copied settings from {source}. Choose the new workshop date and save.',
-                    )
-                    extra_context['is_workshop_duplicate'] = True
+        source = get_duplicate_source_workshop(request)
+        if source:
+            messages.info(
+                request,
+                f'Copied settings from {source}. Set a date or mark as open dated, then save.',
+            )
+            extra_context['is_workshop_duplicate'] = True
         return super().add_view(request, form_url, extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
@@ -586,16 +562,6 @@ class WorkshopAdmin(RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
         ).prefetch_related('gallery_images__image')
 
     def save_model(self, request, obj, form, change):
-        from django.utils import timezone
-        now = timezone.now()
-        if not change:
-            obj.createdby_id = request.user.id
-            if not obj.user_id:
-                obj.user_id = request.user.id
-            if obj.created_at is None:
-                obj.created_at = now
-        obj.updatedby_id = request.user.id
-        obj.updated_at = now
         super().save_model(request, obj, form, change)
         if hasattr(form, 'sync_gallery'):
             form.sync_gallery(obj)
@@ -641,6 +607,14 @@ class WorkshopAdmin(RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
     class Media:
         css = {'all': ('admin/css/workshop-admin.css',)}
         js = ('courses/js/admin-workshop.js',)
+
+    @admin.display(description='Date', ordering='date')
+    def workshop_schedule(self, obj):
+        if obj.open_dated:
+            return 'Open dated'
+        if obj.date:
+            return obj.date.strftime('%d %b %Y %H:%M')
+        return '—'
 
     @admin.display(description='Region', ordering='region_id')
     def region_name(self, obj):

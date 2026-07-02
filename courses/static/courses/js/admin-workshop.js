@@ -1,11 +1,15 @@
 /**
- * Workshop admin: control widths and byline label info button.
+ * Workshop admin: control widths, date/time pickers, and byline help.
  */
 (function ($) {
     'use strict';
 
+    function isWorkshopAdminPage() {
+        return $('body').hasClass('model-workshop');
+    }
+
     function fixWorkshopControlWidths() {
-        if (!$('body').hasClass('model-workshop')) {
+        if (!isWorkshopAdminPage()) {
             return;
         }
         var width = '24em';
@@ -14,8 +18,69 @@
         });
     }
 
+    function initLoanCamerasToggle() {
+        if (!isWorkshopAdminPage()) {
+            return;
+        }
+        var $checkbox = $('#id_cameras_available');
+        if (!$checkbox.length) {
+            return;
+        }
+
+        function clearLoanCamerasIfNeeded() {
+            if (!$checkbox.is(':checked')) {
+                $('#id_number_of_loan_cameras_available').val('0');
+            }
+        }
+
+        $checkbox.off('change.gdLoanCameras').on('change.gdLoanCameras', clearLoanCamerasIfNeeded);
+        clearLoanCamerasIfNeeded();
+    }
+
+    function openNativePicker(input) {
+        if (!input || typeof input.showPicker !== 'function') {
+            return;
+        }
+        try {
+            input.showPicker();
+        } catch (err) {
+            /* Browser may block showPicker without a user gesture or if already open. */
+        }
+    }
+
+    function initWorkshopDateTimePicker() {
+        if (!isWorkshopAdminPage()) {
+            return;
+        }
+
+        $(document)
+            .off('click.gdWorkshopPicker', '.gd-workshop-date-input, .gd-workshop-time-input')
+            .on('click.gdWorkshopPicker', '.gd-workshop-date-input, .gd-workshop-time-input', function () {
+                openNativePicker(this);
+            });
+    }
+
+    function initOpenDatedToggle() {
+        if (!isWorkshopAdminPage()) {
+            return;
+        }
+        var $checkbox = $('#id_open_dated');
+        if (!$checkbox.length) {
+            return;
+        }
+
+        function clearDateIfOpenDated() {
+            if ($checkbox.is(':checked')) {
+                $('#id_date_0, #id_date_1').val('');
+            }
+        }
+
+        $checkbox.off('change.gdOpenDated').on('change.gdOpenDated', clearDateIfOpenDated);
+        clearDateIfOpenDated();
+    }
+
     function initBylineInfo() {
-        if (!$('body').hasClass('model-workshop')) {
+        if (!isWorkshopAdminPage()) {
             return;
         }
         var $label = $('.field-byline label').first();
@@ -43,6 +108,9 @@
 
     function initWorkshopAdmin() {
         fixWorkshopControlWidths();
+        initLoanCamerasToggle();
+        initOpenDatedToggle();
+        initWorkshopDateTimePicker();
         initBylineInfo();
     }
 

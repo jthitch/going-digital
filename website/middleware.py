@@ -84,12 +84,15 @@ class RedirectMiddleware(MiddlewareMixin):
                     return None
         except Exception:
             return None
+        new_path = redirect.new_path
+        if not new_path.startswith('/') or new_path.startswith('//') or '://' in new_path:
+            return None
         # Preserve query string if new_path is relative
-        if redirect.new_path.startswith('/') and request.GET:
+        if new_path.startswith('/') and request.GET:
             qs = request.META.get('QUERY_STRING', '')
-            new_url = redirect.new_path + ('?' + qs if qs else '')
+            new_url = new_path + ('?' + qs if qs else '')
         else:
-            new_url = redirect.new_path
+            new_url = new_path
         if redirect.permanent:
             return HttpResponsePermanentRedirect(new_url)
         return HttpResponseRedirect(new_url)

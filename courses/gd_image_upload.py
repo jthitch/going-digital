@@ -11,6 +11,22 @@ from courses.models import Image
 
 ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+UNSUPPORTED_IMAGE_TYPE_MSG = 'Unsupported image type. Use JPG, PNG, GIF, or WebP.'
+IMAGE_TOO_LARGE_MSG = 'Image must be 10 MB or smaller.'
+
+
+def validate_image_upload(uploaded_file):
+    """Raise ValidationError when an admin upload is missing or invalid."""
+    if not uploaded_file:
+        return
+
+    ext = Path(uploaded_file.name).suffix.lower()
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        raise ValidationError(UNSUPPORTED_IMAGE_TYPE_MSG)
+
+    size = getattr(uploaded_file, 'size', None) or 0
+    if size > MAX_UPLOAD_BYTES:
+        raise ValidationError(IMAGE_TOO_LARGE_MSG)
 
 
 def _gd_images_dir():
@@ -41,15 +57,9 @@ def create_gd_image_from_upload(uploaded_file, *, user_id=None, source_name='', 
     if not uploaded_file:
         raise ValidationError('No file uploaded.')
 
+    validate_image_upload(uploaded_file)
     ext = Path(uploaded_file.name).suffix.lower()
-    if ext not in ALLOWED_IMAGE_EXTENSIONS:
-        raise ValidationError(
-            'Unsupported image type. Use JPG, PNG, GIF, or WebP.'
-        )
-
     size = getattr(uploaded_file, 'size', None) or 0
-    if size > MAX_UPLOAD_BYTES:
-        raise ValidationError('Image must be 10 MB or smaller.')
 
     unique = hashlib.sha256(f'{uuid.uuid4()}-{uploaded_file.name}'.encode()).hexdigest()[:32]
     file_name = f'im-ws-{unique}{ext}'

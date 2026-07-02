@@ -1,4 +1,6 @@
 """Admin mixins for platform-admin-only and region-scoped franchisee access."""
+from django.utils import timezone
+
 from courses.region_scope import (
     filter_courses_for_user,
     filter_venues_for_user,
@@ -13,6 +15,35 @@ from courses.region_scope import (
     user_has_full_region_access,
     venue_is_approved,
 )
+
+
+class LegacyAuditAdminMixin:
+    """
+    Stamp legacy gd_* audit columns (createdby_id, updatedby_id, timestamps) on save.
+
+    Subclasses may set audit_set_user_id_on_create = True to default user_id on create
+    (Workshop admin). Override apply_legacy_audit_fields for bespoke audit rules.
+    """
+
+    audit_set_user_id_on_create = False
+
+    def apply_legacy_audit_fields(self, request, obj, change):
+        now = timezone.now()
+        if not change:
+            if hasattr(obj, 'createdby_id') and not obj.createdby_id:
+                obj.createdby_id = request.user.id
+            if hasattr(obj, 'created_at') and obj.created_at is None:
+                obj.created_at = now
+            if self.audit_set_user_id_on_create and hasattr(obj, 'user_id') and not obj.user_id:
+                obj.user_id = request.user.id
+        if hasattr(obj, 'updatedby_id'):
+            obj.updatedby_id = request.user.id
+        if hasattr(obj, 'updated_at'):
+            obj.updated_at = now
+
+    def save_model(self, request, obj, form, change):
+        self.apply_legacy_audit_fields(request, obj, change)
+        super().save_model(request, obj, form, change)
 
 
 class PlatformAdminOnlyMixin:

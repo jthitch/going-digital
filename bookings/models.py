@@ -143,7 +143,11 @@ class Booking(models.Model):
     def is_past_course_start(self):
         """Check if course has already started."""
         from django.utils import timezone
-        return timezone.now() > self.workshop.start_date
+
+        workshop = self.workshop
+        if not workshop or workshop.is_open_dated or not workshop.start_date:
+            return False
+        return timezone.now() > workshop.start_date
 
     @property
     def used_voucher(self):

@@ -16,13 +16,20 @@
 (function () {
     'use strict';
     function focusWorkshopDate() {
-        var dateInput = document.getElementById('id_date');
-        var row = dateInput ? dateInput.closest('.form-row') : null;
+        var dateInput = document.getElementById('id_date_0') || document.getElementById('id_date');
+        var row = dateInput ? dateInput.closest('.form-group') : null;
         if (row) {
             row.classList.add('gd-workshop-duplicate-date-focus');
         }
         if (dateInput) {
             dateInput.focus();
+            if (typeof dateInput.showPicker === 'function') {
+                try {
+                    dateInput.showPicker();
+                } catch (err) {
+                    /* showPicker may be unsupported or blocked until after focus. */
+                }
+            }
             row && row.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }

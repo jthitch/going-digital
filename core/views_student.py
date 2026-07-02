@@ -147,12 +147,32 @@ class CompleteAccountSetupView(View):
 
     @staticmethod
     def _prime_session_from_booking_ref(request):
+        """
+        Store account-setup email only when the browser already proved access
+        (checkout session) or supplies a matching email with the booking ref.
+        """
         ref = (request.GET.get('ref') or request.POST.get('ref') or '').strip()
         if not ref:
             return
         booking = Booking.objects.filter(booking_reference=ref).first()
-        if booking and booking.student_email:
-            request.session['account_setup_email'] = booking.student_email.strip().lower()
+        if not booking or not booking.student_email:
+            return
+
+        student_email = booking.student_email.strip().lower()
+        from payments.checkout_session_context import load_bookings_from_checkout_context
+
+        checkout_bookings = load_bookings_from_checkout_context(request)
+        if any(item.pk == booking.pk for item in checkout_bookings):
+            request.session['account_setup_email'] = student_email
+            return
+
+        supplied_email = (
+            request.GET.get('email')
+            or request.POST.get('email')
+            or ''
+        ).strip().lower()
+        if supplied_email and supplied_email == student_email:
+            request.session['account_setup_email'] = student_email
 
     def get(self, request):
         if is_customer_authenticated(request):

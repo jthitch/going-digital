@@ -30,10 +30,11 @@ class WorkshopSerializer(serializers.ModelSerializer):
     price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     spaces_available = serializers.IntegerField(read_only=True)
     is_full = serializers.BooleanField(read_only=True)
+    is_open_dated = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Workshop
         fields = [
             'id', 'course', 'venue', 'location', 'start_date', 'end_date',
-            'price', 'spaces_available', 'is_full', 'enrollment_open'
+            'is_open_dated', 'price', 'spaces_available', 'is_full', 'enrollment_open'
         ]

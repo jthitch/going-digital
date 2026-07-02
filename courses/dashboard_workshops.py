@@ -3,8 +3,11 @@ from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from django.db.models import Q
+
 from courses.models import Workshop
 from courses.region_scope import filter_workshops_for_user, user_has_full_region_access
+from courses.workshop_querysets import bookable_workshop_ordering
 
 UPCOMING_WORKSHOPS_PAGE_SIZE = 5
 UPCOMING_PAGE_PARAM = 'upcoming_page'
@@ -17,10 +20,10 @@ def get_upcoming_workshops_queryset(user):
         user,
     )
     return qs.filter(
-        date__isnull=False,
-        date__gte=now,
         active=1,
-    ).order_by('date', 'id')
+    ).filter(
+        Q(open_dated=1) | Q(date__isnull=False, date__gte=now),
+    ).order_by(*bookable_workshop_ordering(), 'id')
 
 
 def _parse_page_number(raw, default=1):

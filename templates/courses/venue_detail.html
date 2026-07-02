@@ -66,10 +66,14 @@
                 <li class="venue-instance-item">
                     <a href="{{ instance.get_absolute_url }}" class="venue-instance-link">
                         <strong>{{ instance.course.title }}</strong>
-                        <span class="instance-meta">
+                        <span>
+                            {% if instance.is_open_dated %}
+                            Date by arrangement
+                            {% else %}
                             {{ instance.start_date|date:"d F Y" }}
                             {% if instance.start_date|date:"g:i A" != instance.end_date|date:"g:i A" %}
                                 · {{ instance.start_date|date:"g:i A" }} – {{ instance.end_date|date:"g:i A" }}
+                            {% endif %}
                             {% endif %}
                         </span>
                         {% if instance.byline %}

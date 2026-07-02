@@ -20,7 +20,7 @@ from django.urls import reverse
 from django.views.generic import TemplateView
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.views import View
 from bookings.models import Booking
 from bookings.gift_voucher_basket import get_basket
@@ -41,11 +41,12 @@ from core.student_auth import (
 )
 from payments.checkout_session_context import (
     get_checkout_success_context,
+    is_basket_checkout_authorized,
+    is_booking_checkout_authorized,
     load_bookings_from_checkout_context,
     store_checkout_success_context,
 )
-
-from .checkout_completion import complete_checkout_session, stripe_metadata_dict
+from .checkout_completion import checkout_session_is_paid, complete_checkout_session, stripe_metadata_dict
 from .forms import VoucherCheckoutForm
 from .models import Payment
 
@@ -76,6 +77,8 @@ def _get_pending_booking(request, booking_id):
     customer = get_logged_in_customer(request)
     if customer:
         return get_object_or_404(qs, id=booking_id, customer=customer, status='pending')
+    if not is_booking_checkout_authorized(request, booking_id):
+        raise Http404('No booking found matching the query')
     return get_object_or_404(qs, id=booking_id, status='pending')
 
 
@@ -284,7 +287,9 @@ class CreateCheckoutSessionView(View):
         return _start_stripe_checkout(request, booking)
 
 
-def _get_workshop_basket_context(basket_id):
+def _get_workshop_basket_context(request, basket_id):
+    if not is_basket_checkout_authorized(request, basket_id):
+        return None
     basket = get_workshop_basket(basket_id)
     if not basket:
         return None
@@ -427,7 +432,7 @@ def _complete_free_workshop_basket_checkout(request, basket_id, ctx):
 
 def initiate_workshop_basket_payment(request, basket_id):
     """Start Stripe Checkout or complete a fully discounted basket."""
-    ctx = _get_workshop_basket_context(basket_id)
+    ctx = _get_workshop_basket_context(request, basket_id)
     if not ctx:
         from django.http import Http404
         raise Http404('Basket not found')
@@ -448,14 +453,14 @@ class CreateWorkshopBasketCheckoutView(View):
     """Checkout review for a multi-booking workshop basket."""
 
     def get(self, request, basket_id):
-        ctx = _get_workshop_basket_context(basket_id)
+        ctx = _get_workshop_basket_context(request, basket_id)
         if not ctx:
             from django.http import Http404
             raise Http404('Basket not found')
         return render(request, 'payments/checkout_basket.html', ctx)
 
     def post(self, request, basket_id):
-        ctx = _get_workshop_basket_context(basket_id)
+        ctx = _get_workshop_basket_context(request, basket_id)
         if not ctx:
             from django.http import Http404
             raise Http404('Basket not found')
@@ -793,24 +798,13 @@ class PaymentSuccessView(TemplateView):
                     pass
 
             if payment and payment.status != 'succeeded':
-                complete_checkout_session(
-                    stripe_session or {
-                        'id': session_id,
-                        'payment_status': 'paid',
-                        'status': 'complete',
-                        'metadata': metadata,
-                    },
-                    source='checkout.session.completed (success_page)',
-                )
-                payment.refresh_from_db()
-                metadata = dict(payment.metadata or metadata)
-        else:
-            session_id, metadata, payment = _recover_gift_voucher_checkout(
-                self.request, session_id, metadata, payment,
-            )
-            if session_id and payment:
-                context['session_id'] = session_id
-                if payment.status != 'succeeded':
+                if stripe_session and checkout_session_is_paid(stripe_session):
+                    complete_checkout_session(
+                        stripe_session,
+                        source='checkout.session.completed (success_page)',
+                    )
+                elif settings.DEBUG and not stripe_session:
+                    # Local dev only: allow success page without Stripe retrieve/webhook.
                     complete_checkout_session(
                         {
                             'id': session_id,
@@ -820,6 +814,37 @@ class PaymentSuccessView(TemplateView):
                         },
                         source='checkout.session.completed (success_page)',
                     )
+                payment.refresh_from_db()
+                metadata = dict(payment.metadata or metadata)
+        else:
+            session_id, metadata, payment = _recover_gift_voucher_checkout(
+                self.request, session_id, metadata, payment,
+            )
+            if session_id and payment:
+                context['session_id'] = session_id
+                if payment.status != 'succeeded':
+                    completed = False
+                    if STRIPE_AVAILABLE:
+                        try:
+                            stripe_session = stripe.checkout.Session.retrieve(session_id)
+                            if checkout_session_is_paid(stripe_session):
+                                complete_checkout_session(
+                                    stripe_session,
+                                    source='checkout.session.completed (success_page)',
+                                )
+                                completed = True
+                        except stripe.error.StripeError:
+                            pass
+                    if not completed and settings.DEBUG:
+                        complete_checkout_session(
+                            {
+                                'id': session_id,
+                                'payment_status': 'paid',
+                                'status': 'complete',
+                                'metadata': metadata,
+                            },
+                            source='checkout.session.completed (success_page)',
+                        )
                     payment.refresh_from_db()
                     metadata = dict(payment.metadata or metadata)
 

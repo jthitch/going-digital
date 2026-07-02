@@ -4,6 +4,8 @@ Django settings for photocourses project.
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -557,6 +559,15 @@ if not DEBUG:
         SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 else:
     SECURE_SSL_REDIRECT = False
+
+_INSECURE_SECRET_KEYS = frozenset({
+    'django-insecure-change-me-in-production',
+    'change-me-in-production',
+})
+if not DEBUG and SECRET_KEY in _INSECURE_SECRET_KEYS:
+    raise ImproperlyConfigured(
+        'Set a unique SECRET_KEY environment variable before running with DEBUG=False.'
+    )
 
 # In-process cache (redirect lookups, safe for single-server; use Redis/Memcached in multi-worker prod)
 CACHES = {

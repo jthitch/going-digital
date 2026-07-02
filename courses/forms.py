@@ -1,9 +1,11 @@
 """
 Custom forms for Course admin and contact.
 """
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django import forms
 from django.db.models import Q
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from ckeditor.widgets import CKEditorWidget
@@ -11,6 +13,9 @@ from django_recaptcha.fields import ReCaptchaField
 from django_recaptcha.widgets import ReCaptchaV2Checkbox
 from core.models import User
 
+from .display_images import workshop_gallery_image_ids
+from .gd_image_upload import validate_image_upload
+from .workshop_duplicate import CLONED_FROM_WORKSHOP_INITIAL_KEY
 from .models import (
     Content,
     Course,
@@ -34,23 +39,7 @@ from .models import (
 
 
 # Avoid rendering tens of thousands of <option> tags on the workshop change form.
-_WORKSHOP_CLONE_CHOICES_LIMIT = 200
 _WORKSHOP_IMAGE_CHOICES_LIMIT = 250
-
-
-def _recent_workshops_queryset(exclude_pk=None, include_pk=None, owner_user_id=None):
-    qs = Workshop.objects.select_related('course', 'venue').order_by('-date', '-id')
-    if owner_user_id:
-        qs = qs.filter(Q(user_id=owner_user_id) | Q(createdby_id=owner_user_id))
-    if exclude_pk:
-        qs = qs.exclude(pk=exclude_pk)
-    recent = list(qs[:_WORKSHOP_CLONE_CHOICES_LIMIT])
-    pks = {w.pk for w in recent}
-    if include_pk and include_pk not in pks:
-        extra = Workshop.objects.select_related('course', 'venue').filter(pk=include_pk).first()
-        if extra:
-            recent.insert(0, extra)
-    return Workshop.objects.filter(pk__in=[w.pk for w in recent]).order_by('-date', '-id')
 
 
 def _image_owned_by_user(image, user_id):
@@ -176,6 +165,24 @@ def _legacy_01_checked(value):
     return False
 
 
+def _local_datetime(dt):
+    """Return a naive local datetime for admin date/time widgets."""
+    if dt and timezone.is_aware(dt):
+        return timezone.localtime(dt)
+    return dt
+
+
+def _assign_model_choice_fk(instance, cleaned_data, field_name, attr_name, *, zero_for_empty=False):
+    """Set a legacy *_id column from a ModelChoiceField value."""
+    value = cleaned_data.get(field_name)
+    if value:
+        setattr(instance, attr_name, value.pk)
+    elif zero_for_empty:
+        setattr(instance, attr_name, 0)
+    else:
+        setattr(instance, attr_name, None)
+
+
 class BooleanToggleWidget(forms.CheckboxInput):
     """AdminLTE/Jazzmin-style switch for legacy 0/1 integer fields."""
 
@@ -196,6 +203,39 @@ class BooleanToggleWidget(forms.CheckboxInput):
             html,
             input_id,
         )
+
+
+class HTML5SplitDateTimeWidget(forms.MultiWidget):
+    """Native browser date/time pickers for workshop admin (no Django calendar JS)."""
+
+    template_name = 'courses/widgets/workshop_split_datetime.html'
+
+    def __init__(self, attrs=None):
+        widgets = (
+            forms.DateInput(
+                format='%Y-%m-%d',
+                attrs={'type': 'date', 'class': 'gd-workshop-date-input'},
+            ),
+            forms.TimeInput(
+                format='%H:%M',
+                attrs={'type': 'time', 'class': 'gd-workshop-time-input', 'step': '60'},
+            ),
+        )
+        super().__init__(widgets, attrs)
+
+    def decompress(self, value):
+        if value:
+            value = _local_datetime(value)
+            return [value.date(), value.time().replace(second=0, microsecond=0)]
+        return [None, None]
+
+
+class HTML5SplitDateTimeField(forms.SplitDateTimeField):
+    """Workshop datetime using HTML5 date and time inputs."""
+
+    widget = HTML5SplitDateTimeWidget
+    input_date_formats = ['%Y-%m-%d']
+    input_time_formats = ['%H:%M:%S', '%H:%M']
 
 
 class VenuePostcodeLookupWidget(forms.TextInput):
@@ -864,6 +904,16 @@ class WorkshopAdminForm(forms.ModelForm):
         label='Cameras available',
         widget=BooleanToggleWidget(),
     )
+    open_dated = forms.BooleanField(
+        required=False,
+        label='Open dated',
+        help_text='No fixed date — the tutor and student agree a date after booking (e.g. one-to-one tuition).',
+        widget=BooleanToggleWidget(),
+    )
+    date = HTML5SplitDateTimeField(
+        required=False,
+        label='Date and time',
+    )
     strapline = forms.CharField(
         required=False,
         widget=CKEditorWidget(config_name='default'),
@@ -903,12 +953,6 @@ class WorkshopAdminForm(forms.ModelForm):
         required=False,
         empty_label='---------',
         label='Workshop type',
-    )
-    cloned_from_workshop = forms.ModelChoiceField(
-        queryset=Workshop.objects.none(),
-        required=False,
-        empty_label='---------',
-        label='Cloned from workshop',
     )
     images = WorkshopImagesModelMultipleChoiceField(
         queryset=Image.objects.none(),
@@ -970,26 +1014,15 @@ class WorkshopAdminForm(forms.ModelForm):
         if self.instance.pk:
             self.fields['active'].initial = _legacy_01_checked(self.instance.active)
             self.fields['cameras_available'].initial = _legacy_01_checked(self.instance.cameras_available)
+            self.fields['open_dated'].initial = _legacy_01_checked(self.instance.open_dated)
+            if self.instance.date and 'date' not in self.initial and not self.instance.open_dated:
+                self.fields['date'].initial = _local_datetime(self.instance.date)
         else:
             if 'active' not in self.initial:
                 self.fields['active'].initial = False if self.region_ids is not None else True
-        exclude_pk = self.instance.pk if self.instance.pk else None
-        clone_include = self.instance.cloned_from_workshop_id if self.instance.pk else None
-        clone_qs = _recent_workshops_queryset(
-            exclude_pk=exclude_pk,
-            include_pk=clone_include,
-            owner_user_id=self.editor_user_id if region_ids is not None else None,
-        )
-        if region_ids is not None:
-            clone_qs = clone_qs.filter(region_id__in=region_ids)
-        self.fields['cloned_from_workshop'].queryset = clone_qs
         gallery_ids = []
         if self.instance.pk:
-            gallery_ids = list(
-                self.instance.gallery_images.order_by('display_order', 'id').values_list('image_id', flat=True)
-            )
-        if not gallery_ids and self.instance.image_id:
-            gallery_ids = [self.instance.image_id]
+            gallery_ids = workshop_gallery_image_ids(self.instance)
         image_qs = _workshop_image_queryset(
             include_pks=gallery_ids,
             owner_user_id=self.editor_user_id,
@@ -1012,7 +1045,6 @@ class WorkshopAdminForm(forms.ModelForm):
         self._set_initial_from_id('assistant', Assistant, 'assistant_id')
         self._set_initial_from_id('alt_course', Course, 'alt_course_id', skip_zero=True)
         self._set_initial_from_id('workshop_type', WorkshopType, 'workshop_type_id')
-        self._set_initial_from_id('cloned_from_workshop', Workshop, 'cloned_from_workshop_id')
         if 'image_upload' in self.fields:
             self.fields['image_upload'].widget.attrs.setdefault('accept', 'image/*')
         self._order_image_fields()
@@ -1063,35 +1095,50 @@ class WorkshopAdminForm(forms.ModelForm):
                 })
         upload = cleaned.get('image_upload')
         if upload:
-            from .gd_image_upload import ALLOWED_IMAGE_EXTENSIONS, MAX_UPLOAD_BYTES
+            try:
+                validate_image_upload(upload)
+            except DjangoValidationError as exc:
+                raise forms.ValidationError({'image_upload': exc.messages[0]}) from exc
 
-            ext = '.' + upload.name.rsplit('.', 1)[-1].lower() if '.' in upload.name else ''
-            if ext not in ALLOWED_IMAGE_EXTENSIONS:
-                raise forms.ValidationError({
-                    'image_upload': 'Unsupported image type. Use JPG, PNG, GIF, or WebP.',
-                })
-            if upload.size > MAX_UPLOAD_BYTES:
-                raise forms.ValidationError({
-                    'image_upload': 'Image must be 10 MB or smaller.',
-                })
+        open_dated = cleaned.get('open_dated')
+        workshop_date = cleaned.get('date')
+        if open_dated and workshop_date:
+            raise forms.ValidationError({
+                'date': 'Clear the date and time when marking a workshop as Open dated.',
+            })
+        if not open_dated and not workshop_date:
+            raise forms.ValidationError({
+                'date': 'Set a date and time, or tick Open dated.',
+            })
         return cleaned
 
     def save(self, commit=True):
         workshop = super().save(commit=False)
         workshop.active = 1 if self.cleaned_data.get('active') else 0
         workshop.cameras_available = 1 if self.cleaned_data.get('cameras_available') else 0
-        region = self.cleaned_data.get('region')
-        workshop.region_id = region.pk if region else None
-        tutor = self.cleaned_data.get('tutor')
-        workshop.tutor_id = tutor.pk if tutor else None
-        assistant = self.cleaned_data.get('assistant')
-        workshop.assistant_id = assistant.pk if assistant else None
-        alt_course = self.cleaned_data.get('alt_course')
-        workshop.alt_course_id = alt_course.pk if alt_course else 0
-        workshop_type = self.cleaned_data.get('workshop_type')
-        workshop.workshop_type_id = workshop_type.pk if workshop_type else None
-        cloned = self.cleaned_data.get('cloned_from_workshop')
-        workshop.cloned_from_workshop_id = cloned.pk if cloned else None
+        workshop.open_dated = 1 if self.cleaned_data.get('open_dated') else 0
+        if workshop.open_dated:
+            workshop.date = None
+        if not self.cleaned_data.get('cameras_available'):
+            workshop.number_of_loan_cameras_available = 0
+        for field_name, attr_name, zero in (
+            ('region', 'region_id', False),
+            ('tutor', 'tutor_id', False),
+            ('assistant', 'assistant_id', False),
+            ('alt_course', 'alt_course_id', True),
+            ('workshop_type', 'workshop_type_id', False),
+        ):
+            _assign_model_choice_fk(
+                workshop,
+                self.cleaned_data,
+                field_name,
+                attr_name,
+                zero_for_empty=zero,
+            )
+        if not self.instance.pk:
+            duplicate_from = self.initial.get(CLONED_FROM_WORKSHOP_INITIAL_KEY)
+            if duplicate_from:
+                workshop.cloned_from_workshop_id = int(duplicate_from)
         selected_images = list(self.cleaned_data.get('images') or [])
         selected_ids = []
         seen = set()

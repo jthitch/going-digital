@@ -62,23 +62,28 @@ def suggested_courses_for_user_bookings(bookings, *, limit=6):
         if rid:
             region_ids.add(rid)
 
+        if workshop.open_dated:
+            continue
         start = _normalize_dt(workshop.start_date)
         if start and (latest_booked_date is None or start > latest_booked_date):
             latest_booked_date = start
 
-    if not region_ids or latest_booked_date is None:
+    if not region_ids:
         return []
 
     min_level = min(level_ids) if level_ids else 1
     now = timezone.now()
+    if latest_booked_date is None:
+        latest_booked_date = now
 
     workshop_qs = (
         Workshop.objects.filter(
             active=1,
-            date__gt=latest_booked_date,
-            date__gte=now,
             course__isnull=False,
             course__active=True,
+        ).filter(
+            Q(open_dated=1)
+            | Q(date__gt=latest_booked_date, date__gte=now),
         )
         .exclude(course_id__in=booked_course_ids)
         .filter(
@@ -92,7 +97,7 @@ def suggested_courses_for_user_bookings(bookings, *, limit=6):
             | Q(course__course_skill_level_id__isnull=True)
         )
         .select_related('venue', 'course')
-        .order_by('date')
+        .order_by('-open_dated', 'date')
     )
 
     course_ids = []

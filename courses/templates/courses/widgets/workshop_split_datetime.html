@@ -1,0 +1,8 @@
+<div class="gd-workshop-datetime">
+{% for widget in widget.subwidgets %}
+    <div class="gd-workshop-datetime__part">
+        <span class="gd-workshop-datetime__label">{% if forloop.first %}Date{% else %}Time{% endif %}</span>
+        {% include widget.template_name with widget=widget %}
+    </div>
+{% endfor %}
+</div>

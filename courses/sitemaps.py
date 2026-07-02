@@ -6,7 +6,8 @@ from django.contrib.sitemaps import Sitemap
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Course, Workshop, Venue
+from .models import Course, Venue
+from .workshop_querysets import bookable_workshop_ordering, bookable_workshops_queryset
 
 
 class StaticViewSitemap(Sitemap):
@@ -56,12 +57,9 @@ class WorkshopSitemap(Sitemap):
     priority = 0.7
 
     def items(self):
-        return Workshop.objects.filter(
-            course__active=True,
-            active=1,
-            date__gte=timezone.now(),
+        return bookable_workshops_queryset().filter(
             venue__active=1,
-        ).select_related('course', 'venue').order_by('date')
+        ).select_related('course', 'venue').order_by(*bookable_workshop_ordering())
 
     def location(self, obj):
         return obj.get_absolute_url()

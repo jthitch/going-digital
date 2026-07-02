@@ -290,14 +290,20 @@
                 <h3>{{ city }}</h3>
                 <ul class="instance-list">
                     {% for instance in instances %}
-                    <li class="instance-item{% if instance.byline_plain %} instance-item--has-byline{% endif %}"
+                    <li class="instance-item{% if instance.byline_plain %} instance-item--has-byline{% endif %}{% if instance.is_open_dated %} instance-item--open-dated{% endif %}"
                         data-venue-id="{% if instance.venue_id %}{{ instance.venue_id }}{% endif %}"
-                        data-instance-date="{{ instance.filter_date }}">
-                        <a href="{{ instance.get_absolute_url }}" class="instance-card-link" aria-label="View {{ course.title }} at {{ instance.location.name }} on {{ instance.start_date|date:'d F Y' }}"></a>
+                        data-instance-date="{{ instance.filter_date }}"
+                        {% if instance.is_open_dated %}data-open-dated="1"{% endif %}>
+                        <a href="{{ instance.get_absolute_url }}" class="instance-card-link" aria-label="View {{ course.title }} at {{ instance.location.name }}{% if instance.is_open_dated %} — date by arrangement{% else %} on {{ instance.start_date|date:'d F Y' }}{% endif %}"></a>
                         <div class="instance-col-main">
                             <div class="instance-date">
+                                {% if instance.is_open_dated %}
+                                <strong class="instance-date-open">Date by arrangement</strong>
+                                <span>Agreed with your tutor after booking</span>
+                                {% else %}
                                 <strong>{{ instance.start_date|date:"d F Y" }}</strong>
                                 <span>{{ instance.start_date|date:"g:i A" }} - {{ instance.end_date|date:"g:i A" }}</span>
+                                {% endif %}
                             </div>
                             <div class="instance-location">
                                 <span class="location-tag location-tag-venue">{{ instance.location.name }}</span>
@@ -489,7 +495,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 var show = true;
                 var instanceDate = (item.getAttribute('data-instance-date') || '').trim();
                 if (dateFilterActive) {
-                    if (!instanceDate) {
+                    if (item.getAttribute('data-open-dated') === '1') {
+                        show = true;
+                    } else if (!instanceDate) {
                         show = false;
                     } else {
                         if (from && instanceDate < from) {

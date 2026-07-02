@@ -10,6 +10,24 @@ def gd_image_for_id(image_id):
     return Image.objects.filter(pk=image_id).first()
 
 
+def workshop_gallery_image_ids(workshop):
+    """Ordered gd_image ids for a workshop gallery, with legacy image_id fallback."""
+    if not workshop:
+        return []
+
+    if workshop.pk:
+        image_ids = list(
+            workshop.gallery_images.order_by('display_order', 'id').values_list('image_id', flat=True)
+        )
+        if image_ids:
+            return image_ids
+
+    if workshop.image_id:
+        return [workshop.image_id]
+
+    return []
+
+
 def workshop_gallery_images(workshop):
     """Ordered gd_image rows for a workshop gallery."""
     if not workshop:

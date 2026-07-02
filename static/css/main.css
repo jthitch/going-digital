@@ -1158,6 +1158,10 @@ address.instance-address-inline {
     margin-bottom: 0.25rem;
 }
 
+.instance-date-open {
+    color: var(--text-secondary);
+}
+
 .instance-byline {
     font-size: 0.95rem;
     color: var(--text-secondary);

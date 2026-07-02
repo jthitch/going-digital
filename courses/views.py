@@ -23,6 +23,14 @@ from rest_framework.response import Response
 from .models import Course, Workshop, Venue, CourseCategory, LEVEL_NAME_TO_ID, LEVEL_DISPLAY_NAMES
 from .forms import ContactForm, GiftVoucherRequestForm, CONTACT_REGION_CHOICES, VOUCHER_AMOUNT_CHOICES
 from .utils import get_promoted_occasions, workshop_calendar_date
+from .workshop_querysets import (
+    OPEN_DATED_LABEL,
+    apply_workshop_list_date_range,
+    bookable_workshop_ordering,
+    bookable_workshop_visibility_q,
+    bookable_workshops_queryset,
+    workshop_is_open_dated,
+)
 from website.models import GiftVoucherPageImage, HeroImage, BeforeAfterImage, FAQ
 from .serializers import WorkshopSerializer
 from .display_images import attach_gd_images_to_workshops, collect_header_images, primary_image_url
@@ -114,17 +122,11 @@ def bookable_workshops_for_request(request, *, apply_location_filter=True):
     Upcoming bookable workshops for the course list.
     All workshop-level filters are applied on one queryset so a course only matches
     when the same workshop satisfies date, venue, and status constraints.
+    Open-dated workshops are always included in date-filtered results.
     """
     date_from, date_to, dt_from, dt_to = parse_course_list_date_range(request)
-    queryset = Workshop.objects.filter(
-        active=1,
-        date__gte=timezone.now(),
-        course__active=True,
-    )
-    if dt_from:
-        queryset = queryset.filter(date__gte=dt_from)
-    if dt_to:
-        queryset = queryset.filter(date__lte=dt_to)
+    queryset = bookable_workshops_queryset()
+    queryset = apply_workshop_list_date_range(queryset, dt_from, dt_to)
     is_map_view = request.GET.get('view') == 'map'
     if apply_location_filter and not is_map_view:
         queryset = apply_venue_filter_to_workshop_qs(
@@ -144,13 +146,9 @@ def normalize_city_param(raw):
 
 
 def filter_venues_for_course_list():
-    """Venues that have at least one upcoming bookable workshop."""
+    """Venues that have at least one upcoming bookable or open-dated workshop."""
     venue_ids = (
-        Workshop.objects.filter(
-            active=1,
-            date__gte=timezone.now(),
-            course__active=True,
-        )
+        bookable_workshops_queryset()
         .exclude(venue_id__isnull=True)
         .values_list('venue_id', flat=True)
         .distinct()
@@ -211,7 +209,7 @@ class HomePageView(TemplateView):
         now = timezone.now()
         workshop_prefetch = Prefetch(
             'workshops',
-            queryset=Workshop.objects.filter(active=1, date__gte=now).select_related('venue'),
+            queryset=bookable_workshops_queryset().select_related('venue').order_by(*bookable_workshop_ordering()),
         )
         homepage_course_qs = (
             Course.objects.filter(active=True)
@@ -270,21 +268,23 @@ class HomePageView(TemplateView):
         # Get locations/venues with active workshops
         context['cities'] = list(Venue.objects.filter(
             workshops__active=1,
-            workshops__date__gte=timezone.now()
+        ).filter(
+            Q(workshops__open_dated=1) | Q(workshops__date__gte=timezone.now())
         ).values_list('location', flat=True).distinct().exclude(location__isnull=True).exclude(location='').order_by('location')[:10])
 
         # Course stats for marketing copy: courses across the UK, beginner to aspiring professional
+        bookable_workshop_exists = Exists(
+            bookable_workshops_queryset().filter(course_id=OuterRef('pk'))
+        )
         courses_with_instances = Course.objects.filter(
             active=True,
-            workshops__active=1,
-            workshops__date__gte=timezone.now(),
-            workshops__venue__active=1
-        ).distinct()
+        ).filter(bookable_workshop_exists).distinct()
         context['course_count'] = courses_with_instances.count() or Course.objects.filter(active=True).count()
         context['location_count'] = Venue.objects.filter(
             active=1,
             workshops__active=1,
-            workshops__date__gte=timezone.now()
+        ).filter(
+            Q(workshops__open_dated=1) | Q(workshops__date__gte=timezone.now())
         ).distinct().count()
         
         return context
@@ -355,7 +355,7 @@ class CourseListView(ListView):
     
     def get_queryset(self):
         workshop_qs, _ = bookable_workshops_for_request(self.request)
-        prefetch_qs = workshop_qs.select_related('venue', 'course').order_by('date')
+        prefetch_qs = workshop_qs.select_related('venue', 'course').order_by(*bookable_workshop_ordering())
 
         queryset = Course.objects.filter(
             active=True,
@@ -412,14 +412,7 @@ class CourseListView(ListView):
         context['total_course_count'] = Course.objects.filter(
             active=True,
         ).filter(
-            Exists(
-                Workshop.objects.filter(
-                    active=1,
-                    date__gte=timezone.now(),
-                    course__active=True,
-                    course_id=OuterRef('pk'),
-                )
-            )
+            Exists(bookable_workshops_queryset().filter(course_id=OuterRef('pk')))
         ).distinct().count()
         context['filter_venues'] = filter_venues_for_course_list()
         
@@ -437,34 +430,41 @@ class CourseListView(ListView):
         # Get all bookable instances from the filtered courses
         for course in context['courses']:
             for instance in list_card_workshops(course):
-                if (instance.enrollment_open and 
-                    instance.start_date >= timezone.now() and 
-                    instance.venue and 
-                    instance.venue.latitude and 
-                    instance.venue.longitude):
-                    
-                    # Format start date for display (dd mmmm yyyy)
+                is_bookable = (
+                    instance.enrollment_open
+                    and instance.venue
+                    and instance.venue.latitude
+                    and instance.venue.longitude
+                    and (
+                        workshop_is_open_dated(instance)
+                        or (instance.start_date and instance.start_date >= timezone.now())
+                    )
+                )
+                if not is_bookable:
+                    continue
+
+                if workshop_is_open_dated(instance):
+                    date_display = OPEN_DATED_LABEL
+                    start_date_str = OPEN_DATED_LABEL
+                else:
                     start_date_str = instance.start_date.strftime('%d %B %Y')
                     if instance.start_date.date() == instance.end_date.date():
                         date_display = start_date_str
                     else:
                         end_date_str = instance.end_date.strftime('%d %B %Y')
                         date_display = f"{start_date_str} - {end_date_str}"
-                    
-                    # Get instance-specific URL
-                    instance_url = instance.get_absolute_url()
-                    
-                    # Get price (Workshop has cost)
-                    instance_price = instance.price
-                    v = instance.venue
-                    image_url = primary_image_url(workshop=instance, course=course)
-                    card_desc = course.get_card_short_description() or ''
-                    if card_desc:
-                        words = card_desc.split()
-                        if len(words) > 20:
-                            card_desc = ' '.join(words[:20]) + '…'
-                    byline_text = strip_tags(instance.byline or '').strip()
-                    instances_data.append({
+
+                instance_url = instance.get_absolute_url()
+                instance_price = instance.price
+                v = instance.venue
+                image_url = primary_image_url(workshop=instance, course=course)
+                card_desc = course.get_card_short_description() or ''
+                if card_desc:
+                    words = card_desc.split()
+                    if len(words) > 20:
+                        card_desc = ' '.join(words[:20]) + '…'
+                byline_text = strip_tags(instance.byline or '').strip()
+                instances_data.append({
                         'instance_id': instance.id,
                         'course_title': course.title,
                         'byline': byline_text,
@@ -484,6 +484,7 @@ class CourseListView(ListView):
                         'postcode': '',
                         'start_date': start_date_str,
                         'date_display': date_display,
+                        'open_dated': workshop_is_open_dated(instance),
                         'price': float(instance_price),
                         'spaces_available': instance.spaces_available,
                         'instructor_name': None,
@@ -655,12 +656,9 @@ class VenueDetailView(DetailView):
         gd_content = venue.get_content()
         context['venue_content'] = gd_content
         context['venue_images'] = list(venue.media.all())
-        instances = Workshop.objects.filter(
+        instances = bookable_workshops_queryset().filter(
             venue=venue,
-            course__active=True,
-            active=1,
-            date__gte=timezone.now()
-        ).select_related('course', 'venue').order_by('date')
+        ).select_related('course', 'venue').order_by(*bookable_workshop_ordering())
         context['instances'] = instances
         if gd_content and gd_content.meta_description:
             context['meta_description'] = gd_content.meta_description[:160]
@@ -691,9 +689,8 @@ class CourseDetailView(DetailView):
             Prefetch('workshops', queryset=Workshop.objects.select_related(
                 'venue', 'course',
             ).prefetch_related('gallery_images__image').filter(
-                active=1,
-                date__gte=timezone.now()
-            ).order_by('date')),
+                bookable_workshop_visibility_q(),
+            ).order_by(*bookable_workshop_ordering())),
             'faqs',
             'media',
         ).select_related('image', 'content')
@@ -769,7 +766,7 @@ class CourseDetailView(DetailView):
         filter_dates = []
         instances_by_city = {}
         for instance in instances_list:
-            instance.filter_date = workshop_calendar_date(instance.start_date)
+            instance.filter_date = '' if workshop_is_open_dated(instance) else workshop_calendar_date(instance.start_date)
             if instance.filter_date:
                 filter_dates.append(instance.filter_date)
             city = instance.venue.location if instance.venue else 'TBC'
@@ -838,8 +835,6 @@ class CourseDetailView(DetailView):
                 "@type": "CourseInstance",
                 "courseMode": "onsite",
                 "courseWorkload": f"PT{course.duration_hours}H",
-                "startDate": instance.start_date.isoformat(),
-                "endDate": instance.end_date.isoformat(),
                 "location": {
                     "@type": "Place",
                     "name": loc.venue_name if loc else "TBC",
@@ -853,6 +848,12 @@ class CourseDetailView(DetailView):
                     }
                 }
             }
+            if workshop_is_open_dated(instance):
+                instance_schema["description"] = OPEN_DATED_LABEL
+            elif instance.start_date:
+                instance_schema["startDate"] = instance.start_date.isoformat()
+                if instance.end_date:
+                    instance_schema["endDate"] = instance.end_date.isoformat()
             
             course_instances_schema.append(instance_schema)
             

@@ -2,6 +2,7 @@
 from bookings.models import Booking
 
 CHECKOUT_SUCCESS_SESSION_KEY = 'checkout_success_context'
+AUTHORIZED_WORKSHOP_CHECKOUT_KEY = 'authorized_workshop_checkout'
 
 
 def store_checkout_success_context(request, bookings):
@@ -39,3 +40,43 @@ def load_bookings_from_checkout_context(request):
     return Booking.objects.filter(id__in=booking_ids).select_related(
         'workshop', 'workshop__course', 'workshop__venue', 'user',
     ).order_by('id')
+
+
+def authorize_workshop_checkout(request, *, basket_id=None, booking_ids=None):
+    """
+    Bind pending booking/basket checkout to the current browser session.
+
+    Prevents IDOR access to /payments/checkout/<id>/ by guessing sequential ids.
+    """
+    booking_ids = [int(pk) for pk in (booking_ids or []) if pk]
+    request.session[AUTHORIZED_WORKSHOP_CHECKOUT_KEY] = {
+        'basket_id': basket_id,
+        'booking_ids': booking_ids,
+    }
+    request.session.modified = True
+
+
+def clear_authorized_workshop_checkout(request):
+    if AUTHORIZED_WORKSHOP_CHECKOUT_KEY in request.session:
+        del request.session[AUTHORIZED_WORKSHOP_CHECKOUT_KEY]
+        request.session.modified = True
+
+
+def _authorized_workshop_checkout(request):
+    return request.session.get(AUTHORIZED_WORKSHOP_CHECKOUT_KEY) or {}
+
+
+def is_booking_checkout_authorized(request, booking_id):
+    try:
+        booking_id = int(booking_id)
+    except (TypeError, ValueError):
+        return False
+    return booking_id in _authorized_workshop_checkout(request).get('booking_ids', [])
+
+
+def is_basket_checkout_authorized(request, basket_id):
+    try:
+        basket_id = int(basket_id)
+    except (TypeError, ValueError):
+        return False
+    return _authorized_workshop_checkout(request).get('basket_id') == basket_id

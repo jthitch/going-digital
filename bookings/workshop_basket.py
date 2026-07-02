@@ -619,4 +619,7 @@ def prepare_checkout_from_session(request):
     booking_ids = create_pending_bookings_for_basket(basket, customer)
     basket_id = persist_workshop_basket(request, basket, booking_ids, customer)
     clear_session_basket(request)
+    from payments.checkout_session_context import authorize_workshop_checkout
+
+    authorize_workshop_checkout(request, basket_id=basket_id, booking_ids=booking_ids)
     return basket_id, booking_ids, customer
