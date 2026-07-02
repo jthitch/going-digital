@@ -980,10 +980,12 @@ class CourseDetailView(DetailView):
             workshop=featured if context.get('is_location_specific') else None,
         )
         context['header_images'] = header_images
-        if header_images:
-            context['og_image'] = self.request.build_absolute_uri(header_images[0].url)
-        elif course.image and course.image.url:
-            context['og_image'] = self.request.build_absolute_uri(course.image.url)
+        header_url = header_images[0]['url'] if header_images else primary_image_url(
+            course=course,
+            workshop=featured if context.get('is_location_specific') else None,
+        )
+        if header_url:
+            context['og_image'] = self.request.build_absolute_uri(header_url)
         
         return context
     
