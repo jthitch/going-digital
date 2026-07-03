@@ -182,7 +182,7 @@ Every course detail page includes:
 - Course overview: `/photography-courses/<course-slug>/`
 - Course at venue: `/photography-courses/<course-slug>/<location-slug>/` (e.g. `/photography-courses/get-off-auto/cardiff-docks/`)
 - Venue page: `/photography-courses/venues/<location-slug>/` (e.g. `/photography-courses/venues/cardiff-docks`)
-- Redirects: `/photography-workshops/` and `/photography-workshops/<slug>/` 301 to the photography-courses URLs. Other redirects are managed in the **Redirect** table (Django admin → Website → Redirects).
+- Redirects: `/photography-workshops/` and all paths under it (every course overview and course-at-venue URL) **301** to the matching `/photography-courses/` URL via `PhotographyWorkshopsRedirectMiddleware`. The list page is also in the **Redirect** table (Django admin → Website → Redirects). Other one-off redirects can be added there too.
 - Legacy: `/courses/`, `/courses/<slug>/`, and old venue URL format redirect to the above
 
 ## Permissions

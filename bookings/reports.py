@@ -9,6 +9,26 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from bookings.models import Booking
+from bookings.legacy_franchisee_report import franchisee_report_source_rows
+from bookings.legacy_payment_gateway_report import payment_gateway_report_source_rows
+from bookings.legacy_report_queries import (
+    gateway_id_from_name,
+    legacy_display_booking_id,
+    legacy_row_payment_date,
+    legacy_row_workshop_date,
+)
+from bookings.legacy_monthly_report import monthly_booking_stats
+from bookings.report_payment_data import (
+    STRIPE_GATEWAY_ID,
+    VOUCHER_GATEWAY_ID,
+    booking_basket_id as _booking_basket_id,
+    booking_transaction_id as _booking_transaction_id,
+    gateway_id_for_booking as _gateway_id_for_booking,
+    gateway_name as _gateway_name,
+    load_basket_details as _load_basket_details,
+    load_payment_gateway_meta,
+    load_payment_gateway_names,
+)
 from bookings.scope import filter_bookings_for_user
 from courses.models import Region, Tutor, Workshop
 from courses.region_scope import (
@@ -17,9 +37,6 @@ from courses.region_scope import (
     get_user_region_ids,
     user_has_full_region_access,
 )
-
-STRIPE_GATEWAY_ID = 10
-VOUCHER_GATEWAY_ID = 4
 
 
 @dataclass
@@ -216,7 +233,7 @@ def report_filter_tutors(user, region_id=None):
 
 
 def build_monthly_report(user, *, region_id=None, tutor_id=None, months_back=12):
-    """Build monthly rows for bookings, income, courses and % sold."""
+    """Build monthly rows for bookings, income, courses and % sold (legacy + new site)."""
     from django.utils.formats import date_format
 
     rows = []
@@ -225,16 +242,14 @@ def build_monthly_report(user, *, region_id=None, tutor_id=None, months_back=12)
     for year, month in _iter_months(months_back):
         month_start = _month_start(year, month)
         month_end = _next_month_start(year, month)
-        booking_start, booking_end = _aware_range(month_start, month_end)
-        workshop_start, workshop_end = booking_start, booking_end
+        workshop_start, workshop_end = _aware_range(month_start, month_end)
 
-        bookings_qs = _booking_queryset(user, region_id, tutor_id).filter(
-            created_at__gte=booking_start,
-            created_at__lt=booking_end,
-        )
-        booking_stats = bookings_qs.aggregate(
-            count=Count('id'),
-            income=Coalesce(Sum('price_paid'), Decimal('0.00')),
+        booking_stats = monthly_booking_stats(
+            user,
+            month_start,
+            month_end,
+            region_id=region_id,
+            tutor_id=tutor_id,
         )
 
         workshops_qs = _workshop_queryset(user, region_id, tutor_id).filter(
@@ -263,7 +278,7 @@ def build_monthly_report(user, *, region_id=None, tutor_id=None, months_back=12)
                 label=label,
                 year=year,
                 month=month,
-                bookings=booking_stats['count'] or 0,
+                bookings=booking_stats['bookings'] or 0,
                 income=booking_stats['income'] or Decimal('0.00'),
                 courses_scheduled=workshop_stats['courses'] or 0,
                 future_courses=workshop_stats['future_courses'] or 0,
@@ -303,94 +318,6 @@ def _inclusive_end_day(end_day):
     return end_day + timedelta(days=1)
 
 
-def load_payment_gateway_names():
-    return {
-        gateway_id: meta['name']
-        for gateway_id, meta in load_payment_gateway_meta().items()
-    }
-
-
-def load_payment_gateway_meta():
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT id, payment_gateway, internal_name,
-                   transaction_percentage, manual_payment_option
-            FROM gd_payment_gateway
-            ORDER BY payment_gateway, internal_name
-            """
-        )
-        return {
-            row[0]: {
-                'name': (row[1] or row[2] or f'Gateway #{row[0]}').strip(),
-                'transaction_percentage': Decimal(str(row[3] or '0')),
-                'manual_payment_option': int(row[4] or 0),
-            }
-            for row in cursor.fetchall()
-        }
-
-
-def _load_basket_details(basket_ids):
-    if not basket_ids:
-        return {}
-    ids = sorted({int(bid) for bid in basket_ids})
-    placeholders = ','.join(['%s'] * len(ids))
-    with connection.cursor() as cursor:
-        cursor.execute(
-            f"""
-            SELECT id, payment_gateway_id, gateway_transaction_code
-            FROM gd_basket
-            WHERE id IN ({placeholders})
-            """,
-            ids,
-        )
-        return {
-            row[0]: {
-                'payment_gateway_id': row[1],
-                'gateway_transaction_code': (row[2] or '').strip(),
-            }
-            for row in cursor.fetchall()
-        }
-
-
-def _gateway_id_for_booking(booking, basket_details):
-    payment = booking.payment
-    if not payment:
-        return None
-
-    metadata = dict(payment.metadata or {})
-    if metadata.get('gift_voucher_basket_id'):
-        return None
-
-    basket_id = metadata.get('workshop_basket_id')
-    if basket_id:
-        try:
-            basket = basket_details.get(int(basket_id))
-            if basket:
-                return basket['payment_gateway_id']
-        except (TypeError, ValueError):
-            pass
-
-    if payment.intent_type == 'voucher_free':
-        return VOUCHER_GATEWAY_ID
-
-    if payment.intent_type == 'checkout_session' and payment.status == 'succeeded':
-        return STRIPE_GATEWAY_ID
-
-    if payment.status == 'succeeded':
-        return STRIPE_GATEWAY_ID
-
-    return None
-
-
-def _gateway_name(gateway_id, gateway_names):
-    if gateway_id and gateway_id in gateway_names:
-        return gateway_names[gateway_id]
-    if gateway_id:
-        return f'Gateway #{gateway_id}'
-    return 'Unknown'
-
-
 def _workshop_date(workshop):
     if not workshop or not workshop.date:
         return None
@@ -407,32 +334,6 @@ def _booking_payment_date(booking):
     if payment.succeeded_at:
         return timezone.localdate(payment.succeeded_at)
     return timezone.localdate(payment.created_at or booking.created_at)
-
-
-def _booking_basket_id(booking):
-    payment = booking.payment
-    if not payment:
-        return None
-    basket_id = (payment.metadata or {}).get('workshop_basket_id')
-    if not basket_id:
-        return None
-    try:
-        return int(basket_id)
-    except (TypeError, ValueError):
-        return None
-
-
-def _booking_transaction_id(booking, basket_details):
-    basket_id = _booking_basket_id(booking)
-    if basket_id:
-        basket = basket_details.get(basket_id) or {}
-        txn = basket.get('gateway_transaction_code') or ''
-        if txn:
-            return txn
-    payment = booking.payment
-    if payment and payment.stripe_id:
-        return payment.stripe_id
-    return ''
 
 
 def _payment_gateway_booking_queryset(user, start_dt, end_dt):
@@ -453,65 +354,37 @@ def _payment_gateway_booking_queryset(user, start_dt, end_dt):
 
 
 def build_payment_gateway_report(user, start_date, end_date):
-    """Line-item confirmed bookings with payment gateway details for a date range."""
-    gateway_names = load_payment_gateway_names()
+    """Line-item bookings from gd_booking (legacy) and synced rows (new site)."""
     end_exclusive = _inclusive_end_day(end_date)
-    start_dt, end_dt = _aware_range(start_date, end_exclusive)
-
-    bookings = list(_payment_gateway_booking_queryset(user, start_dt, end_dt))
-
-    basket_ids = []
-    for booking in bookings:
-        basket_id = _booking_basket_id(booking)
-        if basket_id:
-            basket_ids.append(basket_id)
-    basket_details = _load_basket_details(basket_ids)
+    source_rows = payment_gateway_report_source_rows(user, start_date, end_exclusive)
 
     rows = []
     total_paid = Decimal('0.00')
-    for booking in bookings:
-        workshop = booking.workshop
-        course = workshop.course if workshop else None
-        basket_id = _booking_basket_id(booking)
-        gateway_id = _gateway_id_for_booking(booking, basket_details)
-        workshop_price = booking.list_price
-        if workshop_price is None and workshop:
-            workshop_price = workshop.price
-
-        voucher_code = (booking.voucher_code or '').strip()
-        voucher_amount = booking.voucher_discount or Decimal('0.00')
-        price_paid = booking.price_paid or Decimal('0.00')
+    for row in source_rows:
+        voucher_code = (row.vouchers_redeemed or '').strip() or '0'
+        voucher_amount = row.amount_paid_by_voucher or Decimal('0.00')
+        price_paid = row.amount_paid or Decimal('0.00')
         total_paid += price_paid
 
-        if booking.customer:
-            customer_name = (
-                f'{booking.customer.firstname} {booking.customer.lastname}'.strip()
-            )
-            customer_email = booking.customer.email or booking.student_email
-        else:
-            customer_name = (
-                f'{booking.student_first_name} {booking.student_last_name}'.strip()
-            )
-            customer_email = booking.student_email
-
+        customer_name = f'{row.customer_firstname} {row.customer_lastname}'.strip()
         rows.append(
             PaymentGatewayBookingRow(
-                payment_date=_booking_payment_date(booking),
-                basket_id=basket_id,
-                booking_ref=booking.pk,
+                payment_date=legacy_row_payment_date(row.payment_date),
+                basket_id=row.basket_id,
+                booking_ref=legacy_display_booking_id(row.booking_id),
                 customer_name=customer_name,
-                customer_email=customer_email,
-                workshop_date=_workshop_date(workshop),
-                workshop_id=workshop.pk if workshop else None,
-                course_name=(course.title if course else ''),
-                places_booked=1,
-                workshop_price=workshop_price or Decimal('0.00'),
-                gift_voucher_code=voucher_code or '0',
-                gift_voucher_amount=voucher_amount if voucher_code else None,
+                customer_email=(row.customer_email or '').strip(),
+                workshop_date=legacy_row_workshop_date(row.workshop_date),
+                workshop_id=row.workshop_id,
+                course_name=(row.course_name or '').strip(),
+                places_booked=row.places_booked or 1,
+                workshop_price=row.workshop_cost or Decimal('0.00'),
+                gift_voucher_code=voucher_code,
+                gift_voucher_amount=voucher_amount if voucher_code != '0' else None,
                 promotion_code='0',
-                payment_gateway=_gateway_name(gateway_id, gateway_names),
+                payment_gateway=(row.payment_gateway or '').strip() or 'Unknown',
                 total_paid=price_paid,
-                transaction_id=_booking_transaction_id(booking, basket_details),
+                transaction_id=(row.gateway_transaction_code or '').strip(),
             )
         )
 
@@ -546,126 +419,49 @@ def _load_franchisee_names(user_ids):
     }
 
 
-def _franchisee_name_for_workshop(workshop, franchisee_names):
-    if not workshop:
-        return ''
-    for user_id in (workshop.user_id, workshop.createdby_id):
-        if user_id and user_id in franchisee_names:
-            return franchisee_names[user_id]
-    return ''
-
-
-def _customer_details(booking):
-    if booking.customer:
-        name = f'{booking.student_first_name} {booking.student_last_name}'.strip()
-        if not name:
-            name = (
-                f'{booking.customer.firstname} {booking.customer.lastname}'.strip()
-            )
-        location = (
-            booking.customer.town_city
-            or booking.customer.address1
-            or booking.customer.address
-            or ''
-        )
-        return {
-            'name': name,
-            'email': booking.student_email or booking.customer.email or '',
-            'phone': booking.student_phone or booking.customer.contact_number or '',
-            'location': (location or '').strip(),
-            'postcode': (booking.customer.postcode or '').strip(),
-        }
-    return {
-        'name': f'{booking.student_first_name} {booking.student_last_name}'.strip(),
-        'email': booking.student_email,
-        'phone': booking.student_phone or '',
-        'location': '',
-        'postcode': '',
-    }
-
-
-def _franchisee_booking_queryset(user, start_dt, end_dt):
-    return (
-        _booking_queryset(user)
-        .select_related(
-            'payment',
-            'workshop',
-            'workshop__course',
-            'workshop__venue',
-            'customer',
-        )
-        .filter(
-            Q(payment__succeeded_at__gte=start_dt, payment__succeeded_at__lt=end_dt)
-            | Q(
-                payment__succeeded_at__isnull=True,
-                payment__status='succeeded',
-                created_at__gte=start_dt,
-                created_at__lt=end_dt,
-            )
-        )
-        .order_by('workshop__user_id', '-payment__succeeded_at', '-created_at')
-    )
-
-
 def build_franchisee_booking_report(user, start_date, end_date):
-    """Line-item confirmed bookings with franchisee and payment breakdown."""
+    """Line-item franchisee bookings via gd_bookings_workshops (legacy) and synced rows (new site)."""
     gateway_meta = load_payment_gateway_meta()
-    end_exclusive = _inclusive_end_day(end_date)
-    start_dt, end_dt = _aware_range(start_date, end_exclusive)
-
-    bookings = list(_franchisee_booking_queryset(user, start_dt, end_dt))
-
-    franchisee_ids = set()
-    basket_ids = []
-    for booking in bookings:
-        workshop = booking.workshop
-        if workshop:
-            if workshop.user_id:
-                franchisee_ids.add(workshop.user_id)
-            if workshop.createdby_id:
-                franchisee_ids.add(workshop.createdby_id)
-        basket_id = _booking_basket_id(booking)
-        if basket_id:
-            basket_ids.append(basket_id)
-
-    franchisee_names = _load_franchisee_names(franchisee_ids)
-    basket_details = _load_basket_details(basket_ids)
     gateway_names = {
         gateway_id: meta['name'] for gateway_id, meta in gateway_meta.items()
     }
+    end_exclusive = _inclusive_end_day(end_date)
+    source_rows = franchisee_report_source_rows(user, start_date, end_exclusive)
+
+    missing_franchisee_ids = {
+        row.franchisee_user_id
+        for row in source_rows
+        if not row.franchisee_name and row.franchisee_user_id
+    }
+    franchisee_names = _load_franchisee_names(missing_franchisee_ids)
 
     rows = []
     total_paid = Decimal('0.00')
-    for booking in bookings:
-        workshop = booking.workshop
-        course = workshop.course if workshop else None
-        venue = workshop.venue if workshop else None
-        customer = _customer_details(booking)
-        gateway_id = _gateway_id_for_booking(booking, basket_details)
+    for row in source_rows:
+        gateway_id = row.payment_gateway_id
+        if not gateway_id:
+            gateway_id = gateway_id_from_name(row.payment_gateway, gateway_names)
         gateway = gateway_meta.get(gateway_id or 0, {})
 
-        workshop_cost = booking.list_price
-        if workshop_cost is None and workshop:
-            workshop_cost = workshop.price
+        payment_method = (row.payment_gateway or '').strip() or 'Unknown'
+        customer_payment = _quantize_money(row.amount_paid)
+        workshop_cost = _quantize_money(row.workshop_cost)
+        gift_voucher_value = _quantize_money(row.amount_paid_by_voucher)
+        promotional_discount = _quantize_money(row.amount_paid_by_promotional_voucher)
+        promotional_vouchers_redeemed = (row.vouchers_redeemed or '').strip()
+        if promotional_vouchers_redeemed in ('', '0', 'NULL'):
+            promotional_vouchers_redeemed = ''
 
-        gift_voucher_value = _quantize_money(booking.voucher_discount)
-        promotional_discount = Decimal('0.00')
-        promotional_vouchers_redeemed = ''
-        price_paid = _quantize_money(booking.price_paid)
-
-        if gateway.get('manual_payment_option'):
+        if gateway.get('manual_payment_option') or row.manual_payment_option:
+            manual_payment = customer_payment
             customer_payment = Decimal('0.00')
-            manual_payment = price_paid
             transaction_fee = Decimal('0.00')
-        elif gateway_id == VOUCHER_GATEWAY_ID or (
-            booking.payment and booking.payment.intent_type == 'voucher_free'
-        ):
-            customer_payment = Decimal('0.00')
+        elif gateway_id == VOUCHER_GATEWAY_ID:
             manual_payment = Decimal('0.00')
-            gift_voucher_value = gift_voucher_value or price_paid or workshop_cost
+            customer_payment = Decimal('0.00')
+            gift_voucher_value = gift_voucher_value or workshop_cost
             transaction_fee = Decimal('0.00')
         else:
-            customer_payment = price_paid
             manual_payment = Decimal('0.00')
             transaction_fee = _gateway_transaction_fee(customer_payment, gateway)
 
@@ -677,40 +473,46 @@ def build_franchisee_booking_report(user, start_date, end_date):
             )
 
         customer_payment_plus_voucher = _quantize_money(
-            customer_payment + gift_voucher_value
+            customer_payment + gift_voucher_value,
         )
         net_total = _quantize_money(
             customer_payment_plus_voucher
             - transaction_fee
-            - gift_voucher_transaction_fee
+            - gift_voucher_transaction_fee,
         )
         total_paid += net_total
 
+        franchisee_name = row.franchisee_name
+        if not franchisee_name and row.franchisee_user_id:
+            franchisee_name = franchisee_names.get(row.franchisee_user_id, '')
+
+        customer_name = f'{row.customer_firstname} {row.customer_lastname}'.strip()
+
         rows.append(
             FranchiseeBookingRow(
-                franchisee_name=_franchisee_name_for_workshop(workshop, franchisee_names),
-                payment_date=_booking_payment_date(booking),
-                customer_name=customer['name'],
-                customer_email=customer['email'],
-                customer_phone=customer['phone'],
-                customer_location=customer['location'],
-                customer_postcode=customer['postcode'],
-                booking_ref=booking.pk,
-                workshop_date=_workshop_date(workshop),
-                workshop_id=workshop.pk if workshop else None,
-                course_name=course.title if course else '',
-                workshop_cost=_quantize_money(workshop_cost),
-                venue_name=venue.venue_name if venue else '',
-                places_booked=1,
+                franchisee_name=franchisee_name,
+                payment_date=legacy_row_payment_date(row.payment_date),
+                customer_name=customer_name,
+                customer_email=(row.customer_email or '').strip(),
+                customer_phone=(row.customer_phone or '').strip(),
+                customer_location='',
+                customer_postcode='',
+                booking_ref=legacy_display_booking_id(row.booking_id),
+                workshop_date=legacy_row_workshop_date(row.workshop_date),
+                workshop_id=row.workshop_id,
+                course_name=(row.course_name or '').strip(),
+                workshop_cost=workshop_cost,
+                venue_name=(row.venue_name or '').strip(),
+                places_booked=row.places_booked or 1,
                 gift_voucher_value=gift_voucher_value,
                 gift_voucher_transaction_fee=gift_voucher_transaction_fee,
                 promotional_discount=promotional_discount,
                 promotional_vouchers_redeemed=promotional_vouchers_redeemed,
-                payment_method=_gateway_name(gateway_id, gateway_names),
+                payment_method=payment_method,
                 customer_payment=customer_payment,
                 manual_payment=manual_payment,
                 transaction_fee=transaction_fee,
-                transaction_code=_booking_transaction_id(booking, basket_details),
+                transaction_code=(row.gateway_transaction_code or '').strip(),
                 customer_payment_plus_voucher=customer_payment_plus_voucher,
                 total_paid=net_total,
             )
@@ -821,15 +623,14 @@ def _load_redeemed_basket_ids(voucher_ids, claimed_booking_by_voucher):
     with connection.cursor() as cursor:
         cursor.execute(
             f"""
-            SELECT bw.id, b.basket_id
-            FROM gd_bookings_workshops bw
-            JOIN gd_booking b ON b.id = bw.booking_id
-            WHERE bw.id IN ({placeholders})
+            SELECT id, basket_id
+            FROM gd_booking
+            WHERE id IN ({placeholders})
             """,
             legacy_ids,
         )
-        for workshop_booking_id, basket_id in cursor.fetchall():
-            voucher_id = remaining.get(workshop_booking_id)
+        for booking_id, basket_id in cursor.fetchall():
+            voucher_id = remaining.get(booking_id)
             if voucher_id and basket_id:
                 redeem_baskets[voucher_id] = int(basket_id)
 

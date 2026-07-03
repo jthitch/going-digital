@@ -406,6 +406,17 @@ def create_pending_bookings_for_basket(basket, customer):
             booking.voucher_discount = discount_share
         booking.save()
         booking_ids.append(booking.id)
+        try:
+            from bookings.legacy_reports import sync_booking_to_legacy_unpaid_report
+
+            sync_booking_to_legacy_unpaid_report(booking)
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).exception(
+                'Failed to sync pending booking %s to gd_report__unpaid_bookings',
+                booking.id,
+            )
     return booking_ids
 
 

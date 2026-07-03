@@ -268,9 +268,12 @@ def _build_facebook_community_cards(going_digital_url, local_groups):
     return cards
 
 
-def _absolute_url(path, request=None):
+def _absolute_url(path, request=None, *, site_base=None):
     if request:
         return request.build_absolute_uri(path)
+    if site_base:
+        from website.seo import absolute_url_from_base
+        return absolute_url_from_base(site_base, path)
     base = getattr(settings, 'SITE_URL', '').rstrip('/')
     if base and path.startswith('/'):
         return f'{base}{path}'
@@ -285,7 +288,7 @@ def facebook_share_url_for_page(share_url):
     return f'https://www.facebook.com/sharer/sharer.php?u={quote(share_url, safe="")}'
 
 
-def facebook_share_items_for_bookings(bookings, request=None):
+def facebook_share_items_for_bookings(bookings, request=None, *, site_base=None):
     """
     Shareable course links for students to post on Facebook after booking.
     One item per unique workshop/course URL.
@@ -303,7 +306,7 @@ def facebook_share_items_for_bookings(bookings, request=None):
         if not workshop or not course:
             continue
 
-        share_url = _absolute_url(workshop.get_absolute_url(), request)
+        share_url = _absolute_url(workshop.get_absolute_url(), request, site_base=site_base)
         key = share_url.rstrip('/').lower()
         if key in seen_urls:
             continue
@@ -323,7 +326,7 @@ def facebook_share_items_for_bookings(bookings, request=None):
 
         image = list_card_thumbnail_url(course) or ''
         if image and not image.startswith(('http://', 'https://')):
-            image = _absolute_url(image, request)
+            image = _absolute_url(image, request, site_base=site_base)
 
         course_title = course.title or 'Photography course'
         items.append({

@@ -18,6 +18,10 @@ _REDIRECT_MISS = '__no_redirect__'
 # Session flag when dev passcode is accepted (see DevSiteAccessMiddleware).
 DEV_SITE_SESSION_KEY = 'dev_site_access_granted'
 
+# Legacy site section renamed for SEO (301 everything under this prefix).
+PHOTOGRAPHY_WORKSHOPS_PREFIX = '/photography-workshops'
+PHOTOGRAPHY_COURSES_PREFIX = '/photography-courses'
+
 # Paths that must not require the dev passcode (no browser session, e.g. Stripe CLI webhooks).
 DEV_SITE_ACCESS_EXEMPT_PREFIXES = (
     '/payments/webhook/',
@@ -57,6 +61,42 @@ class DevSiteAccessMiddleware(MiddlewareMixin):
         return HttpResponseRedirect(f'{login_url}?{next_qs}')
 
 
+def _redirect_url_with_query(request, path):
+    """Build redirect target path, preserving the query string."""
+    if request.GET:
+        qs = request.META.get('QUERY_STRING', '')
+        return path + ('?' + qs if qs else '')
+    return path
+
+
+def _canonical_photography_courses_path(path):
+    """
+    Map /photography-workshops… to /photography-courses… with a trailing slash.
+  """
+    if path == PHOTOGRAPHY_WORKSHOPS_PREFIX:
+        return f'{PHOTOGRAPHY_COURSES_PREFIX}/'
+    if path.startswith(f'{PHOTOGRAPHY_WORKSHOPS_PREFIX}/'):
+        new_path = PHOTOGRAPHY_COURSES_PREFIX + path[len(PHOTOGRAPHY_WORKSHOPS_PREFIX):]
+        if new_path != f'{PHOTOGRAPHY_COURSES_PREFIX}/' and not new_path.endswith('/'):
+            new_path += '/'
+        return new_path
+    return None
+
+
+class PhotographyWorkshopsRedirectMiddleware(MiddlewareMixin):
+    """
+    301 redirect the legacy /photography-workshops/ section to /photography-courses/.
+    Covers the list page, every course overview, and course-at-venue URLs in one hop
+    (including paths with or without a trailing slash).
+    """
+
+    def process_request(self, request):
+        new_path = _canonical_photography_courses_path(request.path)
+        if not new_path:
+            return None
+        return HttpResponsePermanentRedirect(_redirect_url_with_query(request, new_path))
+
+
 class RedirectMiddleware(MiddlewareMixin):
     """
     Check incoming request path against the Redirect table.
@@ -90,12 +130,6 @@ class RedirectMiddleware(MiddlewareMixin):
         new_path = redirect.new_path
         if not new_path.startswith('/') or new_path.startswith('//') or '://' in new_path:
             return None
-        # Preserve query string if new_path is relative
-        if new_path.startswith('/') and request.GET:
-            qs = request.META.get('QUERY_STRING', '')
-            new_url = new_path + ('?' + qs if qs else '')
-        else:
-            new_url = new_path
         if redirect.permanent:
-            return HttpResponsePermanentRedirect(new_url)
-        return HttpResponseRedirect(new_url)
+            return HttpResponsePermanentRedirect(_redirect_url_with_query(request, new_path))
+        return HttpResponseRedirect(_redirect_url_with_query(request, new_path))

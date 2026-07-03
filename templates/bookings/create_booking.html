@@ -155,17 +155,17 @@
                 <div class="booking-course-media">
                     {% if course_instance.display_image_url %}
                     <img src="{{ course_instance.display_image_url }}"
-                         alt=""
+                         alt="{{ course_instance.course.title }}"
                          class="booking-course-image"
                          loading="lazy"
-                         decoding="async">
-                    {% else %}
-                    <div class="booking-course-image-placeholder" aria-hidden="true">
+                         decoding="async"
+                         onerror="this.remove(); this.parentElement.classList.add('has-placeholder');">
+                    {% endif %}
+                    <div class="booking-course-image-placeholder{% if not course_instance.display_image_url %} is-visible{% endif %}" aria-hidden="{% if course_instance.display_image_url %}true{% else %}false{% endif %}">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
                             <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
                         </svg>
                     </div>
-                    {% endif %}
                 </div>
 
                 <h2 class="booking-course-title">{{ course_instance.course.title }}</h2>

@@ -717,10 +717,24 @@ def redirect_old_course_location_url(request, location, location_slug, slug):
     return HttpResponsePermanentRedirect(new_url)
 
 
+def _redirect_with_query(request, url):
+    from website.middleware import _redirect_url_with_query
+    return HttpResponsePermanentRedirect(_redirect_url_with_query(request, url))
+
+
 def redirect_photography_workshops_slug(request, slug):
-    """301 redirect /photography-workshops/<slug>/ to /photography-courses/<slug>/."""
+    """301 redirect /photography-workshops/<slug>/ to /photography-courses/<slug>/ (fallback if middleware disabled)."""
     new_url = reverse('courses:course_detail', kwargs={'slug': slug})
-    return HttpResponsePermanentRedirect(new_url)
+    return _redirect_with_query(request, new_url)
+
+
+def redirect_photography_workshops_course_at_venue(request, slug, location_slug):
+    """301 redirect /photography-workshops/<slug>/<venue>/ to course-at-venue URL (fallback)."""
+    new_url = reverse(
+        'courses:course_detail_by_location',
+        kwargs={'slug': slug, 'location_slug': location_slug},
+    )
+    return _redirect_with_query(request, new_url)
 
 
 class VenueListView(ListView):

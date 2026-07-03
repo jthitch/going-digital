@@ -104,7 +104,16 @@ def _booking_list_price(booking):
     return booking.list_price or booking.workshop.price
 
 
-def _booking_payment_metadata(booking):
+from website.seo import site_base_url
+
+
+def _checkout_site_url_metadata(request):
+    if request is None:
+        return {}
+    return {'site_url': site_base_url(request)}
+
+
+def _booking_payment_metadata(booking, request=None):
     metadata = {
         'booking_id': booking.id,
         'booking_reference': booking.booking_reference,
@@ -115,6 +124,7 @@ def _booking_payment_metadata(booking):
         metadata['voucher_discount'] = str(booking.voucher_discount)
         if booking.list_price is not None:
             metadata['list_price'] = str(booking.list_price)
+    metadata.update(_checkout_site_url_metadata(request))
     return metadata
 
 
@@ -178,7 +188,7 @@ def _start_stripe_checkout(request, booking):
             customer_email=booking.student_email,
         )
 
-        payment_metadata = _booking_payment_metadata(booking)
+        payment_metadata = _booking_payment_metadata(booking, request)
 
         payment = Payment.objects.create(
             user=None,
@@ -202,7 +212,7 @@ def _start_stripe_checkout(request, booking):
 
 def _complete_free_voucher_checkout(request, booking):
     stripe_id = f'free-{booking.booking_reference}-{uuid.uuid4().hex[:12]}'
-    payment_metadata = _booking_payment_metadata(booking)
+    payment_metadata = _booking_payment_metadata(booking, request)
 
     payment = Payment.objects.create(
         user=None,
@@ -319,8 +329,8 @@ def _get_workshop_basket_context(request, basket_id):
     }
 
 
-def _workshop_basket_payment_metadata(basket_id, data, booking_ids):
-    return {
+def _workshop_basket_payment_metadata(basket_id, data, booking_ids, request=None):
+    metadata = {
         'workshop_basket_id': basket_id,
         'booking_ids': booking_ids,
         'list_total': data.get('list_total'),
@@ -328,6 +338,8 @@ def _workshop_basket_payment_metadata(basket_id, data, booking_ids):
         'voucher_discount': data.get('voucher_discount', '0'),
         'total': data.get('total'),
     }
+    metadata.update(_checkout_site_url_metadata(request))
+    return metadata
 
 
 def _start_stripe_basket_checkout(request, basket_id, ctx):
@@ -382,7 +394,7 @@ def _start_stripe_basket_checkout(request, basket_id, ctx):
             customer_email=purchaser_email,
         )
 
-        payment_metadata = _workshop_basket_payment_metadata(basket_id, data, booking_ids)
+        payment_metadata = _workshop_basket_payment_metadata(basket_id, data, booking_ids, request)
         payment = Payment.objects.create(
             user=None,
             intent_type='checkout_session',
@@ -404,7 +416,7 @@ def _complete_free_workshop_basket_checkout(request, basket_id, ctx):
     data = ctx['basket_data']
     booking_ids = [b.id for b in bookings]
     stripe_id = f'free-basket-{basket_id}-{uuid.uuid4().hex[:12]}'
-    payment_metadata = _workshop_basket_payment_metadata(basket_id, data, booking_ids)
+    payment_metadata = _workshop_basket_payment_metadata(basket_id, data, booking_ids, request)
     payment = Payment.objects.create(
         user=None,
         intent_type='voucher_free',

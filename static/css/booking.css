@@ -1200,6 +1200,15 @@
     margin-bottom: 1rem;
 }
 
+.booking-course-media .booking-course-image-placeholder:not(.is-visible) {
+    display: none;
+}
+
+.booking-course-media.has-placeholder .booking-course-image-placeholder,
+.booking-course-media .booking-course-image-placeholder.is-visible {
+    display: flex;
+}
+
 .booking-course-image,
 .booking-course-image-placeholder {
     width: 100%;
@@ -2654,5 +2663,128 @@ body.fb-share-modal-open {
 
     .booking-sidebar-actions {
         display: none;
+    }
+
+    /* Book course page — full-width mobile layout */
+    .booking-page.booking-container {
+        max-width: none;
+        width: auto;
+        margin: -1rem -1rem 0;
+        padding: 1rem 1rem 2rem;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .booking-page-header {
+        margin-bottom: 1.25rem;
+    }
+
+    .booking-page-header h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .booking-page .basket-page-subtitle {
+        font-size: 0.9rem;
+        line-height: 1.45;
+    }
+
+    .booking-page .basket-continue-shopping {
+        margin-top: 0.35rem;
+        padding-top: 0;
+        font-size: 0.9rem;
+    }
+
+    .booking-page .booking-layout {
+        gap: 1rem;
+    }
+
+    .booking-page .booking-form-card {
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        border-radius: 10px;
+    }
+
+    .booking-page .booking-form-card-title {
+        font-size: 1.05rem;
+    }
+
+    .booking-page .booking-form-card-lead {
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+    }
+
+    .booking-page .booking-course-card {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr);
+        gap: 0 0.85rem;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .booking-page .booking-course-media {
+        grid-column: 1;
+        grid-row: 1 / 3;
+        margin-bottom: 0;
+        min-width: 72px;
+    }
+
+    .booking-page .booking-course-image {
+        flex-shrink: 0;
+    }
+
+    .booking-page .booking-course-image,
+    .booking-page .booking-course-image-placeholder {
+        width: 72px;
+        height: 72px;
+        aspect-ratio: auto;
+        border-radius: 8px;
+    }
+
+    .booking-page .booking-course-title {
+        grid-column: 2;
+        grid-row: 1;
+        margin: 0 0 0.35rem;
+        font-size: 1rem;
+        line-height: 1.35;
+    }
+
+    .booking-page .booking-course-meta {
+        grid-column: 2;
+        grid-row: 2;
+        margin: 0;
+        gap: 0.35rem;
+    }
+
+    .booking-page .booking-course-meta li {
+        font-size: 0.85rem;
+    }
+
+    .booking-page .booking-course-pricing {
+        grid-column: 1 / -1;
+        margin: 0.75rem 0 0;
+        padding-top: 0.75rem;
+    }
+
+    .booking-page .booking-availability {
+        grid-column: 1 / -1;
+        margin: 0.5rem 0 0;
+        font-size: 0.875rem;
+    }
+
+    .booking-page .basket-secure-note {
+        margin-top: 0.5rem;
+        text-align: left;
+        font-size: 0.8rem;
+    }
+
+    .booking-page .booking-form-actions--mobile {
+        margin-top: 0.25rem;
+        padding-top: 0.25rem;
+    }
+
+    .booking-page .booking-form-actions--mobile .btn-primary,
+    .booking-page .booking-form-actions--mobile .btn-secondary {
+        width: 100%;
     }
 }

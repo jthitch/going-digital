@@ -16,7 +16,9 @@ def send_booking_confirmation_email(booking_id):
     """Send booking confirmation to the student; BCC franchisees and tutor."""
     try:
         booking = (
-            Booking.objects.select_related('workshop', 'workshop__course', 'workshop__venue')
+            Booking.objects.select_related(
+                'workshop', 'workshop__course', 'workshop__venue', 'payment',
+            )
             .get(id=booking_id)
         )
     except Booking.DoesNotExist:

@@ -62,17 +62,20 @@ def card_object_position_style(course):
 
 
 def list_card_thumbnail_url(course):
+    from courses.display_images import course_media_image_url, gd_image_public_url
+
     try:
-        if course.image_id and course.image and course.image.url:
-            return course.image.url
+        if course.image_id and course.image:
+            url = gd_image_public_url(course.image)
+            if url:
+                return url
     except (ValueError, OSError):
         pass
-    first = course.first_uploaded_image
-    if first and getattr(first, 'image', None):
-        try:
-            return first.image.url
-        except (ValueError, OSError):
-            return ''
+    for media in course.media.all():
+        if media.media_type == 'image':
+            url = course_media_image_url(media)
+            if url:
+                return url
     return ''
 
 

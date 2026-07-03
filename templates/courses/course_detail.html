@@ -64,41 +64,72 @@
     
     <!-- Key Facts -->
     <section class="course-facts" aria-label="Course Details">
-        <div class="fact-item">
-            <strong>Level:</strong> {{ course.get_level_display }}
-        </div>
-        <div class="fact-item">
-            <strong>Duration:</strong> {{ course.duration_hours }} hours
-        </div>
-        <div class="fact-item">
-            <strong>Category:</strong> {{ course.get_category_display }}
-        </div>
-        {% if min_price %}
-        <div class="fact-item">
-            <strong>Price:</strong> {% if has_multiple_prices %}From {% endif %}£{{ min_price }}
-        </div>
-        {% endif %}
-        {% if display_locations %}
-        <div class="fact-item fact-item-locations">
-            <strong>Location{{ display_locations|length|pluralize }}:</strong>
-            <div class="location-tags" role="list">
-                {% for loc in display_locations %}
-                <span class="location-tag" role="listitem">{{ loc.name }}</span>
-                {% endfor %}
+        <div class="course-facts__main">
+            <ul class="course-facts-grid" role="list">
+                <li class="course-fact">
+                    <svg class="course-fact__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M3 13h2v-2H3v2zm4 6h2v-8H7v8zm4 0h2V7h-2v12zm4 0h2V3h-2v16z"/>
+                    </svg>
+                    <div class="course-fact__text">
+                        <span class="course-fact__label">Level</span>
+                        <span class="course-fact__value">{{ course.get_level_display }}</span>
+                    </div>
+                </li>
+                <li class="course-fact">
+                    <svg class="course-fact__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+                    </svg>
+                    <div class="course-fact__text">
+                        <span class="course-fact__label">Duration</span>
+                        <span class="course-fact__value">{{ course.duration_hours }} hours</span>
+                    </div>
+                </li>
+                <li class="course-fact">
+                    <svg class="course-fact__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>
+                    </svg>
+                    <div class="course-fact__text">
+                        <span class="course-fact__label">Category</span>
+                        <span class="course-fact__value">{{ course.get_category_display }}</span>
+                    </div>
+                </li>
+                {% if min_price %}
+                <li class="course-fact course-fact--price">
+                    <span class="course-fact__icon course-fact__icon--currency" aria-hidden="true">£</span>
+                    <div class="course-fact__text">
+                        <span class="course-fact__label">Price</span>
+                        <span class="course-fact__value">{% if has_multiple_prices %}From {% endif %}£{{ min_price }}</span>
+                    </div>
+                </li>
+                {% endif %}
+            </ul>
+            {% if display_locations %}
+            <div class="course-facts-locations">
+                <svg class="course-facts-locations__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+                <div class="course-facts-locations__content">
+                    <span class="course-facts-locations__label">Location{{ display_locations|length|pluralize }}</span>
+                    <div class="location-tags" role="list">
+                        {% for loc in display_locations %}
+                        <span class="location-tag" role="listitem">{{ loc.name }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
+            {% endif %}
         </div>
-        {% endif %}
-        <div class="fact-item fact-item-see-courses">
+        <div class="course-facts__action{% if is_location_specific and bookable_instance_count %} course-facts__action--desktop-only{% endif %}">
             {% if is_location_specific and bookable_instance_count %}
                 {% if single_bookable_instance %}
-            <a href="{% url 'bookings:create' single_bookable_instance.id %}" class="btn-see-courses btn-book-now-desktop">Book Now - £{{ single_bookable_instance.price }}</a>
+            <a href="{% url 'bookings:create' single_bookable_instance.id %}" class="btn-book btn-primary">Book Now - £{{ single_bookable_instance.price }}</a>
                 {% else %}
-            <a href="#available-dates-locations" class="btn-see-courses btn-book-now-desktop">Choose a date</a>
+            <a href="#available-dates-locations" class="btn-book btn-primary">Choose a date</a>
                 {% endif %}
             {% elif is_location_specific %}
-            <a href="#available-dates-locations" class="btn-see-courses btn-see-courses-overview">See dates</a>
+            <a href="#available-dates-locations" class="btn-book btn-secondary">See dates</a>
             {% else %}
-            <a href="#available-dates-locations" class="btn-see-courses btn-see-courses-overview">See courses</a>
+            <a href="#available-dates-locations" class="btn-book btn-secondary">See courses</a>
             {% endif %}
         </div>
     </section>
@@ -107,15 +138,15 @@
     {% if is_location_specific and featured_instance %}
     <section class="course-content-tabs" data-course-tabs>
         <div class="course-tabs-nav" role="tablist" aria-label="Course information">
-            <button type="button" class="course-tab-btn is-active" role="tab" id="course-tab-about" aria-selected="true" aria-controls="course-panel-about" data-course-tab="about">
+            <button type="button" class="course-tab-btn" role="tab" id="course-tab-about" aria-selected="false" aria-controls="course-panel-about" data-course-tab="about" tabindex="-1">
                 About this course
             </button>
-            <button type="button" class="course-tab-btn" role="tab" id="course-tab-workshop" aria-selected="false" aria-controls="course-panel-workshop" data-course-tab="workshop" tabindex="-1">
+            <button type="button" class="course-tab-btn is-active" role="tab" id="course-tab-workshop" aria-selected="true" aria-controls="course-panel-workshop" data-course-tab="workshop">
                 Workshop details
             </button>
         </div>
         <div class="course-tab-panels">
-            <div class="course-tab-panel is-active" role="tabpanel" id="course-panel-about" aria-labelledby="course-tab-about" data-course-panel="about">
+            <div class="course-tab-panel" role="tabpanel" id="course-panel-about" aria-labelledby="course-tab-about" data-course-panel="about" hidden>
                 <div class="course-main-content">
                     {% if course.content and course.content.main_content %}
                         {{ course.content.main_content|safe }}
@@ -124,7 +155,7 @@
                     {% endif %}
                 </div>
             </div>
-            <div class="course-tab-panel" role="tabpanel" id="course-panel-workshop" aria-labelledby="course-tab-workshop" data-course-panel="workshop" hidden>
+            <div class="course-tab-panel is-active" role="tabpanel" id="course-panel-workshop" aria-labelledby="course-tab-workshop" data-course-panel="workshop">
                 <div class="course-main-content">
                     {% with v=featured_instance.location %}
                     {% if v.venue_address or v.location %}

@@ -2,7 +2,8 @@
 URL configuration for courses app.
 /photography-courses/ (list), /photography-courses/<slug>/ (overview),
 /photography-courses/<course-slug>/<location-slug>/ (course at venue).
-Redirects: /photography-workshops/ and /photography-workshops/<slug>/ via table + view.
+Redirects: /photography-workshops/ → /photography-courses/ via PhotographyWorkshopsRedirectMiddleware (301).
+URL fallbacks below if middleware is disabled.
 """
 from django.urls import path
 from django.views.generic import RedirectView
@@ -50,7 +51,8 @@ urlpatterns = [
     # Legacy redirect: old venue URL format to new
     path('photography-courses/<str:location>/<slug:location_slug>/<slug:slug>/', views.redirect_old_course_location_url),
     
-    # 301 redirects from old workshop URLs (list handled by Redirect table; slug by view)
+    # 301 fallbacks for old /photography-workshops/ URLs (primary handler: middleware)
+    path('photography-workshops/<slug:slug>/<slug:location_slug>/', views.redirect_photography_workshops_course_at_venue),
     path('photography-workshops/<slug:slug>/', views.redirect_photography_workshops_slug),
     
     # API endpoints for React components

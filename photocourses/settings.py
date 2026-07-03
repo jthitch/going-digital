@@ -81,6 +81,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'website.middleware.DevSiteAccessMiddleware',
+    'website.middleware.PhotographyWorkshopsRedirectMiddleware',
     'django.middleware.common.CommonMiddleware',
     'website.middleware.RedirectMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

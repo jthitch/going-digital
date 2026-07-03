@@ -3,6 +3,7 @@ from django.conf import settings
 from django.urls import reverse
 
 from core.student_auth import account_setup_from_bookings
+from website.seo import absolute_url_from_base, site_base_url, site_url_for_booking
 
 from courses.models import Tutor
 
@@ -10,15 +11,10 @@ from .calendar import calendar_data_for_booking
 from .social_media import facebook_groups_context_for_booking, facebook_share_items_for_bookings
 
 
-def _absolute_url(path):
-    base = getattr(settings, 'SITE_URL', '').rstrip('/')
-    if base and path.startswith('/'):
-        return f'{base}{path}'
-    return path
-
-
-def booking_confirmation_context(booking):
+def booking_confirmation_context(booking, *, request=None):
     """Build context dict for booking confirmation templates."""
+    site_url = site_base_url(request) if request is not None else site_url_for_booking(booking)
+
     workshop = booking.workshop
     course = workshop.course if workshop else None
     venue = workshop.venue if workshop else None
@@ -41,19 +37,23 @@ def booking_confirmation_context(booking):
 
     workshop_url = ''
     if workshop:
-        workshop_url = _absolute_url(workshop.get_absolute_url())
+        workshop_url = absolute_url_from_base(site_url, workshop.get_absolute_url())
 
     static_url = settings.STATIC_URL.rstrip('/')
-    logo_url = _absolute_url(f'{static_url}/img/logo/logo-dark.png')
+    if static_url.startswith('http://') or static_url.startswith('https://'):
+        logo_url = f'{static_url}/img/logo/logo-dark.png'
+    else:
+        logo_url = absolute_url_from_base(site_url, f'{static_url}/img/logo/logo-dark.png')
 
-    calendar = calendar_data_for_booking(booking)
+    calendar = calendar_data_for_booking(booking, site_base=site_url)
 
     account_setup_url = ''
     setup = account_setup_from_bookings([booking])
     if setup and setup.get('booking_reference'):
-        account_setup_url = _absolute_url(
+        account_setup_url = absolute_url_from_base(
+            site_url,
             reverse('account:complete_setup')
-            + f'?ref={setup["booking_reference"]}'
+            + f'?ref={setup["booking_reference"]}',
         )
 
     context = {
@@ -78,7 +78,7 @@ def booking_confirmation_context(booking):
         'tutor_email': tutor_email,
         'workshop_url': workshop_url,
         'contact_email': getattr(settings, 'CONTACT_EMAIL', settings.DEFAULT_FROM_EMAIL),
-        'site_url': getattr(settings, 'SITE_URL', '').rstrip('/'),
+        'site_url': site_url,
         'logo_url': logo_url,
         'google_calendar_url': calendar['google_calendar_url'],
         'outlook_calendar_url': calendar['outlook_calendar_url'],
@@ -86,5 +86,8 @@ def booking_confirmation_context(booking):
         'calendar_ics_filename': calendar['calendar_ics_filename'],
     }
     context.update(facebook_groups_context_for_booking(booking))
-    context['facebook_share_items'] = facebook_share_items_for_bookings([booking])
+    context['facebook_share_items'] = facebook_share_items_for_bookings(
+        [booking],
+        site_base=site_url,
+    )
     return context

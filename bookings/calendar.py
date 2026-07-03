@@ -1,7 +1,6 @@
 """Calendar links and .ics content for workshop booking emails."""
 from urllib.parse import quote
 
-from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -87,14 +86,15 @@ def build_workshop_calendar(*, start, end, title, description, location, uid):
     }
 
 
-def _absolute_url(path):
-    base = getattr(settings, 'SITE_URL', '').rstrip('/')
-    if base and path.startswith('/'):
-        return f'{base}{path}'
-    return path
+def _absolute_url(path, site_base=None):
+    if site_base:
+        from website.seo import absolute_url_from_base
+        return absolute_url_from_base(site_base, path)
+    from website.seo import site_base_url
+    return absolute_url_from_base(site_base_url(), path)
 
 
-def calendar_data_for_booking(booking):
+def calendar_data_for_booking(booking, *, site_base=None):
     """Google/Outlook links and .ics body for a booking (my bookings, emails)."""
     workshop = getattr(booking, 'workshop', None)
     if not workshop or not workshop.start_date:
@@ -124,7 +124,7 @@ def calendar_data_for_booking(booking):
     if venue:
         location_address = (venue.venue_address or venue.location or '').strip()
 
-    workshop_url = _absolute_url(workshop.get_absolute_url()) if workshop else ''
+    workshop_url = _absolute_url(workshop.get_absolute_url(), site_base) if workshop else ''
 
     calendar_location = ', '.join(
         part for part in [location_name, location_city, location_address] if part

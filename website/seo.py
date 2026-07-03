@@ -53,6 +53,31 @@ def site_base_url(request=None):
     return getattr(settings, 'SITE_URL', 'https://goingdigital.co.uk').rstrip('/')
 
 
+def absolute_url_from_base(site_base, path):
+    """Join a site origin with a path, or pass through absolute URLs."""
+    if path.startswith('http://') or path.startswith('https://'):
+        return path
+    base = (site_base or '').rstrip('/')
+    if base and path.startswith('/'):
+        return f'{base}{path}'
+    return path
+
+
+def site_url_for_booking(booking):
+    """Site origin from checkout payment metadata, else settings fallback."""
+    payment = getattr(booking, 'payment', None)
+    if payment:
+        stored = (payment.metadata or {}).get('site_url')
+        if stored:
+            return str(stored).rstrip('/')
+    configured = site_base_url()
+    from urllib.parse import urlparse
+    host = (urlparse(configured).hostname or '').lower()
+    if host in {'127.0.0.1', 'localhost'}:
+        return 'https://goingdigital.co.uk'
+    return configured
+
+
 def absolute_url(request, path_or_route, *, kwargs=None):
     """Build an absolute URL from a path or named route."""
     if path_or_route.startswith('http://') or path_or_route.startswith('https://'):

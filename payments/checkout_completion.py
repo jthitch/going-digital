@@ -130,6 +130,22 @@ def _complete_gift_voucher(metadata, session_id, payment):
             raise
 
 
+def _sync_legacy_report_for_booking(booking_id):
+    """Best-effort legacy report row; must not fail checkout."""
+    import logging
+
+    from bookings.legacy_reports import sync_all_legacy_reports_for_booking
+
+    logger = logging.getLogger(__name__)
+    try:
+        sync_all_legacy_reports_for_booking(booking_id)
+    except Exception:
+        logger.exception(
+            'Failed to sync booking %s to legacy report tables',
+            booking_id,
+        )
+
+
 def _increment_workshop_places_booked(workshop_id, places=1):
     """Increment gd_workshop.places_booked (NULL is treated as 0)."""
     if not workshop_id or places < 1:
@@ -218,6 +234,9 @@ def _complete_workshop_basket(metadata, payment):
                 locked_payment.save(update_fields=['metadata', 'updated_at'])
             raise
 
+    for booking_id in booking_ids:
+        _sync_legacy_report_for_booking(booking_id)
+
 
 def _complete_booking(metadata):
     """Confirm booking once; increment places and send email at most once (webhook + success safe)."""
@@ -278,3 +297,5 @@ def _complete_booking(metadata):
                 payment.metadata = pay_meta
                 payment.save(update_fields=['metadata', 'updated_at'])
             raise
+
+    _sync_legacy_report_for_booking(booking_id)
