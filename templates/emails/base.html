@@ -11,7 +11,7 @@
         <td align="center">
             <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #e0e0e0;">
                 <tr>
-                    <td style="padding:24px 28px;background:#1a1a1a;color:#ffffff;text-align:center;">
+                    <td style="{% block header_style %}padding:24px 28px;background:#1a1a1a;color:#ffffff;text-align:center;{% endblock %}">
                         {% if logo_url %}
                         <a href="{{ site_url|default:'#' }}" style="text-decoration:none;">
                             <img src="{{ logo_url }}" alt="Going Digital" width="200" style="display:inline-block;max-width:200px;width:200px;height:auto;border:0;">
