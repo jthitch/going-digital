@@ -546,6 +546,12 @@ class VenueAdminForm(forms.ModelForm):
             'autocomplete': 'postal-code',
         }),
     )
+    add_document_to_booking_email = forms.BooleanField(
+        required=False,
+        label='Add to booking email',
+        help_text='Attach this venue document to booking confirmation emails.',
+        widget=BooleanToggleWidget(),
+    )
 
     class Meta:
         model = Venue
@@ -639,6 +645,14 @@ class VenueAdminForm(forms.ModelForm):
                 label = f'Status #{status_id}'
                 self.fields['status'].choices = COURSE_STATUS_CHOICES + ((status_id, label),)
                 self.fields['status'].initial = status_id
+        if self.instance.pk and self.instance.document_id:
+            from courses.venue_documents import venue_document_email_enabled
+
+            self.fields['add_document_to_booking_email'].initial = venue_document_email_enabled(
+                self.instance.pk,
+            )
+        else:
+            self.fields.pop('add_document_to_booking_email', None)
 
     def save(self, commit=True):
         from django.utils import timezone
@@ -694,6 +708,13 @@ class VenueAdminForm(forms.ModelForm):
         if commit:
             venue.save()
             self._save_content(venue)
+            if venue.document_id and 'add_document_to_booking_email' in self.cleaned_data:
+                from courses.venue_documents import set_venue_document_email_enabled
+
+                set_venue_document_email_enabled(
+                    venue.pk,
+                    self.cleaned_data['add_document_to_booking_email'],
+                )
         return venue
 
     def _content_fields_in_post(self):
@@ -965,6 +986,12 @@ class WorkshopAdminForm(forms.ModelForm):
         label='Upload image',
         help_text=upload_help_text(),
     )
+    add_document_to_booking_email = forms.BooleanField(
+        required=False,
+        label='Add to booking email',
+        help_text='Attach this venue document to booking confirmation emails.',
+        widget=BooleanToggleWidget(),
+    )
 
     class Meta:
         model = Workshop
@@ -1045,6 +1072,15 @@ class WorkshopAdminForm(forms.ModelForm):
         self._set_initial_from_id('assistant', Assistant, 'assistant_id')
         self._set_initial_from_id('alt_course', Course, 'alt_course_id', skip_zero=True)
         self._set_initial_from_id('workshop_type', WorkshopType, 'workshop_type_id')
+        venue = self.instance.venue if self.instance.pk and self.instance.venue_id else None
+        if venue and venue.document_id:
+            from courses.venue_documents import venue_document_email_enabled
+
+            self.fields['add_document_to_booking_email'].initial = venue_document_email_enabled(
+                venue.id,
+            )
+        else:
+            self.fields.pop('add_document_to_booking_email', None)
         if 'image_upload' in self.fields:
             self.fields['image_upload'].widget.attrs.setdefault('accept', 'image/*')
         self._order_image_fields()
@@ -1166,6 +1202,18 @@ class WorkshopAdminForm(forms.ModelForm):
         if commit:
             workshop.save()
             self.sync_gallery(workshop)
+        venue = workshop.venue
+        if (
+            venue
+            and venue.document_id
+            and 'add_document_to_booking_email' in self.cleaned_data
+        ):
+            from courses.venue_documents import set_venue_document_email_enabled
+
+            set_venue_document_email_enabled(
+                venue.id,
+                self.cleaned_data['add_document_to_booking_email'],
+            )
         return workshop
 
     def sync_gallery(self, workshop):

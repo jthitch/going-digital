@@ -44,6 +44,15 @@ def send_booking_confirmation_email(booking_id):
             'text/calendar; method=PUBLISH; charset=UTF-8',
         ))
 
+    from courses.venue_documents import booking_email_venue_document_attachment
+    from courses.workshop_documents import booking_email_workshop_document_attachments
+
+    venue_document = booking_email_venue_document_attachment(workshop)
+    if venue_document:
+        attachments.append(venue_document)
+
+    attachments.extend(booking_email_workshop_document_attachments(workshop))
+
     send_html_email(
         to=[student_email],
         subject=subject,

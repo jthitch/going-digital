@@ -1,0 +1,73 @@
+/* Legacy venue document preview (workshop + venue admin) */
+.gd-venue-document {
+    max-width: 42rem;
+}
+
+.gd-venue-document__empty,
+.gd-venue-document__warning {
+    margin: 0;
+    color: var(--body-quiet-color, #6c757d);
+}
+
+.gd-venue-document__warning {
+    color: var(--error-fg, #842029);
+}
+
+.gd-venue-document__title {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.gd-venue-document__description,
+.gd-venue-document__meta,
+.gd-venue-document__actions {
+    margin: 0 0 0.75rem;
+    color: var(--body-quiet-color, #6c757d);
+    font-size: 0.875rem;
+}
+
+.gd-venue-document__actions a {
+    font-weight: 600;
+}
+
+.gd-venue-document__preview {
+    display: block;
+    width: 100%;
+    max-width: 42rem;
+    height: 28rem;
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 0.375rem;
+    background: #fff;
+}
+
+.gd-venue-document__preview--image {
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 28rem;
+    object-fit: contain;
+}
+
+body.app-courses.model-workshop .field-venue_document_display .flex-container,
+body.app-courses.model-venue .field-venue_document_display .flex-container {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+}
+
+body.app-courses.model-workshop.change-form .inline-group.gd-workshop-documents-inline,
+body.app-courses.model-workshop.add-form .inline-group.gd-workshop-documents-inline {
+    margin-top: 1.25rem;
+}
+
+body.app-courses.model-workshop.change-form .inline-group.gd-workshop-documents-inline h2,
+body.app-courses.model-workshop.add-form .inline-group.gd-workshop-documents-inline h2 {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+body.app-courses.model-workshop.change-form .gd-workshop-documents-inline .field-file input[type="file"],
+body.app-courses.model-workshop.add-form .gd-workshop-documents-inline .field-file input[type="file"] {
+    max-width: 100%;
+}

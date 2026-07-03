@@ -8,7 +8,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime, parse_date
 from decimal import Decimal
+import mimetypes
 import re
+from pathlib import Path
 
 from core.models import User
 
@@ -454,6 +456,118 @@ class Image(models.Model):
         return f"{base.rstrip('/')}/{self.file_name}"
 
 
+class GdDocument(models.Model):
+    """
+    Legacy document - maps to gd_document.
+    Files live under MEDIA_ROOT/gd_documents/ (document_filename).
+  """
+
+    id = models.AutoField(primary_key=True, db_column='id')
+    document_type_id = models.IntegerField(db_column='document_type_id')
+    document_category_id = models.IntegerField(db_column='document_category_id')
+    active = models.SmallIntegerField(default=1, db_column='active')
+    title = models.CharField(max_length=1000, db_column='title')
+    description = models.TextField(null=True, blank=True, db_column='description')
+    source_filename = models.CharField(max_length=1000, db_column='source_filename')
+    document_filename = models.CharField(max_length=1000, db_column='document_filename')
+    mimetype = models.CharField(max_length=255, null=True, blank=True, db_column='mimetype')
+    filesize = models.IntegerField(null=True, blank=True, db_column='filesize')
+    downloads = models.IntegerField(default=0, db_column='downloads')
+    user_id = models.IntegerField(null=True, blank=True, db_column='user_id')
+    created_at = models.DateTimeField(null=True, blank=True, db_column='created_at')
+    updated_at = models.DateTimeField(null=True, blank=True, db_column='updated_at')
+
+    class Meta:
+        db_table = 'gd_document'
+        managed = False
+        ordering = ['title']
+        verbose_name = 'Legacy document'
+        verbose_name_plural = 'Legacy documents'
+
+    def __str__(self):
+        return self.title or self.document_filename or f'Document #{self.id}'
+
+    @property
+    def url(self):
+        if not self.document_filename:
+            return ''
+        from django.conf import settings
+
+        subdir = getattr(settings, 'GD_DOCUMENT_MEDIA_SUBDIR', 'gd_documents')
+        media_url = settings.MEDIA_URL.rstrip('/')
+        filename = self.document_filename.lstrip('/')
+        return f'{media_url}/{subdir}/{filename}'
+
+
+class VenueDocumentEmailSetting(models.Model):
+    """Whether a venue's legacy document is attached to booking confirmation emails."""
+
+    venue_id = models.IntegerField(
+        primary_key=True,
+        verbose_name='Venue ID',
+        help_text='gd_venue.id',
+    )
+    include_in_booking_email = models.BooleanField(
+        default=True,
+        verbose_name='Add to booking email',
+    )
+
+    class Meta:
+        verbose_name = 'Venue document email setting'
+        verbose_name_plural = 'Venue document email settings'
+
+    def __str__(self):
+        state = 'on' if self.include_in_booking_email else 'off'
+        return f'Venue #{self.venue_id} document email {state}'
+
+
+class WorkshopDocument(models.Model):
+    """Tutor-uploaded document attached to a single workshop (copied when duplicating)."""
+
+    workshop = models.ForeignKey(
+        'Workshop',
+        on_delete=models.CASCADE,
+        related_name='documents',
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default='')
+    file = models.FileField(upload_to='workshop_documents/%Y/%m/')
+    original_filename = models.CharField(max_length=255, blank=True, default='')
+    mimetype = models.CharField(max_length=100, blank=True, default='')
+    file_size = models.PositiveIntegerField(default=0)
+    include_in_booking_email = models.BooleanField(
+        default=True,
+        verbose_name='Add to booking email',
+    )
+    display_order = models.PositiveIntegerField(default=0)
+    createdby_id = models.IntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['display_order', 'id']
+        verbose_name = 'Workshop document'
+        verbose_name_plural = 'Workshop documents'
+
+    def __str__(self):
+        return self.title or self.original_filename or f'Document #{self.pk}'
+
+    def save(self, *args, **kwargs):
+        if self.file:
+            if not self.original_filename:
+                name = getattr(self.file, 'name', '') or ''
+                self.original_filename = Path(name).name if name else ''
+            try:
+                self.file_size = self.file.size or 0
+            except (OSError, ValueError):
+                pass
+            if not self.mimetype and self.original_filename:
+                guessed, _encoding = mimetypes.guess_type(self.original_filename)
+                if guessed:
+                    self.mimetype = guessed
+        super().save(*args, **kwargs)
+
+
 class Instructor(models.Model):
     """Instructor for photography courses."""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='instructor_profile')
@@ -487,6 +601,11 @@ class Venue(models.Model):
         null=True, blank=True, db_column='content_id',
         verbose_name='Content',
         help_text='Legacy FK to gd_content.id',
+    )
+    document_id = models.IntegerField(
+        null=True, blank=True, db_column='document_id',
+        verbose_name='Document',
+        help_text='Legacy FK to gd_document.id (e.g. joining instructions PDF).',
     )
     county_id = models.IntegerField(null=True, blank=True, db_column='county_id', verbose_name='County')
     venue_name = models.CharField(max_length=255, default='', db_column='venue_name')
@@ -603,6 +722,15 @@ class Venue(models.Model):
         try:
             return Content.objects.get(pk=self.content_id)
         except Content.DoesNotExist:
+            return None
+
+    def get_document(self):
+        """Return linked gd_document row, or None."""
+        if not self.document_id:
+            return None
+        try:
+            return GdDocument.objects.get(pk=self.document_id)
+        except GdDocument.DoesNotExist:
             return None
 
 

@@ -40,6 +40,7 @@ from .models import (
     Venue,
     VenueMedia,
     Workshop,
+    WorkshopDocument,
 )
 
 
@@ -431,12 +432,69 @@ def duplicate_workshop_action(modeladmin, request, queryset):
     return HttpResponseRedirect(f'{add_url}?{duplicate_workshop_querystring(workshop)}')
 
 
+class WorkshopDocumentInlineForm(forms.ModelForm):
+    include_in_booking_email = forms.BooleanField(
+        required=False,
+        label='Add to booking email',
+        widget=BooleanToggleWidget(),
+    )
+
+    class Meta:
+        model = WorkshopDocument
+        fields = ['title', 'file', 'description', 'include_in_booking_email', 'display_order']
+
+    def clean_file(self):
+        from courses.workshop_documents import validate_workshop_document_upload
+
+        upload = self.cleaned_data.get('file')
+        if upload:
+            validate_workshop_document_upload(upload)
+        elif not self.instance.pk:
+            raise forms.ValidationError('Choose a file to upload.')
+        return upload
+
+
+class WorkshopDocumentInline(admin.TabularInline):
+    model = WorkshopDocument
+    form = WorkshopDocumentInlineForm
+    extra = 1
+    fields = ['title', 'file', 'include_in_booking_email', 'display_order']
+    verbose_name = 'Workshop document'
+    verbose_name_plural = 'Workshop documents'
+    classes = ['gd-workshop-documents-inline']
+
+    def _parent_workshop_admin(self):
+        return self.admin_site._registry[Workshop]
+
+    def has_view_permission(self, request, obj=None):
+        parent = self._parent_workshop_admin()
+        if obj is None:
+            return parent.has_add_permission(request)
+        return parent.has_view_permission(request, obj)
+
+    def has_add_permission(self, request, obj=None):
+        parent = self._parent_workshop_admin()
+        if obj is None:
+            return parent.has_add_permission(request)
+        return parent.has_change_permission(request, obj)
+
+    def has_change_permission(self, request, obj=None):
+        parent = self._parent_workshop_admin()
+        if obj is None:
+            return parent.has_add_permission(request)
+        return parent.has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return self.has_change_permission(request, obj)
+
+
 @admin.register(Workshop)
 class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
     audit_set_user_id_on_create = True
     form = WorkshopAdminForm
     change_form_template = 'admin/courses/workshop/change_form.html'
     actions = [duplicate_workshop_action]
+    inlines = [WorkshopDocumentInline]
     autocomplete_fields = ['course', 'venue']
     list_display = [
         'id',
@@ -516,6 +574,18 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
                     'classes': ('wide', 'gd-workshop-customers-tab'),
                 },
             ))
+            if obj.venue_id:
+                venue = obj.venue
+                if venue and venue.document_id:
+                    fieldsets.insert(1, (
+                        'Venue documents',
+                        {
+                            'fields': (
+                                'venue_document_display',
+                                'add_document_to_booking_email',
+                            ),
+                        },
+                    ))
         return fieldsets
 
     def get_readonly_fields(self, request, obj=None):
@@ -523,8 +593,11 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
         if obj and obj.pk:
             if 'bookings_display' not in readonly:
                 readonly.append('bookings_display')
+            venue = obj.venue if obj.venue_id else None
+            if venue and venue.document_id and 'venue_document_display' not in readonly:
+                readonly.append('venue_document_display')
         else:
-            readonly = [f for f in readonly if f != 'bookings_display']
+            readonly = [f for f in readonly if f not in ('bookings_display', 'venue_document_display')]
         return readonly
 
     def get_changeform_initial_data(self, request):
@@ -559,12 +632,33 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
             'course', 'venue',
-        ).prefetch_related('gallery_images__image')
+        ).prefetch_related('gallery_images__image', 'documents')
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
         if hasattr(form, 'sync_gallery'):
             form.sync_gallery(obj)
+        if not change and obj.cloned_from_workshop_id:
+            from courses.workshop_documents import copy_workshop_documents
+
+            copy_workshop_documents(
+                obj.cloned_from_workshop_id,
+                obj.pk,
+                user_id=request.user.pk,
+            )
+
+    def save_formset(self, request, form, formset, change):
+        if formset.model is not WorkshopDocument:
+            return super().save_formset(request, form, formset, change)
+
+        instances = formset.save(commit=False)
+        for instance in instances:
+            if not instance.pk and not instance.createdby_id:
+                instance.createdby_id = request.user.pk
+            instance.save()
+        for obj in formset.deleted_objects:
+            obj.delete()
+        formset.save_m2m()
 
     @admin.display(description='Selected images')
     def image_preview(self, obj):
@@ -604,8 +698,19 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
         request = getattr(self, '_current_request', None)
         return mark_safe(render_workshop_bookings_table(obj, request))
 
+    @admin.display(description='')
+    def venue_document_display(self, obj):
+        if not obj or not obj.venue_id:
+            return '—'
+        from courses.venue_documents import render_venue_document_admin_preview
+
+        venue = obj.venue
+        if not venue:
+            return '—'
+        return mark_safe(render_venue_document_admin_preview(venue))
+
     class Media:
-        css = {'all': ('admin/css/workshop-admin.css',)}
+        css = {'all': ('admin/css/workshop-admin.css', 'admin/css/venue-document.css')}
         js = ('courses/js/admin-workshop.js',)
 
     @admin.display(description='Date', ordering='date')
@@ -707,7 +812,7 @@ class VenueAdmin(RegionScopedVenueAdminMixin, admin.ModelAdmin):
     form = VenueAdminForm
     change_list_template = 'admin/courses/venue/change_list.html'
     prepopulated_fields = {'slug': ('venue_name',)}
-    readonly_fields = ['created_at', 'updated_at']
+    readonly_fields = ['created_at', 'updated_at', 'venue_document_display']
     list_display = [
         'id',
         'venue_name',
@@ -721,6 +826,26 @@ class VenueAdmin(RegionScopedVenueAdminMixin, admin.ModelAdmin):
     list_filter = [VenueApprovalStateFilter, 'active', 'region_id']
     search_fields = ['venue_name', 'venue_address', 'location', 'slug']
     inlines = [VenueMediaInline]
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = list(super().get_fieldsets(request, obj))
+        if not obj or not obj.document_id:
+            return [
+                (title, {
+                    **opts,
+                    'fields': tuple(
+                        field_name
+                        for field_name in opts.get('fields', ())
+                        if field_name not in (
+                            'venue_document_display',
+                            'add_document_to_booking_email',
+                        )
+                    ),
+                })
+                for title, opts in fieldsets
+                if title != 'Venue documents'
+            ]
+        return fieldsets
 
     franchisee_fieldsets = [
         (None, {
@@ -766,6 +891,9 @@ class VenueAdmin(RegionScopedVenueAdminMixin, admin.ModelAdmin):
                 'Fill in fields to create content when none is linked yet.'
             ),
         }),
+        ('Venue documents', {
+            'fields': ('venue_document_display', 'add_document_to_booking_email'),
+        }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
         }),
@@ -805,6 +933,9 @@ class VenueAdmin(RegionScopedVenueAdminMixin, admin.ModelAdmin):
                 'display_meta_keywords',
             ),
             'description': 'Page content linked to this venue (read-only).',
+        }),
+        ('Venue documents', {
+            'fields': ('venue_document_display',),
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -850,6 +981,9 @@ class VenueAdmin(RegionScopedVenueAdminMixin, admin.ModelAdmin):
                 'Fill in fields to create content when none is linked yet.'
             ),
         }),
+        ('Venue documents', {
+            'fields': ('venue_document_display', 'add_document_to_booking_email'),
+        }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
         }),
@@ -861,6 +995,7 @@ class VenueAdmin(RegionScopedVenueAdminMixin, admin.ModelAdmin):
                 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
                 'admin/css/venue-admin.css',
                 'admin/css/course-admin.css',
+                'admin/css/venue-document.css',
             ),
         }
         js = (
@@ -899,6 +1034,14 @@ class VenueAdmin(RegionScopedVenueAdminMixin, admin.ModelAdmin):
                 status=502,
             )
         return JsonResponse(result)
+
+    @admin.display(description='')
+    def venue_document_display(self, obj):
+        if not obj:
+            return '—'
+        from courses.venue_documents import render_venue_document_admin_preview
+
+        return mark_safe(render_venue_document_admin_preview(obj))
 
     def _venue_content_value(self, obj, attr, *, allow_html=False, empty='—'):
         if not obj:
