@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib import admin, messages
 from django.http import HttpResponseRedirect, JsonResponse
+from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
@@ -37,6 +38,8 @@ from .models import (
     Image,
     Instructor,
     LEVEL_DISPLAY_NAMES,
+    Region,
+    RegionUser,
     Venue,
     VenueMedia,
     Workshop,
@@ -167,6 +170,140 @@ class CourseCategoryAdmin(LegacyAuditAdminMixin, PlatformAdminOnlyMixin, admin.M
                 widget=BooleanToggleWidget(),
             )
         return super().formfield_for_dbfield(db_field, request, **kwargs)
+
+
+class RegionAdminForm(forms.ModelForm):
+    active = forms.BooleanField(
+        required=False,
+        label='Active',
+        widget=BooleanToggleWidget(),
+    )
+
+    class Meta:
+        model = Region
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields['active'].initial = bool(self.instance.active)
+
+    def save(self, commit=True):
+        region = super().save(commit=False)
+        region.active = 1 if self.cleaned_data.get('active') else 0
+        if commit:
+            region.save()
+        return region
+
+
+class RegionUserInline(admin.TabularInline):
+    model = RegionUser
+    extra = 0
+    autocomplete_fields = ['user']
+    fields = ['user']
+    verbose_name = 'Assigned user'
+    verbose_name_plural = 'Assigned users'
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'user':
+            from core.models import User
+
+            kwargs['queryset'] = (
+                User.objects.filter(active=1)
+                .order_by('lastname', 'firstname', 'email')
+            )
+            kwargs.setdefault(
+                'help_text',
+                'Franchisee or administrator who can manage workshops in this region.',
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+@admin.register(Region)
+class RegionAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
+    """Franchise regions (gd_region) and assigned users (gd_region_user)."""
+    form = RegionAdminForm
+    change_list_template = 'admin/courses/region/change_list.html'
+    list_display = ['region_name', 'slug', 'is_active_display', 'assigned_users_display']
+    list_filter = ['active']
+    search_fields = ['region_name', 'slug']
+    ordering = ['region_name']
+    inlines = [RegionUserInline]
+    readonly_fields = ['id']
+
+    @admin.display(description='Active', boolean=True)
+    def is_active_display(self, obj):
+        return bool(obj.active)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related(
+            'user_assignments__user',
+        )
+
+    @admin.display(description='Assigned users')
+    def assigned_users_display(self, obj):
+        assignments = list(obj.user_assignments.all())
+        if not assignments:
+            return '—'
+        links = []
+        for assignment in assignments:
+            user = assignment.user
+            if not user:
+                links.append(f'User #{assignment.user_id}')
+                continue
+            label = user.get_full_name() or user.email
+            user_type = user.get_user_type_display()
+            if user_type and user_type != '—':
+                label = f'{label} ({user_type})'
+            links.append(format_html(
+                '<a href="{}">{}</a>',
+                reverse('admin:core_user_change', args=[user.pk]),
+                label,
+            ))
+        return format_html_join(', ', '{}', ((link,) for link in links))
+
+    def save_formset(self, request, form, formset, change):
+        if formset.model is not RegionUser:
+            return super().save_formset(request, form, formset, change)
+
+        from django.utils import timezone
+
+        now = timezone.now()
+        instances = formset.save(commit=False)
+        for instance in instances:
+            if not instance.pk:
+                instance.createdby_id = request.user.pk
+                instance.created_at = now
+            instance.updatedby_id = request.user.pk
+            instance.updated_at = now
+            instance.save()
+        for obj in formset.deleted_objects:
+            obj.delete()
+        formset.save_m2m()
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'map/',
+                self.admin_site.admin_view(self.region_map_view),
+                name='courses_region_map',
+            ),
+        ]
+        return custom_urls + urls
+
+    def region_map_view(self, request):
+        from courses.region_territory import build_region_map_payload
+
+        payload = build_region_map_payload()
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Region map',
+            'opts': self.model._meta,
+            'region_map_data': payload,
+            'has_permission': self.has_view_permission(request),
+        }
+        return TemplateResponse(request, 'admin/courses/region/map.html', context)
 
 
 @admin.register(Instructor)
@@ -529,6 +666,7 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
                 'region',
                 'open_dated',
                 'date',
+                'end_at',
                 'tutor',
                 'assistant',
                 'alt_course',
@@ -613,7 +751,7 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
         if source:
             messages.info(
                 request,
-                f'Copied settings from {source}. Set a date or mark as open dated, then save.',
+                f'Copied settings from {source}. Set start and end date/time, or mark as open dated, then save.',
             )
             extra_context['is_workshop_duplicate'] = True
         return super().add_view(request, form_url, extra_context)
@@ -659,6 +797,14 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
         for obj in formset.deleted_objects:
             obj.delete()
         formset.save_m2m()
+
+    def response_change(self, request, obj):
+        """Stay on the workshop edit page after save (avoids slow changelist redirect)."""
+        if '_addanother' in request.POST:
+            return super().response_change(request, obj)
+        return HttpResponseRedirect(
+            reverse('admin:courses_workshop_change', args=[obj.pk]),
+        )
 
     @admin.display(description='Selected images')
     def image_preview(self, obj):
@@ -718,6 +864,12 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
         if obj.open_dated:
             return 'Open dated'
         if obj.date:
+            end = obj.get_end_date()
+            if end and end.date() != obj.date.date():
+                return (
+                    f'{obj.date.strftime("%d %b %Y %H:%M")} – '
+                    f'{end.strftime("%d %b %Y %H:%M")}'
+                )
             return obj.date.strftime('%d %b %Y %H:%M')
         return '—'
 

@@ -71,7 +71,7 @@
 
         function clearDateIfOpenDated() {
             if ($checkbox.is(':checked')) {
-                $('#id_date_0, #id_date_1').val('');
+                $('#id_date_0, #id_date_1, #id_end_at_0, #id_end_at_1').val('');
             }
         }
 
@@ -106,12 +106,29 @@
         $label.append($btn);
     }
 
+    function initSaveGuard() {
+        if (!isWorkshopAdminPage()) {
+            return;
+        }
+        var $form = $('body.model-workshop form').first();
+        if (!$form.length || $form.data('gdSaveGuard')) {
+            return;
+        }
+        $form.data('gdSaveGuard', true);
+        $form.on('submit', function () {
+            var $buttons = $form.find('input[type="submit"], button[type="submit"]');
+            $buttons.prop('disabled', true);
+            $buttons.filter('[name="_save"], [name="_continue"]').first().val('Saving…');
+        });
+    }
+
     function initWorkshopAdmin() {
         fixWorkshopControlWidths();
         initLoanCamerasToggle();
         initOpenDatedToggle();
         initWorkshopDateTimePicker();
         initBylineInfo();
+        initSaveGuard();
     }
 
     $(document).ready(function () {

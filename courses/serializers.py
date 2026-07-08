@@ -15,11 +15,14 @@ class VenueSerializer(serializers.ModelSerializer):
 
 
 class CourseSerializer(serializers.ModelSerializer):
+    duration_display = serializers.CharField(read_only=True)
+    duration_iso8601 = serializers.CharField(read_only=True)
+
     class Meta:
         model = Course
         fields = [
             'id', 'title', 'slug', 'short_description', 'level', 'category',
-            'duration_hours', 'price', 'what_youll_learn'
+            'duration_hours', 'duration_display', 'duration_iso8601', 'price', 'what_youll_learn'
         ]
 
 
@@ -27,6 +30,9 @@ class WorkshopSerializer(serializers.ModelSerializer):
     course = CourseSerializer(read_only=True)
     venue = VenueSerializer(read_only=True)
     location = VenueSerializer(source='venue', read_only=True)  # compatibility
+    start_date = serializers.DateTimeField(read_only=True)
+    end_date = serializers.DateTimeField(read_only=True)
+    duration_display = serializers.CharField(read_only=True)
     price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     spaces_available = serializers.IntegerField(read_only=True)
     is_full = serializers.BooleanField(read_only=True)
@@ -36,5 +42,5 @@ class WorkshopSerializer(serializers.ModelSerializer):
         model = Workshop
         fields = [
             'id', 'course', 'venue', 'location', 'start_date', 'end_date',
-            'is_open_dated', 'price', 'spaces_available', 'is_full', 'enrollment_open'
+            'duration_display', 'is_open_dated', 'price', 'spaces_available', 'is_full', 'enrollment_open'
         ]

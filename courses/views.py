@@ -45,6 +45,7 @@ from website.seo import (
 from website.google_reviews import get_google_reviews_display
 from .serializers import WorkshopSerializer
 from .display_images import attach_gd_images_to_workshops, collect_header_images, primary_image_url
+from .duration import duration_iso8601
 from .list_card import list_card_workshops, serialize_list_card
 
 # Fallback when no admin image: optional legacy file in MEDIA_ROOT, then bundled static SVG.
@@ -521,6 +522,7 @@ class CourseListView(ListView):
                         'category': course.get_card_category_display(),
                         'short_description': card_desc,
                         'duration_hours': course.duration_hours,
+                        'duration_display': course.duration_display,
                         'image_url': image_url,
                         'course_url': instance_url,
                         'location_name': v.name if v else 'TBC',
@@ -1026,9 +1028,10 @@ class CourseDetailView(DetailView):
             "courseCode": course.slug,
             "educationalLevel": course.get_level_display(),
             "coursePrerequisites": course.prerequisites or None,
-            "timeRequired": f"PT{course.duration_hours}H",
             "audience": {"@type": "Audience", "audienceType": course.audience}
         }
+        if course.duration_iso8601:
+            course_schema["timeRequired"] = course.duration_iso8601
         
         if course.image and course.image.url:
             course_schema["image"] = self.request.build_absolute_uri(course.image.url)
@@ -1042,7 +1045,6 @@ class CourseDetailView(DetailView):
             instance_schema = {
                 "@type": "CourseInstance",
                 "courseMode": "onsite",
-                "courseWorkload": f"PT{course.duration_hours}H",
                 "location": {
                     "@type": "Place",
                     "name": loc.venue_name if loc else "TBC",
@@ -1056,6 +1058,12 @@ class CourseDetailView(DetailView):
                     }
                 }
             }
+            workload = instance.duration_display and duration_iso8601(
+                instance.start_date,
+                instance.end_date,
+            )
+            if workload:
+                instance_schema["courseWorkload"] = workload
             if workshop_is_open_dated(instance):
                 instance_schema["description"] = OPEN_DATED_LABEL
             elif instance.start_date:

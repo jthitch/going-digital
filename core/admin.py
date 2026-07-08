@@ -64,7 +64,7 @@ class UserAdmin(BaseUserAdmin):
         return mark_safe(' &middot; '.join(links))
 
     def _password_change_url(self, obj):
-        return reverse('admin:core_user_password_change', args=[obj.pk])
+        return reverse('admin:auth_user_password_change', args=[obj.pk])
 
     @admin.display(description='Password')
     def password_reset_admin_link(self, obj):

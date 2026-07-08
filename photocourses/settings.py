@@ -382,7 +382,7 @@ JAZZMIN_SETTINGS = {
     "navigation_expanded": True,
     
     # Hide these apps when generating side menu
-    "hide_apps": [],
+    "hide_apps": ["franchises"],
     
     # Hide these models when generating side menu (Content editable under Courses)
     "hide_models": ["courses.Content"],
@@ -394,6 +394,7 @@ JAZZMIN_SETTINGS = {
         "courses.Course",
         "courses.CourseCategory",
         "courses.CourseSkillLevel",
+        "courses.Region",
         "courses.Workshop",
         "courses.Instructor",
         "courses.Image",
@@ -405,11 +406,18 @@ JAZZMIN_SETTINGS = {
         "website.GoogleReviewsSettings",
         "website.LegalPage",
         "bookings",
-        "franchises",
         "payments",
     ],
     
     "custom_links": {
+        "courses": [
+            {
+                "name": "Region map",
+                "url": "admin:courses_region_map",
+                "icon": "fas fa-map-marked-alt",
+                "permissions": ["courses.view_region"],
+            },
+        ],
         "bookings": [
             {
                 "name": "Reports",
@@ -425,6 +433,7 @@ JAZZMIN_SETTINGS = {
         "core.user": "fas fa-user",
         "auth.Group": "fas fa-users",
         "courses.Course": "fas fa-book",
+        "courses.Region": "fas fa-map-marked-alt",
         "courses.Workshop": "fas fa-calendar-alt",
         "courses.Instructor": "fas fa-chalkboard-teacher",
         "website": "fas fa-globe",
@@ -440,8 +449,6 @@ JAZZMIN_SETTINGS = {
         "bookings": "fas fa-ticket-alt",
         "bookings.Booking": "fas fa-ticket-alt",
         "bookings.Voucher": "fas fa-gift",
-        "franchises.Franchise": "fas fa-building",
-        "franchises.Location": "fas fa-map-marker-alt",
         "payments.Payment": "fas fa-credit-card",
     },
     

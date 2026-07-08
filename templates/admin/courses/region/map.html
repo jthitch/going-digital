@@ -1,0 +1,49 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans 'Region map' %} | {{ block.super }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="{% static 'admin/css/region-map.css' %}">
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url 'admin:courses_region_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; {% trans 'Map view' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="gd-region-map-page">
+    <div class="gd-region-map-layout">
+        <aside class="gd-region-map-sidebar" aria-label="{% trans 'Regions' %}">
+            <div class="gd-region-map-sidebar__header">
+                <h1 class="gd-region-map-sidebar__title">{% trans 'Region map' %}</h1>
+                <p class="gd-region-map-sidebar__intro">
+                    {% trans 'Contract territories from the March 2019 map, linked to franchise regions and assigned users.' %}
+                </p>
+            </div>
+            <div id="gd-region-map-legend" class="gd-region-map-legend"></div>
+            <div id="gd-region-map-unmapped" class="gd-region-map-unmapped" hidden>
+                <h2 class="gd-region-map-unmapped__title">{% trans 'Regions without map boundary' %}</h2>
+                <ul id="gd-region-map-unmapped-list" class="gd-region-map-unmapped__list"></ul>
+            </div>
+        </aside>
+        <div class="gd-region-map-main">
+            <div id="gd-region-map" class="gd-region-map" role="application" aria-label="{% trans 'Franchise region map' %}"></div>
+        </div>
+    </div>
+</div>
+{{ region_map_data|json_script:"gd-region-map-data" }}
+{% endblock %}
+
+{% block extrajs %}
+{{ block.super }}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'courses/js/admin-region-map.js' %}"></script>
+{% endblock %}

@@ -10,6 +10,7 @@ CLONED_FROM_WORKSHOP_INITIAL_KEY = 'cloned_from_workshop_id'
 # Form initial keys that should be kept even when empty (e.g. cleared date on duplicate).
 _DUPLICATE_EMPTY_ALLOWED_KEYS = frozenset({
     'date',
+    'end_at',
     'places_booked',
     'active',
     'open_dated',
@@ -81,6 +82,7 @@ def workshop_duplicate_initial(source: Workshop) -> dict:
         'approve': source.approve,
         'active': bool(source.active),
         'open_dated': bool(source.open_dated),
+        'end_at': None,
         'date': None,
         'images': workshop_gallery_image_ids(source),
     }

@@ -933,7 +933,12 @@ class WorkshopAdminForm(forms.ModelForm):
     )
     date = HTML5SplitDateTimeField(
         required=False,
-        label='Date and time',
+        label='Start date and time',
+    )
+    end_at = HTML5SplitDateTimeField(
+        required=False,
+        label='End date and time',
+        help_text='For multi-day courses, set the end date to the final day.',
     )
     strapline = forms.CharField(
         required=False,
@@ -1044,6 +1049,15 @@ class WorkshopAdminForm(forms.ModelForm):
             self.fields['open_dated'].initial = _legacy_01_checked(self.instance.open_dated)
             if self.instance.date and 'date' not in self.initial and not self.instance.open_dated:
                 self.fields['date'].initial = _local_datetime(self.instance.date)
+            if self.instance.end_at and 'end_at' not in self.initial and not self.instance.open_dated:
+                self.fields['end_at'].initial = _local_datetime(self.instance.end_at)
+            elif (
+                self.instance.date
+                and 'end_at' not in self.initial
+                and not self.instance.open_dated
+                and not self.instance.end_at
+            ):
+                self.fields['end_at'].initial = _local_datetime(self.instance.get_end_date())
         else:
             if 'active' not in self.initial:
                 self.fields['active'].initial = False if self.region_ids is not None else True
@@ -1138,13 +1152,25 @@ class WorkshopAdminForm(forms.ModelForm):
 
         open_dated = cleaned.get('open_dated')
         workshop_date = cleaned.get('date')
-        if open_dated and workshop_date:
-            raise forms.ValidationError({
-                'date': 'Clear the date and time when marking a workshop as Open dated.',
-            })
+        workshop_end = cleaned.get('end_at')
+        if open_dated and (workshop_date or workshop_end):
+            errors = {}
+            if workshop_date:
+                errors['date'] = 'Clear the start date and time when marking a workshop as Open dated.'
+            if workshop_end:
+                errors['end_at'] = 'Clear the end date and time when marking a workshop as Open dated.'
+            raise forms.ValidationError(errors)
         if not open_dated and not workshop_date:
             raise forms.ValidationError({
-                'date': 'Set a date and time, or tick Open dated.',
+                'date': 'Set a start date and time, or tick Open dated.',
+            })
+        if not open_dated and workshop_date and not workshop_end:
+            raise forms.ValidationError({
+                'end_at': 'Set an end date and time.',
+            })
+        if workshop_date and workshop_end and workshop_end <= workshop_date:
+            raise forms.ValidationError({
+                'end_at': 'End date and time must be after the start.',
             })
         return cleaned
 
@@ -1155,6 +1181,7 @@ class WorkshopAdminForm(forms.ModelForm):
         workshop.open_dated = 1 if self.cleaned_data.get('open_dated') else 0
         if workshop.open_dated:
             workshop.date = None
+            workshop.end_at = None
         if not self.cleaned_data.get('cameras_available'):
             workshop.number_of_loan_cameras_available = 0
         for field_name, attr_name, zero in (

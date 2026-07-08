@@ -175,8 +175,18 @@ class RegionUser(models.Model):
     Franchisees may be linked to multiple regions.
     """
     id = models.AutoField(primary_key=True, db_column='id')
-    region_id = models.IntegerField(db_column='region_id')
-    user_id = models.IntegerField(db_column='user_id')
+    region = models.ForeignKey(
+        Region,
+        on_delete=models.CASCADE,
+        db_column='region_id',
+        related_name='user_assignments',
+    )
+    user = models.ForeignKey(
+        'core.User',
+        on_delete=models.CASCADE,
+        db_column='user_id',
+        related_name='region_assignments',
+    )
     createdby_id = models.IntegerField(null=True, blank=True, db_column='createdby_id')
     updatedby_id = models.IntegerField(null=True, blank=True, db_column='updatedby_id')
     created_at = models.DateTimeField(null=True, blank=True, db_column='created_at')
@@ -189,7 +199,9 @@ class RegionUser(models.Model):
         verbose_name_plural = 'Region users'
 
     def __str__(self):
-        return f'user_id={self.user_id} region_id={self.region_id}'
+        user_label = str(self.user) if self.user_id else f'user_id={self.user_id}'
+        region_label = str(self.region) if self.region_id else f'region_id={self.region_id}'
+        return f'{user_label} ({region_label})'
 
 
 class County(models.Model):
@@ -839,6 +851,12 @@ class Workshop(models.Model):
     open_dated = models.SmallIntegerField(default=0, db_column='open_dated')
     checksum = models.CharField(max_length=32, null=True, blank=True, db_column='checksum')
     date = SafeDateTimeField(null=True, blank=True, db_column='date')
+    end_at = SafeDateTimeField(
+        null=True,
+        blank=True,
+        db_column='end_date',
+        verbose_name='End date and time',
+    )
     cost = models.IntegerField(default=0, db_column='cost')
     deposit_required = models.IntegerField(default=0, db_column='deposit_required')
     max_places = models.IntegerField(null=True, blank=True, db_column='max_places')
@@ -937,13 +955,26 @@ class Workshop(models.Model):
             return None
         return self.date
 
-    @property
-    def end_date(self):
-        """Assume 6-hour workshop if no end time stored."""
+    def get_end_date(self):
+        """End datetime with legacy fallback when end_at is not stored."""
+        if self.end_at:
+            return self.end_at
         if self.date:
             from datetime import timedelta
             return self.date + timedelta(hours=6)
         return None
+
+    @property
+    def end_date(self):
+        return self.get_end_date()
+
+    @property
+    def duration_display(self):
+        from courses.duration import format_duration
+
+        if self.open_dated or not self.date:
+            return ''
+        return format_duration(self.date, self.get_end_date())
 
     @property
     def enrollment_open(self):
@@ -1219,16 +1250,41 @@ class Course(models.Model):
         return self.workshops
 
     # Not in gd_course; calculated from workshops when available
+    def _duration_workshop(self):
+        return (
+            self.workshops.filter(open_dated=0)
+            .exclude(date__isnull=True)
+            .order_by('date')
+            .first()
+        )
+
+    @property
+    def duration_display(self):
+        from courses.duration import format_duration, resolve_workshop_end
+
+        workshop = self._duration_workshop()
+        if not workshop or not workshop.date:
+            return ''
+        return format_duration(workshop.date, resolve_workshop_end(workshop))
+
     @property
     def duration_hours(self):
-        """Calculate duration in hours from first workshop's start/end times."""
-        workshop = self.workshops.order_by('date').first()
-        if workshop and workshop.start_date and workshop.end_date:
-            delta = workshop.end_date - workshop.start_date
-            hours = delta.total_seconds() / 3600
-            hours = max(0, round(hours, 1))
-            return int(hours) if hours == int(hours) else hours
-        return 0
+        """Hours for single-day workshops; 0 when the span is two or more calendar days."""
+        from courses.duration import duration_hours_value, resolve_workshop_end
+
+        workshop = self._duration_workshop()
+        if not workshop or not workshop.date:
+            return 0
+        return duration_hours_value(workshop.date, resolve_workshop_end(workshop))
+
+    @property
+    def duration_iso8601(self):
+        from courses.duration import duration_iso8601, resolve_workshop_end
+
+        workshop = self._duration_workshop()
+        if not workshop or not workshop.date:
+            return None
+        return duration_iso8601(workshop.date, resolve_workshop_end(workshop))
 
     @property
     def max_students(self):

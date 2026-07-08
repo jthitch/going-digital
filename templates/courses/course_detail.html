@@ -81,7 +81,7 @@
                     </svg>
                     <div class="course-fact__text">
                         <span class="course-fact__label">Duration</span>
-                        <span class="course-fact__value">{{ course.duration_hours }} hours</span>
+                        <span class="course-fact__value">{% if course.duration_display %}{{ course.duration_display }}{% else %}—{% endif %}</span>
                     </div>
                 </li>
                 <li class="course-fact">
