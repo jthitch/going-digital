@@ -1,6 +1,7 @@
 from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.urls import reverse
+from django.contrib.admin.options import ModelAdmin
+from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
@@ -44,6 +45,16 @@ class UserAdmin(BaseUserAdmin):
         ('Important dates', {'fields': ('last_login', 'created_at', 'updated_at')}),
     )
 
+    def get_urls(self):
+        """Use core app URL name for password change (not auth_user_password_change)."""
+        return [
+            path(
+                '<id>/password/',
+                self.admin_site.admin_view(self.user_change_password),
+                name='core_user_password_change',
+            ),
+        ] + ModelAdmin.get_urls(self)
+
     @admin.display(description='Profile links')
     def social_profile_links(self, obj):
         if not obj or not obj.pk:
@@ -64,7 +75,7 @@ class UserAdmin(BaseUserAdmin):
         return mark_safe(' &middot; '.join(links))
 
     def _password_change_url(self, obj):
-        return reverse('admin:auth_user_password_change', args=[obj.pk])
+        return reverse('admin:core_user_password_change', args=[obj.pk])
 
     @admin.display(description='Password')
     def password_reset_admin_link(self, obj):
