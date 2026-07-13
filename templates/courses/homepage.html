@@ -79,7 +79,7 @@
                     {% if level_1_courses %}
                     <div class="level-box-courses">
                         {% for course in level_1_courses %}
-                        <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                        <a href="{% url 'courses:course_detail' slug=course.slug %}" class="level-box-course-link">
                             <span class="course-title">{{ course.title }}</span>
                             <span class="course-price">£{{ course.min_price }}</span>
                         </a>
@@ -104,7 +104,7 @@
                     {% if level_2_courses %}
                     <div class="level-box-courses">
                         {% for course in level_2_courses %}
-                        <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                        <a href="{% url 'courses:course_detail' slug=course.slug %}" class="level-box-course-link">
                             <span class="course-title">{{ course.title }}</span>
                             <span class="course-price">£{{ course.min_price }}</span>
                         </a>
@@ -129,7 +129,7 @@
                     {% if level_3_courses %}
                     <div class="level-box-courses">
                         {% for course in level_3_courses %}
-                        <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                        <a href="{% url 'courses:course_detail' slug=course.slug %}" class="level-box-course-link">
                             <span class="course-title">{{ course.title }}</span>
                             <span class="course-price">£{{ course.min_price }}</span>
                         </a>
@@ -154,7 +154,7 @@
                     {% if editing_courses %}
                     <div class="level-box-courses">
                         {% for course in editing_courses %}
-                        <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                        <a href="{% url 'courses:course_detail' slug=course.slug %}" class="level-box-course-link">
                             <span class="course-title">{{ course.title }}</span>
                             <span class="course-price">£{{ course.min_price }}</span>
                         </a>
@@ -179,7 +179,7 @@
                     {% if residentials_courses %}
                     <div class="level-box-courses">
                         {% for course in residentials_courses %}
-                        <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                        <a href="{% url 'courses:course_detail' slug=course.slug %}" class="level-box-course-link">
                             <span class="course-title">{{ course.title }}</span>
                             <span class="course-price">£{{ course.min_price }}</span>
                         </a>
@@ -204,7 +204,7 @@
                     {% if bespoke_courses %}
                     <div class="level-box-courses">
                         {% for course in bespoke_courses %}
-                        <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="level-box-course-link">
+                        <a href="{% url 'courses:course_detail' slug=course.slug %}" class="level-box-course-link">
                             <span class="course-title">{{ course.title }}</span>
                             <span class="course-price">£{{ course.min_price }}</span>
                         </a>
@@ -235,13 +235,13 @@
                 {% endif %}
                 <div class="course-content">
                     <span class="course-level">{{ course.get_level_display }}</span>
-                    <h3><a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}">{{ course.title }}</a></h3>
+                    <h3><a href="{% url 'courses:course_detail' slug=course.slug %}">{{ course.title }}</a></h3>
                     {% if course.get_card_short_description %}
                     <p class="course-short">{{ course.get_card_short_description|truncatewords:15 }}</p>
                     {% endif %}
                     <div class="course-footer">
                         <span class="course-price">From £{{ course.min_price }}</span>
-                        <a href="{% with first_instance=course.instances.first %}{% if first_instance %}{{ first_instance.get_absolute_url }}{% else %}{% url 'courses:course_detail' slug=course.slug %}{% endif %}{% endwith %}" class="btn-course">Learn More</a>
+                        <a href="{% url 'courses:course_detail' slug=course.slug %}" class="btn-course">Learn More</a>
                     </div>
                 </div>
             </article>

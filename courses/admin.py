@@ -51,7 +51,11 @@ from .models import (
 class ImageAdmin(LegacyAuditAdminMixin, PlatformAdminOnlyMixin, admin.ModelAdmin):
     """Edit gd_image records (course images, etc.)."""
     form = ImageAdminForm
+    list_per_page = 50
+    list_max_show_all = 100
+    show_full_result_count = False
     list_display = [
+        'thumbnail_preview',
         'id',
         'file_name',
         'source_name',
@@ -75,6 +79,20 @@ class ImageAdmin(LegacyAuditAdminMixin, PlatformAdminOnlyMixin, admin.ModelAdmin
         'created_at',
         'updated_at',
     ]
+
+    @admin.display(description='Preview')
+    def thumbnail_preview(self, obj):
+        if not obj:
+            return '—'
+        from courses.display_images import gd_image_public_url
+
+        url = gd_image_public_url(obj)
+        if not url:
+            return '—'
+        return format_html(
+            '<img src="{}" alt="" class="gd-image-admin-thumb" loading="lazy" decoding="async">',
+            url,
+        )
 
     fieldsets = [
         ('File', {

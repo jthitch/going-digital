@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from courses.models import Tutor
+from website.seo import absolute_url_from_base, site_base_url
 
 
 def _ics_datetime(dt):
@@ -88,9 +89,7 @@ def build_workshop_calendar(*, start, end, title, description, location, uid):
 
 def _absolute_url(path, site_base=None):
     if site_base:
-        from website.seo import absolute_url_from_base
         return absolute_url_from_base(site_base, path)
-    from website.seo import site_base_url
     return absolute_url_from_base(site_base_url(), path)
 
 
