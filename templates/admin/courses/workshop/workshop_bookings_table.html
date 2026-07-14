@@ -2,11 +2,18 @@
 <div class="card gd-workshop-customers-card mb-0">
     <div class="card-header d-flex align-items-center justify-content-between flex-wrap">
         <h5 class="m-0">{% trans 'Customers' %} <span class="text-muted font-weight-normal">({{ booking_count }})</span></h5>
-        {% if bookings_changelist_url %}
-        <a href="{{ bookings_changelist_url }}" class="btn btn-sm btn-outline-primary">
-            {% trans 'Open in Bookings' %}
-        </a>
-        {% endif %}
+        <div class="d-flex align-items-center flex-wrap" style="gap: 0.5rem;">
+            {% if students_csv_url %}
+            <a href="{{ students_csv_url }}" class="btn btn-sm btn-outline-secondary">
+                {% trans 'Download student list' %}
+            </a>
+            {% endif %}
+            {% if bookings_changelist_url %}
+            <a href="{{ bookings_changelist_url }}" class="btn btn-sm btn-outline-primary">
+                {% trans 'Open in Bookings' %}
+            </a>
+            {% endif %}
+        </div>
     </div>
     <div class="card-body p-0">
         {% if bookings %}
@@ -53,7 +60,7 @@
                     {% for booking in bookings %}
                     <tr class="{% cycle 'row1' 'row2' %}">
                         <th class="field-booking_reference">
-                            {% if can_view_booking %}
+                            {% if can_view_booking and booking.pk and not booking.is_legacy %}
                             <a href="{% url 'admin:bookings_booking_change' booking.pk %}">{{ booking.booking_reference }}</a>
                             {% else %}
                             {{ booking.booking_reference }}
@@ -62,7 +69,11 @@
                         <td class="field-student_first_name">{{ booking.student_first_name }}</td>
                         <td class="field-student_last_name">{{ booking.student_last_name }}</td>
                         <td class="field-student_email">
+                            {% if booking.student_email %}
                             <a href="mailto:{{ booking.student_email }}">{{ booking.student_email }}</a>
+                            {% else %}
+                            —
+                            {% endif %}
                         </td>
                         <td class="field-student_phone">{{ booking.student_phone|default:"—" }}</td>
                         <td class="field-loan_camera">
@@ -88,8 +99,20 @@
                             —
                             {% endif %}
                         </td>
-                        <td class="field-price_paid text-right">£{{ booking.price_paid|floatformat:2 }}</td>
-                        <td class="field-created_at nowrap">{{ booking.created_at|date:"j M Y, H:i" }}</td>
+                        <td class="field-price_paid text-right">
+                            {% if booking.is_legacy %}
+                            —
+                            {% else %}
+                            £{{ booking.price_paid|floatformat:2 }}
+                            {% endif %}
+                        </td>
+                        <td class="field-created_at nowrap">
+                            {% if booking.created_at %}
+                            {{ booking.created_at|date:"j M Y, H:i" }}
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

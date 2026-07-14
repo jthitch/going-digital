@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib import admin, messages
-from django.http import HttpResponseRedirect, JsonResponse
+from django.http import HttpResponseForbidden, HttpResponseRedirect, JsonResponse
+from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.html import format_html, format_html_join
@@ -774,6 +775,31 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
             extra_context['is_workshop_duplicate'] = True
         return super().add_view(request, form_url, extra_context)
 
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<path:object_id>/students.csv/',
+                self.admin_site.admin_view(self.students_csv_view),
+                name='courses_workshop_students_csv',
+            ),
+        ]
+        return custom_urls + urls
+
+    def students_csv_view(self, request, object_id):
+        workshop = get_object_or_404(self.get_queryset(request), pk=object_id)
+        if not self.has_view_permission(request, workshop):
+            return HttpResponseForbidden('You do not have permission to download this report.')
+        if not (
+            user_has_full_region_access(request.user)
+            or user_can_access_workshop(request.user, workshop)
+        ):
+            return HttpResponseForbidden('You do not have permission to download this report.')
+
+        from courses.workshop_student_report import build_workshop_student_csv_response
+
+        return build_workshop_student_csv_response(workshop, user=request.user)
+
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
         obj = self.get_object(request, object_id)
@@ -781,6 +807,14 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
             add_url = reverse('admin:courses_workshop_add')
             extra_context['duplicate_workshop_url'] = (
                 f'{add_url}?{duplicate_workshop_querystring(obj)}'
+            )
+        if obj and (
+            user_has_full_region_access(request.user)
+            or user_can_access_workshop(request.user, obj)
+        ):
+            extra_context['students_csv_url'] = reverse(
+                'admin:courses_workshop_students_csv',
+                args=[obj.pk],
             )
         self._current_request = request
         return super().change_view(request, object_id, form_url, extra_context)

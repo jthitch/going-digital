@@ -2,6 +2,11 @@
 
 {% block object-tools-items %}
 {{ block.super }}
+{% if students_csv_url %}
+<li>
+    <a href="{{ students_csv_url }}" class="historylink">Download student list</a>
+</li>
+{% endif %}
 {% if duplicate_workshop_url %}
 <li>
     <a href="{{ duplicate_workshop_url }}" class="historylink">Duplicate workshop</a>

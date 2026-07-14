@@ -1,5 +1,6 @@
 """Forms for gd_user admin."""
 from django import forms
+from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.contrib.auth.forms import (
     BaseUserCreationForm,
     PasswordResetForm,
@@ -32,6 +33,51 @@ def _sync_user_regions(user, region_pks, editor_id=None):
     user.save(update_fields=['region_id'])
 
 
+def _sync_user_venues(user, venue_pks, editor_id=None):
+    """Assign/unassign gd_venue.user_id for this user (same link as Venue admin User field)."""
+    from courses.models import Venue
+
+    venue_pks = set(venue_pks)
+    now = timezone.now()
+    currently = set(
+        Venue.objects.filter(user_id=user.pk).values_list('pk', flat=True)
+    )
+    to_remove = currently - venue_pks
+    to_add = venue_pks - currently
+    if to_remove:
+        Venue.objects.filter(pk__in=to_remove, user_id=user.pk).update(
+            user_id=None,
+            updatedby_id=editor_id,
+            updated_at=now,
+        )
+    if to_add:
+        Venue.objects.filter(pk__in=to_add).update(
+            user_id=user.pk,
+            updatedby_id=editor_id,
+            updated_at=now,
+        )
+
+
+class VenueMultipleChoiceField(forms.ModelMultipleChoiceField):
+    """Venue labels include location for disambiguation in the dual-list widget."""
+
+    def label_from_instance(self, obj):
+        name = obj.venue_name or f'Venue #{obj.pk}'
+        loc = (obj.location or '').strip()
+        return f'{name} ({loc})' if loc else name
+
+
+def _venue_assignment_queryset(include_user_id=None):
+    """Active venues, plus any already assigned to this user (even if inactive)."""
+    from courses.models import Venue
+    from django.db.models import Q
+
+    qs = Venue.objects.filter(active=1)
+    if include_user_id:
+        qs = Venue.objects.filter(Q(active=1) | Q(user_id=include_user_id))
+    return qs.order_by('venue_name', 'id')
+
+
 class GdUserChangeForm(UserChangeForm):
     """Change form without password hash display (reset link is on the admin page)."""
 
@@ -47,6 +93,16 @@ class GdUserChangeForm(UserChangeForm):
         label='Regions',
         help_text='Franchise regions this user can access (gd_region_user).',
     )
+    venues = VenueMultipleChoiceField(
+        queryset=None,
+        required=False,
+        label='Venues',
+        help_text=(
+            'Venues assigned to this user (same as setting User on each venue). '
+            'Selecting a venue already assigned elsewhere will move it to this user.'
+        ),
+        widget=FilteredSelectMultiple('venues', is_stacked=False),
+    )
 
     class Meta(UserChangeForm.Meta):
         model = User
@@ -54,9 +110,19 @@ class GdUserChangeForm(UserChangeForm):
         field_classes = {}
         exclude = ['password']
 
-    def __init__(self, *args, **kwargs):
-        from courses.models import Region, RegionUser
+    class Media:
+        css = {'all': ('admin/css/widgets.css',)}
+        js = (
+            'admin/js/jquery.init.js',
+            'admin/js/core.js',
+            'admin/js/SelectBox.js',
+            'admin/js/SelectFilter2.js',
+        )
 
+    def __init__(self, *args, can_assign_venues=False, **kwargs):
+        from courses.models import Region, RegionUser, Venue
+
+        self.can_assign_venues = can_assign_venues
         super().__init__(*args, **kwargs)
         self.fields.pop('password', None)
         self.fields['regions'].queryset = Region.objects.filter(active=1).order_by('region_name')
@@ -66,8 +132,17 @@ class GdUserChangeForm(UserChangeForm):
             )
             self.fields['regions'].initial = Region.objects.filter(pk__in=region_ids)
 
+        if can_assign_venues:
+            self.fields['venues'].queryset = _venue_assignment_queryset(
+                include_user_id=self.instance.pk if self.instance.pk else None
+            )
+            if self.instance.pk:
+                self.fields['venues'].initial = Venue.objects.filter(user_id=self.instance.pk)
+        else:
+            self.fields.pop('venues', None)
+
     def save(self, commit=True):
-        # Admin calls save(commit=False) then obj.save(); region sync runs in UserAdmin.save_model.
+        # Admin calls save(commit=False) then obj.save(); region/venue sync in UserAdmin.save_model.
         return super().save(commit=commit)
 
     def sync_regions(self, user):
@@ -76,6 +151,13 @@ class GdUserChangeForm(UserChangeForm):
         region_pks = [r.pk for r in self.cleaned_data['regions']]
         editor_id = getattr(self, '_editor_id', None)
         _sync_user_regions(user, region_pks, editor_id=editor_id)
+
+    def sync_venues(self, user):
+        if not self.can_assign_venues or 'venues' not in self.cleaned_data or not user.pk:
+            return
+        venue_pks = [v.pk for v in self.cleaned_data['venues']]
+        editor_id = getattr(self, '_editor_id', None)
+        _sync_user_venues(user, venue_pks, editor_id=editor_id)
 
 
 class GdUserCreationForm(BaseUserCreationForm):
@@ -94,16 +176,40 @@ class GdUserCreationForm(BaseUserCreationForm):
         label='Regions',
         help_text='Franchise regions this user can access (gd_region_user).',
     )
+    venues = VenueMultipleChoiceField(
+        queryset=None,
+        required=False,
+        label='Venues',
+        help_text=(
+            'Venues assigned to this user (same as setting User on each venue). '
+            'Selecting a venue already assigned elsewhere will move it to this user.'
+        ),
+        widget=FilteredSelectMultiple('venues', is_stacked=False),
+    )
 
     class Meta(BaseUserCreationForm.Meta):
         model = User
         fields = ('email', 'firstname', 'lastname', 'user_type_id')
 
-    def __init__(self, *args, **kwargs):
+    class Media:
+        css = {'all': ('admin/css/widgets.css',)}
+        js = (
+            'admin/js/jquery.init.js',
+            'admin/js/core.js',
+            'admin/js/SelectBox.js',
+            'admin/js/SelectFilter2.js',
+        )
+
+    def __init__(self, *args, can_assign_venues=False, **kwargs):
         from courses.models import Region
 
+        self.can_assign_venues = can_assign_venues
         super().__init__(*args, **kwargs)
         self.fields['regions'].queryset = Region.objects.filter(active=1).order_by('region_name')
+        if can_assign_venues:
+            self.fields['venues'].queryset = _venue_assignment_queryset()
+        else:
+            self.fields.pop('venues', None)
 
     def save(self, commit=True):
         return super().save(commit=commit)
@@ -114,6 +220,13 @@ class GdUserCreationForm(BaseUserCreationForm):
         region_pks = [r.pk for r in self.cleaned_data['regions']]
         editor_id = getattr(self, '_editor_id', None)
         _sync_user_regions(user, region_pks, editor_id=editor_id)
+
+    def sync_venues(self, user):
+        if not self.can_assign_venues or 'venues' not in self.cleaned_data or not user.pk:
+            return
+        venue_pks = [v.pk for v in self.cleaned_data['venues']]
+        editor_id = getattr(self, '_editor_id', None)
+        _sync_user_venues(user, venue_pks, editor_id=editor_id)
 
 
 class GdUserPasswordResetForm(PasswordResetForm):

@@ -8,9 +8,16 @@ from django.db import models
 
 class GdUserManager(BaseUserManager):
     def create_user(self, email, password=None, **kwargs):
+        from django.utils import timezone
+
         if not email:
             raise ValueError('Email is required')
         email = self.normalize_email(email)
+        now = timezone.now()
+        kwargs.setdefault('created_at', now)
+        kwargs.setdefault('updated_at', now)
+        if kwargs.get('user_type_id') == 3:
+            kwargs.setdefault('is_franchisee', 1)
         user = self.model(email=email, **kwargs)
         user.set_password(password)
         user.save(using=self._db)

@@ -426,10 +426,14 @@ class ContactForm(forms.Form):
 
 
 class UserNameModelChoiceField(forms.ModelChoiceField):
-    """ModelChoiceField that shows gd_user full name in the dropdown."""
+    """ModelChoiceField that shows gd_user full name and email in the dropdown."""
 
     def label_from_instance(self, obj):
-        return obj.get_full_name() or obj.email or f'User #{obj.pk}'
+        name = (obj.get_full_name() or '').strip()
+        email = (obj.email or '').strip()
+        if name and email:
+            return f'{name} ({email})'
+        return name or email or f'User #{obj.pk}'
 
 
 def _venue_admin_select_widget():
