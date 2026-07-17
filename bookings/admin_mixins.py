@@ -5,7 +5,7 @@ from .scope import filter_bookings_for_user, user_can_view_booking
 
 
 class RegionScopedBookingAdminMixin:
-    """Franchisees: view-only bookings for their workshops."""
+    """Franchisees: view bookings for their workshops; admins/franchisees can add manual bookings."""
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -29,7 +29,9 @@ class RegionScopedBookingAdminMixin:
         return user_can_view_booking(request.user, obj)
 
     def has_add_permission(self, request):
-        return user_has_full_region_access(request.user)
+        if user_has_full_region_access(request.user):
+            return True
+        return bool(get_user_region_ids(request.user))
 
     def has_change_permission(self, request, obj=None):
         return user_has_full_region_access(request.user)
@@ -38,8 +40,9 @@ class RegionScopedBookingAdminMixin:
         return user_has_full_region_access(request.user)
 
     def get_readonly_fields(self, request, obj=None):
+        # BookingAdmin supplies add vs change readonly lists; keep franchisee change locked.
         readonly = list(super().get_readonly_fields(request, obj))
-        if not user_has_full_region_access(request.user):
+        if obj is not None and not user_has_full_region_access(request.user):
             return list(
                 dict.fromkeys(
                     [f.name for f in self.model._meta.fields]

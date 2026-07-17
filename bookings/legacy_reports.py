@@ -13,6 +13,7 @@ from bookings.models import (
 )
 from bookings.legacy_report_constants import LEGACY_REPORT_BOOKING_ID_OFFSET
 from bookings.report_payment_data import (
+    CASH_GATEWAY_ID,
     STRIPE_GATEWAY_ID,
     VOUCHER_GATEWAY_ID,
     booking_basket_id,
@@ -191,6 +192,8 @@ def build_legacy_payment_gateway_report_row(booking, *, basket_details=None, gat
     if gateway_id is None and booking.payment:
         if booking.payment.intent_type == 'voucher_free':
             gateway_id = VOUCHER_GATEWAY_ID
+        elif booking.payment.intent_type == 'manual_tutor':
+            gateway_id = CASH_GATEWAY_ID
         elif booking.payment.status == 'succeeded':
             gateway_id = STRIPE_GATEWAY_ID
 

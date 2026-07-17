@@ -5,6 +5,7 @@ from django.db import connection
 
 STRIPE_GATEWAY_ID = 10
 VOUCHER_GATEWAY_ID = 4
+CASH_GATEWAY_ID = 6
 
 
 def load_payment_gateway_names():
@@ -77,6 +78,18 @@ def gateway_id_for_booking(booking, basket_details):
 
     if payment.intent_type == 'voucher_free':
         return VOUCHER_GATEWAY_ID
+
+    if payment.intent_type == 'manual_tutor':
+        try:
+            return int(metadata.get('payment_gateway_id') or CASH_GATEWAY_ID)
+        except (TypeError, ValueError):
+            return CASH_GATEWAY_ID
+
+    if metadata.get('payment_gateway_id'):
+        try:
+            return int(metadata['payment_gateway_id'])
+        except (TypeError, ValueError):
+            pass
 
     if payment.intent_type == 'checkout_session' and payment.status == 'succeeded':
         return STRIPE_GATEWAY_ID

@@ -1,10 +1,23 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.urls import reverse
 from django.utils.html import format_html
 
 from courses.admin_mixins import PlatformAdminOnlyMixin
+from courses.models import Workshop
+from courses.region_scope import (
+    filter_workshops_for_user,
+    user_has_full_region_access,
+)
 
+from .admin_booking_list import (
+    count_unified_admin_bookings,
+    filters_from_request,
+    load_unified_admin_bookings,
+)
 from .admin_mixins import RegionScopedBookingAdminMixin
+from .forms import ManualBookingAdminForm
+from .manual_booking import create_manual_booking
 from .models import Booking, BookingTermsAcceptance, Voucher
 
 
@@ -46,6 +59,10 @@ class VoucherAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
 
 @admin.register(Booking)
 class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
+    autocomplete_fields = ['workshop']
+    change_list_template = 'admin/bookings/booking/change_list.html'
+    list_per_page = 50
+    actions = None
     list_display = [
         'booking_reference',
         'student_first_name',
@@ -71,7 +88,7 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
         'user__email',
         'workshop__course__course_name',
     ]
-    readonly_fields = [
+    change_readonly_fields = [
         'booking_reference',
         'workshop',
         'user',
@@ -94,6 +111,13 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
         'updated_at',
         'cancelled_at',
         'workshop_summary',
+    ]
+    add_readonly_fields = [
+        'booking_reference',
+        'status',
+        'created_at',
+        'updated_at',
+        'cancelled_at',
     ]
     fieldsets = (
         (None, {
@@ -138,7 +162,176 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
             ),
         }),
     )
+    add_fieldsets = (
+        (None, {
+            'fields': ('workshop', 'include_future_workshops'),
+            'description': (
+                'Add a walk-up student who paid the tutor on the day. '
+                'The booking is saved as confirmed with a Cash / paid-to-tutor payment. '
+                'Workshop search shows today and older dates by default.'
+            ),
+        }),
+        ('Student', {
+            'fields': (
+                'student_first_name',
+                'student_last_name',
+                'student_email',
+                'student_phone',
+                'special_requirements',
+                'loan_camera',
+            ),
+        }),
+        ('Payment', {
+            'fields': (
+                'list_price',
+                'price_paid',
+                'send_confirmation_email',
+            ),
+        }),
+    )
     date_hierarchy = 'created_at'
+
+    class Media:
+        js = ('admin/js/manual-booking-workshop.js',)
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        filters = filters_from_request(request)
+        per_page = self.list_per_page or 50
+        total = count_unified_admin_bookings(request.user, filters)
+
+        class _LenOnly:
+            def __init__(self, n):
+                self._n = int(n)
+
+            def __len__(self):
+                return self._n
+
+            def __getitem__(self, key):
+                if isinstance(key, slice):
+                    start = 0 if key.start is None else key.start
+                    stop = self._n if key.stop is None else key.stop
+                    start = max(0, start)
+                    stop = max(start, min(stop, self._n))
+                    return [None] * (stop - start)
+                return None
+
+        paginator = Paginator(_LenOnly(total), per_page, allow_empty_first_page=True)
+        try:
+            page_number = max(1, int(request.GET.get('p') or 1))
+        except (TypeError, ValueError):
+            page_number = 1
+        try:
+            page = paginator.page(min(page_number, max(paginator.num_pages, 1)))
+        except (EmptyPage, PageNotAnInteger):
+            page = paginator.page(1)
+
+        offset = (page.number - 1) * per_page
+        rows = (
+            load_unified_admin_bookings(
+                request.user,
+                filters,
+                limit=per_page,
+                offset=max(0, offset),
+            )
+            if total
+            else []
+        )
+
+        query = request.GET.copy()
+        query.pop('p', None)
+
+        def page_url(num):
+            q = query.copy()
+            if num > 1:
+                q['p'] = str(num)
+            qs = q.urlencode()
+            return f'{request.path}?{qs}' if qs else request.path
+
+        extra_context.update({
+            'use_unified_booking_list': True,
+            'unified_booking_rows': rows,
+            'unified_result_count': total,
+            'unified_page': page,
+            'unified_paginator': paginator,
+            'unified_prev_url': page_url(page.previous_page_number()) if page.has_previous() else None,
+            'unified_next_url': page_url(page.next_page_number()) if page.has_next() else None,
+        })
+        # Django's ChangeList paginates the new-site queryset only; drop `p` so a
+        # deep legacy page does not 404 when there are few new bookings.
+        request.GET = request.GET.copy()
+        request.GET.pop('p', None)
+        return super().changelist_view(request, extra_context=extra_context)
+
+    def get_fieldsets(self, request, obj=None):
+        if obj is None:
+            return self.add_fieldsets
+        return self.fieldsets
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is None:
+            return list(self.add_readonly_fields)
+        readonly = list(self.change_readonly_fields)
+        if not user_has_full_region_access(request.user):
+            return list(
+                dict.fromkeys(
+                    [f.name for f in self.model._meta.fields]
+                    + [f.name for f in self.model._meta.many_to_many]
+                    + readonly
+                )
+            )
+        return readonly
+
+    def get_form(self, request, obj=None, **kwargs):
+        if obj is None:
+            kwargs['form'] = ManualBookingAdminForm
+            form_class = super().get_form(request, obj, **kwargs)
+            workshop_base_qs = filter_workshops_for_user(
+                Workshop.objects.select_related('course', 'venue'),
+                request.user,
+            )
+
+            class BoundManualBookingForm(form_class):
+                def __init__(self, *args, **form_kwargs):
+                    form_kwargs.setdefault('workshop_base_queryset', workshop_base_qs)
+                    super().__init__(*args, **form_kwargs)
+
+            BoundManualBookingForm.__name__ = form_class.__name__
+            BoundManualBookingForm.__qualname__ = form_class.__qualname__
+            return BoundManualBookingForm
+        return super().get_form(request, obj, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            return super().save_model(request, obj, form, change)
+
+        booking = create_manual_booking(
+            workshop=form.cleaned_data['workshop'],
+            student_first_name=form.cleaned_data['student_first_name'],
+            student_last_name=form.cleaned_data['student_last_name'],
+            student_email=form.cleaned_data['student_email'],
+            student_phone=form.cleaned_data.get('student_phone') or '',
+            special_requirements=form.cleaned_data.get('special_requirements') or '',
+            loan_camera=bool(form.cleaned_data.get('loan_camera')),
+            list_price=form.cleaned_data.get('list_price'),
+            price_paid=form.cleaned_data.get('price_paid'),
+            send_confirmation_email=bool(
+                form.cleaned_data.get('send_confirmation_email', True)
+            ),
+            created_by=request.user,
+        )
+        obj.pk = booking.pk
+        obj.booking_reference = booking.booking_reference
+        obj.status = booking.status
+        obj.payment_id = booking.payment_id
+        obj.customer_id = booking.customer_id
+        messages.success(
+            request,
+            f'Manual booking {booking.booking_reference} created (paid to tutor).',
+        )
+
+    def response_add(self, request, obj, post_url_continue=None):
+        return super().response_add(request, obj, post_url_continue)
 
     @admin.display(description='Course', ordering='workshop__course__course_name')
     def course_name(self, obj):
@@ -156,6 +349,8 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
     def payment_status(self, obj):
         if not obj.payment:
             return '—'
+        if obj.payment.intent_type == 'manual_tutor':
+            return 'Paid to tutor'
         return obj.payment.get_status_display() if hasattr(obj.payment, 'get_status_display') else obj.payment.status
 
     @admin.display(description='Voucher record')
@@ -178,6 +373,8 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
             parts.append(format_html('Venue: {}', workshop.venue.venue_name))
         if workshop.date:
             parts.append(format_html('Date: {}', workshop.date.strftime('%d %B %Y')))
+        if obj.payment_id and obj.payment and obj.payment.intent_type == 'manual_tutor':
+            parts.append('Payment: paid to tutor')
         return format_html('<br>'.join(parts)) if parts else '—'
 
 

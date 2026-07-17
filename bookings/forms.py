@@ -163,3 +163,78 @@ class BasketCheckoutForm(forms.Form):
         required=False,
         label='Sign me up for seasonal newsletters and special offers',
     )
+
+
+class ManualBookingAdminForm(forms.ModelForm):
+    """Admin form for walk-up / paid-to-tutor bookings."""
+
+    include_future_workshops = forms.BooleanField(
+        required=False,
+        initial=False,
+        label='Include future workshops',
+        help_text='By default the workshop search shows today and older dates. Tick this to also search upcoming workshops.',
+    )
+    send_confirmation_email = forms.BooleanField(
+        required=False,
+        initial=True,
+        label='Send confirmation email',
+        help_text='Email the student their booking confirmation and joining details.',
+    )
+
+    class Meta:
+        model = Booking
+        fields = [
+            'workshop',
+            'student_first_name',
+            'student_last_name',
+            'student_email',
+            'student_phone',
+            'special_requirements',
+            'loan_camera',
+            'list_price',
+            'price_paid',
+        ]
+        widgets = {
+            'special_requirements': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, workshop_base_queryset=None, **kwargs):
+        from .manual_booking import filter_workshops_for_manual_booking_picker
+
+        super().__init__(*args, **kwargs)
+        self.fields['workshop'].help_text = (
+            'The workshop this student is attending. Payment is recorded as paid to the tutor.'
+        )
+        self.fields['price_paid'].help_text = (
+            'Amount paid to the tutor. Defaults to the workshop price if left blank.'
+        )
+        self.fields['list_price'].required = False
+        self.fields['price_paid'].required = False
+        self.fields['student_phone'].required = False
+
+        include_future = False
+        if self.is_bound:
+            include_future = self.data.get('include_future_workshops') in (
+                True, 'true', 'True', '1', 'on', 'yes',
+            )
+        if workshop_base_queryset is not None:
+            self.fields['workshop'].queryset = filter_workshops_for_manual_booking_picker(
+                workshop_base_queryset,
+                include_future=include_future,
+            )
+
+    def clean_student_phone(self):
+        phone = self.cleaned_data.get('student_phone') or ''
+        return ''.join(ch for ch in phone if ch.isdigit() or ch == '+')
+
+    def clean(self):
+        cleaned = super().clean()
+        workshop = cleaned.get('workshop')
+        if not workshop:
+            return cleaned
+        workshop_price = workshop.price
+        if cleaned.get('list_price') is None:
+            cleaned['list_price'] = workshop_price
+        if cleaned.get('price_paid') is None:
+            cleaned['price_paid'] = cleaned.get('list_price') or workshop_price
+        return cleaned

@@ -25,6 +25,7 @@ class Payment(models.Model):
         ('checkout_session', 'Checkout Session'),
         ('payment_intent', 'Payment Intent'),
         ('voucher_free', 'Voucher (no card charge)'),
+        ('manual_tutor', 'Manual (paid to tutor)'),
     ]
     
     user = models.ForeignKey(

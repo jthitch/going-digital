@@ -1,0 +1,150 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block result_list %}
+    {% if use_unified_booking_list %}
+        <div class="change-list-actions row pb-3">
+            <div class="col-12">
+                <p class="text-muted small mb-0">
+                    {% blocktrans count counter=unified_result_count %}
+                        {{ counter }} booking (new site and legacy)
+                    {% plural %}
+                        {{ counter }} bookings (new site and legacy)
+                    {% endblocktrans %}
+                </p>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table id="result_list" class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th scope="col">{% trans 'Booking reference' %}</th>
+                        <th scope="col">{% trans 'Student first name' %}</th>
+                        <th scope="col">{% trans 'Student last name' %}</th>
+                        <th scope="col">{% trans 'Student email' %}</th>
+                        <th scope="col">{% trans 'Course' %}</th>
+                        <th scope="col">{% trans 'Workshop date' %}</th>
+                        <th scope="col">{% trans 'Status' %}</th>
+                        <th scope="col">{% trans 'Payment' %}</th>
+                        <th scope="col">{% trans 'Voucher' %}</th>
+                        <th scope="col" class="text-right">{% trans 'Price paid' %}</th>
+                        <th scope="col">{% trans 'Loan camera' %}</th>
+                        <th scope="col">{% trans 'Created at' %}</th>
+                        <th scope="col">{% trans 'Source' %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in unified_booking_rows %}
+                    <tr class="{% cycle 'row1' 'row2' %}">
+                        <th class="field-booking_reference">
+                            {% if row.change_url %}
+                            <a href="{{ row.change_url }}">{{ row.booking_reference }}</a>
+                            {% else %}
+                            {{ row.booking_reference }}
+                            {% endif %}
+                        </th>
+                        <td>{{ row.student_first_name }}</td>
+                        <td>{{ row.student_last_name }}</td>
+                        <td>
+                            {% if row.student_email %}
+                            <a href="mailto:{{ row.student_email }}">{{ row.student_email }}</a>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td>{{ row.course_name|default:"—" }}</td>
+                        <td class="nowrap">
+                            {% if row.workshop_date %}
+                            {{ row.workshop_date|date:"d M Y" }}
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td>{{ row.status }}</td>
+                        <td>{{ row.payment_status }}</td>
+                        <td>
+                            {% if row.voucher_code %}
+                            {{ row.voucher_code }}
+                            {% if row.voucher_discount %}
+                            <span class="text-muted">(-£{{ row.voucher_discount|floatformat:2 }})</span>
+                            {% endif %}
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td class="text-right">£{{ row.price_paid|floatformat:2 }}</td>
+                        <td>
+                            {% if row.loan_camera %}
+                            {% trans 'Yes' %}
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td class="nowrap">
+                            {% if row.created_at %}
+                            {{ row.created_at|date:"j M Y, H:i" }}
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.source == 'legacy' %}
+                            <span class="badge badge-secondary">{% trans 'Legacy' %}</span>
+                            {% else %}
+                            <span class="badge badge-primary">{% trans 'New' %}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="13" class="text-muted p-3">{% trans 'No bookings found.' %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        {{ block.super }}
+    {% endif %}
+{% endblock %}
+
+{% block pagination %}
+    {% if use_unified_booking_list %}
+        {% if unified_page and unified_paginator.num_pages > 1 %}
+        <div class="col-12 mt-3">
+            <div class="d-flex align-items-center justify-content-between flex-wrap">
+                <span class="text-muted small">
+                    {% blocktrans with start=unified_page.start_index end=unified_page.end_index total=unified_paginator.count %}
+                        {{ start }}–{{ end }} of {{ total }}
+                    {% endblocktrans %}
+                </span>
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item{% if not unified_page.has_previous %} disabled{% endif %}">
+                        {% if unified_prev_url %}
+                        <a class="page-link" href="{{ unified_prev_url }}">{% trans 'Previous' %}</a>
+                        {% else %}
+                        <span class="page-link">{% trans 'Previous' %}</span>
+                        {% endif %}
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">
+                            {% blocktrans with num=unified_page.number pages=unified_paginator.num_pages %}
+                                Page {{ num }} of {{ pages }}
+                            {% endblocktrans %}
+                        </span>
+                    </li>
+                    <li class="page-item{% if not unified_page.has_next %} disabled{% endif %}">
+                        {% if unified_next_url %}
+                        <a class="page-link" href="{{ unified_next_url }}">{% trans 'Next' %}</a>
+                        {% else %}
+                        <span class="page-link">{% trans 'Next' %}</span>
+                        {% endif %}
+                    </li>
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    {% else %}
+        {{ block.super }}
+    {% endif %}
+{% endblock %}

@@ -19,6 +19,7 @@ from bookings.legacy_report_queries import (
 )
 from bookings.legacy_monthly_report import monthly_booking_stats
 from bookings.report_payment_data import (
+    CASH_GATEWAY_ID,
     STRIPE_GATEWAY_ID,
     VOUCHER_GATEWAY_ID,
     booking_basket_id as _booking_basket_id,
@@ -452,7 +453,11 @@ def build_franchisee_booking_report(user, start_date, end_date):
         if promotional_vouchers_redeemed in ('', '0', 'NULL'):
             promotional_vouchers_redeemed = ''
 
-        if gateway.get('manual_payment_option') or row.manual_payment_option:
+        if (
+            gateway.get('manual_payment_option')
+            or row.manual_payment_option
+            or gateway_id == CASH_GATEWAY_ID
+        ):
             manual_payment = customer_payment
             customer_payment = Decimal('0.00')
             transaction_fee = Decimal('0.00')

@@ -824,6 +824,24 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
             'course', 'venue',
         ).prefetch_related('gallery_images__image', 'documents')
 
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        # Manual booking picker: today first, then older workshops.
+        if (
+            request.path.endswith('/autocomplete/')
+            and request.GET.get('app_label') == 'bookings'
+            and request.GET.get('model_name') == 'booking'
+            and request.GET.get('field_name') == 'workshop'
+        ):
+            from bookings.manual_booking import filter_workshops_for_manual_booking_picker
+
+            include_future = request.GET.get('include_future') in ('1', 'true', 'yes', 'on')
+            queryset = filter_workshops_for_manual_booking_picker(
+                queryset,
+                include_future=include_future,
+            )
+        return queryset, use_distinct
+
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
         if hasattr(form, 'sync_gallery'):
