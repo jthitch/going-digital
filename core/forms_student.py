@@ -286,3 +286,144 @@ class CustomerPasswordResetConfirmForm(forms.Form):
         customer.save(update_fields=['password', 'guest_account', 'updated_at'])
         clear_password_reset_token(customer)
         return customer
+
+
+class BookingCameraForm(forms.Form):
+    """Let a signed-in student update attendee and camera details for one booking."""
+
+    student_first_name = forms.CharField(
+        label='First name',
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'booking-field-input',
+            'autocomplete': 'given-name',
+        }),
+    )
+    student_last_name = forms.CharField(
+        label='Last name',
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'booking-field-input',
+            'autocomplete': 'family-name',
+        }),
+    )
+    camera_make_choice = forms.ChoiceField(
+        label='Camera make',
+        required=False,
+        widget=forms.Select(attrs={
+            'class': 'booking-field-input booking-field-select',
+            'data-camera-make': '',
+        }),
+    )
+    camera_make_other = forms.CharField(
+        label='Other make',
+        max_length=120,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'booking-field-input',
+            'placeholder': 'Enter camera make',
+            'autocomplete': 'off',
+            'data-camera-make-other': '',
+        }),
+    )
+    camera_model_choice = forms.ChoiceField(
+        label='Camera model',
+        required=False,
+        widget=forms.Select(attrs={
+            'class': 'booking-field-input booking-field-select',
+            'data-camera-model': '',
+        }),
+    )
+    camera_model_other = forms.CharField(
+        label='Other model',
+        max_length=120,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'booking-field-input',
+            'placeholder': 'Enter camera model',
+            'autocomplete': 'off',
+            'data-camera-model-other': '',
+        }),
+    )
+
+    def __init__(self, booking, *args, **kwargs):
+        from bookings.camera_catalog import (
+            make_select_choices,
+            model_select_choices,
+            selection_from_stored,
+        )
+
+        self.booking = booking
+        super().__init__(*args, **kwargs)
+        self.fields['student_first_name'].initial = booking.student_first_name
+        self.fields['student_last_name'].initial = booking.student_last_name
+
+        selection = selection_from_stored(booking.camera_make, booking.camera_model)
+        make_choice = self.data.get('camera_make_choice') if self.is_bound else selection['make_choice']
+        self.fields['camera_make_choice'].choices = make_select_choices()
+        self.fields['camera_model_choice'].choices = model_select_choices(make_choice or '')
+
+        if not self.is_bound:
+            self.fields['camera_make_choice'].initial = selection['make_choice']
+            self.fields['camera_make_other'].initial = selection['make_other']
+            self.fields['camera_model_choice'].initial = selection['model_choice']
+            self.fields['camera_model_other'].initial = selection['model_other']
+            self.fields['camera_model_choice'].widget.attrs['data-initial-model'] = selection['model_choice']
+        else:
+            self.fields['camera_model_choice'].widget.attrs['data-initial-model'] = (
+                self.data.get('camera_model_choice') or ''
+            )
+
+    def clean(self):
+        from bookings.camera_catalog import (
+            resolve_camera_selection,
+            validate_camera_selection,
+        )
+
+        cleaned = super().clean()
+        errors = validate_camera_selection(
+            cleaned.get('camera_make_choice'),
+            cleaned.get('camera_make_other'),
+            cleaned.get('camera_model_choice'),
+            cleaned.get('camera_model_other'),
+            required=not self.booking.loan_camera,
+        )
+        for field, message in errors.items():
+            if field == 'camera_make':
+                self.add_error('camera_make_choice', message)
+            elif field == 'camera_model':
+                self.add_error('camera_model_choice', message)
+            else:
+                self.add_error(None, message)
+
+        make_name, model_name, _, _ = resolve_camera_selection(
+            cleaned.get('camera_make_choice'),
+            cleaned.get('camera_make_other'),
+            cleaned.get('camera_model_choice'),
+            cleaned.get('camera_model_other'),
+        )
+        cleaned['camera_make'] = make_name
+        cleaned['camera_model'] = model_name
+        return cleaned
+
+    def save(self):
+        from django.utils import timezone
+
+        self.booking.camera_make = (self.cleaned_data.get('camera_make') or '').strip()
+        self.booking.camera_model = (self.cleaned_data.get('camera_model') or '').strip()
+        self.booking.student_first_name = (self.cleaned_data.get('student_first_name') or '').strip()
+        self.booking.student_last_name = (self.cleaned_data.get('student_last_name') or '').strip()
+        now = timezone.now()
+        self.booking.attendee_details_collected_at = (
+            self.booking.attendee_details_collected_at or now
+        )
+        self.booking.updated_at = now
+        self.booking.save(update_fields=[
+            'student_first_name',
+            'student_last_name',
+            'camera_make',
+            'camera_model',
+            'attendee_details_collected_at',
+            'updated_at',
+        ])
+        return self.booking

@@ -754,6 +754,22 @@ def _populate_success_from_bookings(context, bookings):
         context['bookings'] = booking_list
 
 
+def _attach_post_booking_continue_url(request, context):
+    """Next step after checkout: attendee details, then Facebook community."""
+    from bookings.attendee_details import next_post_booking_step_url
+
+    booking_list = []
+    if context.get('bookings'):
+        booking_list = list(context['bookings'])
+    elif context.get('booking'):
+        booking_list = [context['booking']]
+    if not booking_list:
+        return
+
+    ref = booking_list[0].booking_reference if booking_list else ''
+    context['post_booking_continue_url'] = next_post_booking_step_url(booking_list, ref=ref)
+
+
 def _attach_facebook_share_for_success(request, context):
     """Facebook share cards for signed-in students on the payment success page."""
     if not is_customer_authenticated(request):
@@ -767,7 +783,11 @@ def _attach_facebook_share_for_success(request, context):
     if not booking_list:
         return
 
+    from bookings.attendee_details import bookings_need_attendee_details
     from bookings.social_media import facebook_share_items_for_bookings
+
+    if bookings_need_attendee_details(booking_list):
+        return
 
     items = facebook_share_items_for_bookings(booking_list, request)
     if items:
@@ -793,6 +813,7 @@ class PaymentSuccessView(TemplateView):
                 _attach_account_setup_context(
                     self.request, context, checkout_data, checkout_session_data,
                 )
+                _attach_post_booking_continue_url(self.request, context)
             _attach_facebook_share_for_success(self.request, context)
             return context
 
@@ -878,6 +899,7 @@ class PaymentSuccessView(TemplateView):
             _attach_account_setup_context(
                 self.request, context, booking_list, checkout_session_data,
             )
+            _attach_post_booking_continue_url(self.request, context)
         elif checkout_session_data:
             context['checkout_pending'] = True
             _attach_account_setup_context(

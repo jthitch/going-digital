@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Attendee &amp; camera details - Photography Courses{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/booking.css' %}?v=48">
+{% endblock %}
+
+{% block body_attrs %} data-camera-unknown="{{ camera_choice_unknown }}" data-camera-other="{{ camera_choice_other }}"{% endblock %}
+
+{% block content %}
+<div class="booking-container account-page account-page--wide attendee-details-page">
+    <nav class="fb-community-wizard__progress attendee-details-page__progress" aria-label="Booking setup progress">
+        <ol class="fb-community-wizard__steps">
+            <li class="fb-community-wizard__step is-active">
+                <span class="fb-community-wizard__step-num" aria-hidden="true">1</span>
+                <span class="fb-community-wizard__step-label">Attendee details</span>
+            </li>
+            <li class="fb-community-wizard__step">
+                <span class="fb-community-wizard__step-num" aria-hidden="true">2</span>
+                <span class="fb-community-wizard__step-label">Join community</span>
+            </li>
+            <li class="fb-community-wizard__step">
+                <span class="fb-community-wizard__step-num" aria-hidden="true">3</span>
+                <span class="fb-community-wizard__step-label">Share booking</span>
+            </li>
+        </ol>
+    </nav>
+
+    <header class="basket-page-header booking-page-header attendee-details-page__header">
+        <div class="attendee-details-page__title-row">
+            <span class="attendee-details-page__icon" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                    <circle cx="12" cy="13" r="3"/>
+                </svg>
+            </span>
+            <div>
+                <h1 tabindex="-1">Attendee &amp; camera details</h1>
+                <p class="basket-page-subtitle">
+                    Help your tutor prepare — tell us who is coming and what camera each person will use.
+                </p>
+            </div>
+        </div>
+    </header>
+
+    {% if has_form_errors %}
+    <div class="attendee-details-page__alert" role="alert">
+        <strong>Please check the highlighted fields.</strong>
+        Fix any missing names or camera details below, then continue.
+    </div>
+    {% endif %}
+
+    <form method="post" class="booking-form attendee-details-form" novalidate>
+        {% csrf_token %}
+        {% if booking_reference %}
+        <input type="hidden" name="ref" value="{{ booking_reference }}">
+        {% endif %}
+
+        {% regroup place_rows by place.booking.workshop_id as workshop_groups %}
+        {% for workshop_group in workshop_groups %}
+        {% with first_row=workshop_group.list.0 %}
+        <section class="attendee-details-workshop" aria-labelledby="workshop-heading-{{ workshop_group.grouper }}">
+            <header class="attendee-details-workshop__header">
+                <h2 id="workshop-heading-{{ workshop_group.grouper }}" class="attendee-details-workshop__title">
+                    {{ first_row.place.workshop_title }}
+                </h2>
+                {% if first_row.place.workshop_date %}
+                <p class="attendee-details-workshop__date">
+                    <svg class="attendee-details-workshop__date-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/>
+                        <line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    {{ first_row.place.workshop_date }}
+                </p>
+                {% endif %}
+                {% if workshop_group.list|length > 1 %}
+                <p class="attendee-details-workshop__places">{{ workshop_group.list|length }} places booked on this workshop</p>
+                {% endif %}
+            </header>
+
+            <div class="attendee-details-workshop__guests">
+                {% for row in workshop_group.list %}
+                <article
+                    class="attendee-details-guest{% if row.place.is_primary %} attendee-details-guest--primary{% endif %}"
+                    aria-labelledby="guest-heading-{{ row.place.booking_id }}"
+                >
+                    <div class="attendee-details-guest__head">
+                        <h3 id="guest-heading-{{ row.place.booking_id }}" class="attendee-details-guest__label">
+                            {% if row.place.is_primary %}
+                                {% if row.place.place_total > 1 %}
+                                You — primary booking
+                                {% else %}
+                                Your details
+                                {% endif %}
+                            {% else %}
+                            Guest {{ row.place.place_number }}
+                            {% endif %}
+                        </h3>
+                        {% if row.place.booking.loan_camera %}
+                        <span class="attendee-details-guest__badge attendee-details-guest__badge--loan">Loan camera</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="attendee-details-guest__section">
+                        <h4 class="attendee-details-guest__section-title">Who is attending?</h4>
+                        {% if row.place.is_primary %}
+                        <p class="attendee-details-guest__name-display">
+                            {{ row.place.booking.student_first_name }} {{ row.place.booking.student_last_name }}
+                        </p>
+                        <p class="attendee-details-guest__hint">This is the name from your booking. You can update it later from My bookings.</p>
+                        {% else %}
+                        <div class="booking-form-row booking-form-row--2">
+                            <div class="form-group">
+                                <label for="student_first_name_{{ row.place.booking_id }}">First name <span class="booking-required" aria-hidden="true">*</span></label>
+                                <input
+                                    type="text"
+                                    id="student_first_name_{{ row.place.booking_id }}"
+                                    name="student_first_name_{{ row.place.booking_id }}"
+                                    class="booking-field-input{% if row.errors.student_first_name %} is-invalid{% endif %}"
+                                    value="{{ row.values.student_first_name }}"
+                                    autocomplete="given-name"
+                                    required
+                                    {% if row.errors.student_first_name %}aria-invalid="true" aria-describedby="err-fn-{{ row.place.booking_id }}"{% endif %}
+                                >
+                                {% if row.errors.student_first_name %}
+                                <p class="field-error" id="err-fn-{{ row.place.booking_id }}">{{ row.errors.student_first_name }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="form-group">
+                                <label for="student_last_name_{{ row.place.booking_id }}">Last name <span class="booking-required" aria-hidden="true">*</span></label>
+                                <input
+                                    type="text"
+                                    id="student_last_name_{{ row.place.booking_id }}"
+                                    name="student_last_name_{{ row.place.booking_id }}"
+                                    class="booking-field-input{% if row.errors.student_last_name %} is-invalid{% endif %}"
+                                    value="{{ row.values.student_last_name }}"
+                                    autocomplete="family-name"
+                                    required
+                                    {% if row.errors.student_last_name %}aria-invalid="true" aria-describedby="err-ln-{{ row.place.booking_id }}"{% endif %}
+                                >
+                                {% if row.errors.student_last_name %}
+                                <p class="field-error" id="err-ln-{{ row.place.booking_id }}">{{ row.errors.student_last_name }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="attendee-details-guest__section">
+                        <h4 class="attendee-details-guest__section-title">Camera equipment</h4>
+                        {% if row.place.booking.loan_camera %}
+                        <div class="attendee-details-guest__callout" role="note">
+                            You requested a loan camera for this place. Make and model are optional — leave blank if you are not sure yet.
+                        </div>
+                        {% else %}
+                        <p class="attendee-details-guest__hint">Choose the make and model of the camera this person will bring. Pick Unknown if you are not sure, or Other to type a make/model not listed.</p>
+                        {% endif %}
+                        {% with bid=row.place.booking_id|stringformat:"s" %}
+                        {% include "account/partials/camera_select_fields.html" with make_id="camera_make_choice_"|add:bid make_name="camera_make_choice_"|add:bid model_id="camera_model_choice_"|add:bid model_name="camera_model_choice_"|add:bid make_other_id="camera_make_other_"|add:bid make_other_name="camera_make_other_"|add:bid model_other_id="camera_model_other_"|add:bid model_other_name="camera_model_other_"|add:bid make_choices=camera_make_choices make_value=row.values.camera_make_choice model_value=row.values.camera_model_choice make_other_value=row.values.camera_make_other model_other_value=row.values.camera_model_other make_error=row.errors.camera_make model_error=row.errors.camera_model required=row.place.camera_required %}
+                        {% endwith %}
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endwith %}
+        {% endfor %}
+
+        <div class="attendee-details-form__actions account-form-actions">
+            <button type="submit" class="btn-primary">Save and continue</button>
+            <p class="attendee-details-form__actions-note">Next: join our Facebook community</p>
+        </div>
+    </form>
+</div>
+{{ camera_catalog_json|json_script:"camera-catalog-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/camera-select.js' %}"></script>
+{% endblock %}

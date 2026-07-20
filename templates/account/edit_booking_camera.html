@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Update booking details - Photography Courses{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/booking.css' %}?v=48">
+{% endblock %}
+
+{% block body_attrs %} data-camera-unknown="{{ camera_choice_unknown }}" data-camera-other="{{ camera_choice_other }}"{% endblock %}
+
+{% block content %}
+<div class="booking-container account-page">
+    <header class="basket-page-header booking-page-header">
+        <div>
+            <h1>Update booking details</h1>
+            <p class="basket-page-subtitle">
+                {{ booking.workshop.course.title }} · Ref {{ booking.booking_reference }}
+            </p>
+        </div>
+        <a href="{% url 'account:my_bookings' %}" class="basket-continue-shopping">Back to my bookings</a>
+    </header>
+
+    <div class="account-card">
+        {% if booking.loan_camera %}
+        <p class="attendee-details-guest__callout" role="note">
+            You requested a loan camera for this place. Camera details are optional.
+        </p>
+        {% endif %}
+
+        <form method="post" class="booking-form attendee-details-form" novalidate>
+            {% csrf_token %}
+            <div class="booking-form-row booking-form-row--2">
+                <div class="form-group">
+                    <label for="{{ form.student_first_name.id_for_label }}">
+                        {{ form.student_first_name.label }} <span class="required">*</span>
+                    </label>
+                    {{ form.student_first_name }}
+                    {% if form.student_first_name.errors %}
+                    <p class="field-error">{{ form.student_first_name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.student_last_name.id_for_label }}">
+                        {{ form.student_last_name.label }} <span class="required">*</span>
+                    </label>
+                    {{ form.student_last_name }}
+                    {% if form.student_last_name.errors %}
+                    <p class="field-error">{{ form.student_last_name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="camera-select" data-camera-select>
+                <div class="booking-form-row booking-form-row--2">
+                    <div class="form-group">
+                        <label for="{{ form.camera_make_choice.id_for_label }}">
+                            {{ form.camera_make_choice.label }}{% if not booking.loan_camera %} <span class="required">*</span>{% endif %}
+                        </label>
+                        {{ form.camera_make_choice }}
+                        {% if form.camera_make_choice.errors %}
+                        <p class="field-error">{{ form.camera_make_choice.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.camera_model_choice.id_for_label }}">
+                            {{ form.camera_model_choice.label }}{% if not booking.loan_camera %} <span class="required">*</span>{% endif %}
+                        </label>
+                        {{ form.camera_model_choice }}
+                        {% if form.camera_model_choice.errors %}
+                        <p class="field-error">{{ form.camera_model_choice.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="booking-form-row booking-form-row--2 camera-select__other" data-camera-other-row hidden>
+                    <div class="form-group" data-camera-make-other-wrap hidden>
+                        <label for="{{ form.camera_make_other.id_for_label }}">{{ form.camera_make_other.label }}</label>
+                        {{ form.camera_make_other }}
+                        {% if form.camera_make_other.errors %}
+                        <p class="field-error">{{ form.camera_make_other.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="form-group" data-camera-model-other-wrap hidden>
+                        <label for="{{ form.camera_model_other.id_for_label }}">{{ form.camera_model_other.label }}</label>
+                        {{ form.camera_model_other }}
+                        {% if form.camera_model_other.errors %}
+                        <p class="field-error">{{ form.camera_model_other.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="account-form-actions account-form-actions--inline">
+                <button type="submit" class="btn-primary">Save details</button>
+                <a href="{% url 'account:my_bookings' %}" class="btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{{ camera_catalog_json|json_script:"camera-catalog-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/camera-select.js' %}"></script>
+{% endblock %}

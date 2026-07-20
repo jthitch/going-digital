@@ -31,6 +31,8 @@ class WorkshopStudentRow:
     postcode: str = ''
     special_requirements: str = ''
     loan_camera: bool = False
+    camera_make: str = ''
+    camera_model: str = ''
     booking_reference: str = ''
     status: str = ''
 
@@ -59,6 +61,8 @@ def _row_from_new_booking(booking):
         postcode=_customer_field(customer, 'postcode'),
         special_requirements=(booking.special_requirements or '').strip(),
         loan_camera=bool(booking.loan_camera),
+        camera_make=(booking.camera_make or '').strip(),
+        camera_model=(booking.camera_model or '').strip(),
         booking_reference=booking.booking_reference or '',
         status=(
             booking.get_status_display()
@@ -233,6 +237,8 @@ def _student_csv_row(workshop, student: WorkshopStudentRow):
         student.postcode,
         student.special_requirements,
         'Yes' if student.loan_camera else '',
+        student.camera_make,
+        student.camera_model,
         student.booking_reference,
         student.status,
     ]
@@ -253,6 +259,8 @@ CSV_HEADERS = [
     'Postcode',
     'Special requirements',
     'Loan camera',
+    'Camera make',
+    'Camera model',
     'Booking reference',
     'Status',
 ]

@@ -4,7 +4,7 @@
 {% block title %}My bookings - Photography Courses{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/booking.css' %}?v=36">
+<link rel="stylesheet" href="{% static 'css/booking.css' %}?v=45">
 {% endblock %}
 
 {% block content %}
@@ -63,6 +63,24 @@
             {% endfor %}
         </ul>
     </section>
+    {% endif %}
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav class="account-bookings-pagination" aria-label="Bookings pages">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" class="btn-secondary btn-sm">Newer</a>
+        {% else %}
+        <span class="btn-secondary btn-sm is-disabled" aria-disabled="true">Newer</span>
+        {% endif %}
+        <p class="account-bookings-pagination__status">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        </p>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="btn-secondary btn-sm">Older</a>
+        {% else %}
+        <span class="btn-secondary btn-sm is-disabled" aria-disabled="true">Older</span>
+        {% endif %}
+    </nav>
     {% endif %}
     {% else %}
     <div class="basket-empty account-empty">

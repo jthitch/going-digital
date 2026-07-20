@@ -1,10 +1,23 @@
 """Student sign-in, sign-up, and my bookings (gd_customer session auth)."""
 from django.contrib import messages
+from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 
+from bookings.attendee_details import (
+    build_attendee_place_forms,
+    bookings_need_attendee_details,
+    field_errors_for_place,
+    initial_attendee_values,
+    next_post_booking_step_url,
+    post_booking_attendee_details_url,
+    post_booking_community_url,
+    posted_attendee_values,
+    save_attendee_details_from_post,
+    validate_attendee_details_post,
+)
 from bookings.models import Booking
 from core.models import Customer
 
@@ -21,6 +34,7 @@ from core.customer_auth import (
 )
 from core.forms_student import (
     CompleteAccountPasswordForm,
+    BookingCameraForm,
     CustomerPasswordResetConfirmForm,
     CustomerPasswordResetRequestForm,
     StudentLoginForm,
@@ -95,7 +109,9 @@ class StudentSignupView(View):
                     'Your account is ready — we linked your previous bookings.',
                 )
             if bookings_for_customer(customer).filter(status='confirmed').exists():
-                return redirect(reverse('account:post_booking_community'))
+                return redirect(next_post_booking_step_url(
+                    list(bookings_for_customer(customer).filter(status='confirmed')[:5]),
+                ))
             return redirect(reverse('account:my_bookings'))
 
         return render(request, self.template_name, {'form': form})
@@ -212,10 +228,10 @@ class CompleteAccountSetupView(View):
                 request,
                 'Your account is ready. You can view your bookings any time.',
             )
-            community_url = reverse('account:post_booking_community')
-            booking_ref = (setup.get('booking_reference') or '').strip()
-            if booking_ref:
-                community_url = f'{community_url}?ref={booking_ref}'
+            community_url = next_post_booking_step_url(
+                _bookings_for_community_page(request),
+                ref=(setup.get('booking_reference') or '').strip(),
+            )
             return redirect(community_url)
 
         return render(request, self.template_name, {
@@ -325,6 +341,33 @@ def _prime_community_session_from_booking_ref(request):
 
 
 def _bookings_for_community_page(request):
+    """Bookings for post-checkout steps — prefer this checkout, not the whole history."""
+    from payments.checkout_session_context import load_bookings_from_checkout_context
+
+    checkout_bookings = list(load_bookings_from_checkout_context(request))
+    if checkout_bookings:
+        return checkout_bookings
+
+    ref = (request.GET.get('ref') or request.POST.get('ref') or '').strip()
+    if ref:
+        booking = Booking.objects.filter(booking_reference=ref).select_related(
+            'workshop', 'workshop__course', 'workshop__venue',
+        ).first()
+        if booking:
+            if booking.payment_id:
+                siblings = list(
+                    Booking.objects.filter(
+                        payment_id=booking.payment_id,
+                    ).exclude(
+                        status='cancelled',
+                    ).select_related(
+                        'workshop', 'workshop__course', 'workshop__venue',
+                    ).order_by('id')
+                )
+                if siblings:
+                    return siblings
+            return [booking]
+
     if is_customer_authenticated(request):
         customer = request.customer
         return list(
@@ -334,19 +377,7 @@ def _bookings_for_community_page(request):
             .order_by('-created_at')[:5]
         )
 
-    from payments.checkout_session_context import load_bookings_from_checkout_context
-
-    bookings = list(load_bookings_from_checkout_context(request))
-    if bookings:
-        return bookings
-
-    ref = (request.GET.get('ref') or '').strip()
-    if not ref:
-        return []
-    booking = Booking.objects.filter(booking_reference=ref).select_related(
-        'workshop', 'workshop__course', 'workshop__venue',
-    ).first()
-    return [booking] if booking else []
+    return []
 
 
 def _authorise_post_booking_community(request, bookings):
@@ -367,6 +398,74 @@ def _authorise_post_booking_community(request, bookings):
     return any((b.student_email or '').strip().lower() == email for b in bookings)
 
 
+def _build_attendee_details_rows(request, place_forms, raw_errors=None):
+    values_by_booking = posted_attendee_values(request.POST, place_forms) if request.method == 'POST' else {}
+    rows = []
+    for place in place_forms:
+        booking_id = place.booking_id
+        if request.method == 'POST':
+            values = values_by_booking.get(booking_id, {})
+        else:
+            values = initial_attendee_values(place)
+        errors = field_errors_for_place(raw_errors or {}, booking_id)
+        rows.append({'place': place, 'values': values, 'errors': errors})
+    return rows
+
+
+def post_booking_attendee_details(request):
+    """Collect camera and additional attendee details before Facebook sharing."""
+    from bookings.camera_catalog import (
+        CAMERA_CHOICE_OTHER,
+        CAMERA_CHOICE_UNKNOWN,
+        camera_catalog_for_js,
+        make_select_choices,
+    )
+
+    _prime_community_session_from_booking_ref(request)
+    bookings = _bookings_for_community_page(request)
+    if not _authorise_post_booking_community(request, bookings):
+        messages.info(request, 'Sign in or complete checkout to view this page.')
+        return redirect(reverse('account:login'))
+
+    if not bookings_need_attendee_details(bookings):
+        ref = (request.GET.get('ref') or request.POST.get('ref') or '').strip()
+        primary = bookings[0] if bookings else None
+        if not ref and primary:
+            ref = primary.booking_reference
+        return redirect(post_booking_community_url(ref=ref))
+
+    pending_bookings = [
+        booking for booking in bookings
+        if booking.status != 'cancelled' and not booking.attendee_details_collected_at
+    ]
+    place_forms = build_attendee_place_forms(pending_bookings)
+    primary = pending_bookings[0] if pending_bookings else (bookings[0] if bookings else None)
+    booking_reference = (
+        (request.GET.get('ref') or request.POST.get('ref') or '').strip()
+        or (primary.booking_reference if primary else '')
+    )
+
+    raw_errors = None
+    if request.method == 'POST':
+        raw_errors = validate_attendee_details_post(request.POST, place_forms)
+        if not raw_errors:
+            save_attendee_details_from_post(request.POST, place_forms)
+            return redirect(post_booking_community_url(ref=booking_reference))
+        place_rows = _build_attendee_details_rows(request, place_forms, raw_errors)
+    else:
+        place_rows = _build_attendee_details_rows(request, place_forms)
+
+    return render(request, 'account/post_booking_attendee_details.html', {
+        'place_rows': place_rows,
+        'booking_reference': booking_reference,
+        'has_form_errors': bool(raw_errors),
+        'camera_make_choices': make_select_choices(),
+        'camera_catalog_json': camera_catalog_for_js(),
+        'camera_choice_unknown': CAMERA_CHOICE_UNKNOWN,
+        'camera_choice_other': CAMERA_CHOICE_OTHER,
+    })
+
+
 def post_booking_community(request):
     """Invite students to join Facebook groups after checkout or account setup."""
     from bookings.social_media import (
@@ -381,6 +480,13 @@ def post_booking_community(request):
         messages.info(request, 'Sign in or complete checkout to view this page.')
         return redirect(reverse('account:login'))
 
+    if bookings_need_attendee_details(bookings):
+        ref = (request.GET.get('ref') or '').strip()
+        primary = bookings[0] if bookings else None
+        if not ref and primary:
+            ref = primary.booking_reference
+        return redirect(post_booking_attendee_details_url(ref=ref))
+
     context = facebook_groups_context_for_bookings(bookings)
     context['facebook_community_cards'] = facebook_community_cards_from_groups_context(context)
     context['facebook_share_items'] = facebook_share_items_for_bookings(bookings, request)
@@ -392,14 +498,59 @@ def post_booking_community(request):
 
 
 @customer_login_required
+def edit_booking_camera(request, booking_reference):
+    """Update camera make/model for a booking from My bookings."""
+    from bookings.camera_catalog import (
+        CAMERA_CHOICE_OTHER,
+        CAMERA_CHOICE_UNKNOWN,
+        camera_catalog_for_js,
+    )
+
+    customer = request.customer
+    booking = get_object_or_404(
+        Booking.objects.select_related('workshop', 'workshop__course', 'workshop__venue'),
+        booking_reference=booking_reference,
+    )
+    if not bookings_for_customer(customer).filter(pk=booking.pk).exists():
+        raise Http404
+
+    if booking.status == 'cancelled':
+        messages.error(request, 'Camera details cannot be updated for cancelled bookings.')
+        return redirect(reverse('account:my_bookings'))
+
+    if request.method == 'POST':
+        form = BookingCameraForm(booking, request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Your booking details have been updated.')
+            return redirect(reverse('account:my_bookings'))
+    else:
+        form = BookingCameraForm(booking)
+
+    return render(request, 'account/edit_booking_camera.html', {
+        'booking': booking,
+        'form': form,
+        'camera_catalog_json': camera_catalog_for_js(),
+        'camera_choice_unknown': CAMERA_CHOICE_UNKNOWN,
+        'camera_choice_other': CAMERA_CHOICE_OTHER,
+    })
+
+
+MY_BOOKINGS_PER_PAGE = 5
+
+
+@customer_login_required
 def my_bookings(request):
     customer = request.customer
-    all_bookings = list(bookings_for_customer(customer).order_by('-created_at'))
+    bookings_qs = bookings_for_customer(customer).order_by('-created_at')
+    booking_count = bookings_qs.count()
+    page_obj = Paginator(bookings_qs, MY_BOOKINGS_PER_PAGE).get_page(request.GET.get('page'))
+
     upcoming = []
     past = []
     cancelled = []
     facebook_share_bookings = []
-    for booking in all_bookings:
+    for booking in page_obj:
         attach_calendar_to_booking(booking)
         attach_tutor_contact_to_booking(booking)
         attach_facebook_share_to_booking(booking, request)
@@ -413,12 +564,16 @@ def my_bookings(request):
         else:
             upcoming.append(booking)
 
+    # Suggestions use recent history, not only the current page.
+    suggestion_bookings = list(bookings_qs[:50])
+
     return render(request, 'account/my_bookings.html', {
         'upcoming_bookings': upcoming,
         'past_bookings': past,
         'cancelled_bookings': cancelled,
-        'booking_count': len(all_bookings),
-        'suggested_courses': suggested_courses_for_user_bookings(all_bookings),
+        'booking_count': booking_count,
+        'page_obj': page_obj,
+        'suggested_courses': suggested_courses_for_user_bookings(suggestion_bookings),
         'facebook_share_bookings': facebook_share_bookings,
     })
 

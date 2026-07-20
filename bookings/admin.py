@@ -18,7 +18,45 @@ from .admin_booking_list import (
 from .admin_mixins import RegionScopedBookingAdminMixin
 from .forms import ManualBookingAdminForm
 from .manual_booking import create_manual_booking
-from .models import Booking, BookingTermsAcceptance, Voucher
+from .models import Booking, BookingTermsAcceptance, CameraMake, CameraModel, Voucher
+
+
+class CameraModelInline(admin.TabularInline):
+    model = CameraModel
+    extra = 1
+    fields = ['name', 'sort_order', 'is_active']
+    ordering = ['sort_order', 'name']
+
+
+@admin.register(CameraMake)
+class CameraMakeAdmin(admin.ModelAdmin):
+    """Superuser-managed camera make/model catalog for student forms."""
+
+    list_display = ['name', 'sort_order', 'is_active', 'model_count']
+    list_editable = ['sort_order', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['name', 'models__name']
+    ordering = ['sort_order', 'name']
+    inlines = [CameraModelInline]
+
+    def has_module_permission(self, request):
+        return bool(request.user and request.user.is_superuser)
+
+    def has_view_permission(self, request, obj=None):
+        return bool(request.user and request.user.is_superuser)
+
+    def has_add_permission(self, request):
+        return bool(request.user and request.user.is_superuser)
+
+    def has_change_permission(self, request, obj=None):
+        return bool(request.user and request.user.is_superuser)
+
+    def has_delete_permission(self, request, obj=None):
+        return bool(request.user and request.user.is_superuser)
+
+    @admin.display(description='Models')
+    def model_count(self, obj):
+        return obj.models.count()
 
 
 @admin.register(Voucher)

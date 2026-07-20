@@ -25,6 +25,18 @@
             </li>
         </ul>
         <p class="account-booking-student">{{ booking.student_first_name }} {{ booking.student_last_name }}</p>
+        {% if booking.status != 'cancelled' %}
+        <p class="account-booking-camera">
+            {% if booking.camera_make or booking.camera_model %}
+            <span class="account-booking-camera__label">Camera:</span>
+            {{ booking.camera_make }}{% if booking.camera_make and booking.camera_model %} {% endif %}{{ booking.camera_model }}
+            {% elif booking.loan_camera %}
+            <span class="account-booking-camera__label">Camera:</span> Loan camera requested
+            {% else %}
+            <span class="account-booking-camera__label">Camera:</span> Not provided yet
+            {% endif %}
+        </p>
+        {% endif %}
     </div>
     <div class="account-booking-card-actions">
         {% if booking.calendar.has_calendar and booking.status != 'cancelled' %}
@@ -61,6 +73,11 @@
                 <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>
             </svg>
             Contact tutor
+        </a>
+        {% endif %}
+        {% if booking.status != 'cancelled' %}
+        <a href="{% url 'account:edit_booking_camera' booking.booking_reference %}" class="btn-secondary btn-sm">
+            Update details
         </a>
         {% endif %}
         <a href="{% url 'bookings:confirm' booking.booking_reference %}" class="btn-secondary btn-sm">View details</a>

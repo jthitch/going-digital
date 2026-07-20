@@ -19,7 +19,7 @@
     
     {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body{% block body_attrs %}{% endblock %}>
     <header>
         <nav>
             <div class="nav-brand">

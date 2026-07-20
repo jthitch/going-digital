@@ -4,7 +4,7 @@
 {% block title %}Payment Successful - Photography Courses{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/booking.css' %}?v=41">
+<link rel="stylesheet" href="{% static 'css/booking.css' %}?v=46">
 {% endblock %}
 
 {% block content %}
@@ -119,52 +119,11 @@
         </form>
     </div>
     {% endif %}
-    {% elif bookings %}
+    {% elif bookings or booking %}
     <p class="success-message">Thank you for your booking. Your payment has been processed successfully.</p>
-    <div class="booking-info">
-        <h2>Booking Details</h2>
-        {% for booking in bookings %}
-        <div class="success-booking-item">
-            <p><strong>Booking Reference:</strong> {{ booking.booking_reference }}</p>
-            <p><strong>Course:</strong> {{ booking.workshop.course.title|default:"Workshop" }}</p>
-            <p><strong>Date:</strong> {{ booking.workshop.start_date|date:"d F Y" }} at {{ booking.workshop.start_date|date:"g:i A" }}</p>
-            <p><strong>Student:</strong> {{ booking.student_first_name }} {{ booking.student_last_name }}</p>
-            <p><strong>Amount Paid:</strong> £{{ booking.price_paid|floatformat:2 }}</p>
-        </div>
-        {% endfor %}
-        <p>You will receive a confirmation email for each booking shortly.</p>
-    </div>
-    {% elif booking %}
-    <p class="success-message">Thank you for your booking. Your payment has been processed successfully.</p>
-    <div class="booking-info">
-        <h2>Booking Details</h2>
-        <p><strong>Booking Reference:</strong> {{ booking.booking_reference }}</p>
-        <p><strong>Course:</strong> {{ booking.workshop.course.title|default:"Workshop" }}</p>
-        <p><strong>Date:</strong> {{ booking.workshop.start_date|date:"d F Y" }} at {{ booking.workshop.start_date|date:"g:i A" }}</p>
-        <p><strong>Location:</strong> {{ booking.workshop.venue.name|default:"TBC" }}, {{ booking.workshop.venue.city|default:"" }}</p>
-        {% if booking.voucher_code %}
-        <p><strong>Voucher used:</strong> {{ booking.voucher_code }} (-£{{ booking.voucher_discount|floatformat:2 }})</p>
-        {% endif %}
-        <p><strong>Amount Paid:</strong> £{{ booking.price_paid|floatformat:2 }}</p>
-        <p>You will receive a confirmation email shortly.</p>
-    </div>
-    {% elif checkout_pending %}
-    <p class="success-message">Thank you for your booking. Your payment has been processed successfully.</p>
-    <div class="booking-info">
-        <p>Your confirmation email is on its way{% if payment_account.email %} to <strong>{{ payment_account.email }}</strong>{% endif %}.</p>
-        <p>Create a password below to view your bookings online any time.</p>
-    </div>
-    {% elif request.GET.session_id %}
-    <p class="success-message">Thank you. Your payment has been processed successfully.</p>
-    <div class="booking-info">
-        <p>We could not load your booking details from this payment reference. If you have just paid, check your confirmation email or contact us.</p>
-    </div>
-    {% else %}
-    <p class="success-message">Thank you. Your payment has been processed successfully.</p>
-    {% endif %}
 
     {% if payment_account %}
-    <div class="account-setup-panel">
+    <div class="account-setup-panel account-setup-panel--priority">
         {% if payment_account.mode == 'setup' %}
         <h2>Complete your account</h2>
         <p class="account-setup-lead">
@@ -189,11 +148,7 @@
             </div>
             <div class="account-form-actions account-form-actions--inline">
                 <button type="submit" class="btn-primary">Save password and continue</button>
-                {% if payment_account.booking_reference %}
-                <a href="{% url 'account:post_booking_community' %}?ref={{ payment_account.booking_reference }}" class="btn-secondary">Set up later</a>
-                {% else %}
-                <a href="{% url 'account:post_booking_community' %}" class="btn-secondary">Set up later</a>
-                {% endif %}
+                <a href="{{ post_booking_continue_url|default:'#' }}" class="btn-secondary">Set up later</a>
             </div>
         </form>
         {% else %}
@@ -210,12 +165,20 @@
         </div>
         {% endif %}
     </div>
-    {% elif user.is_authenticated %}
-    <div class="account-setup-panel">
-        <h2>View your bookings</h2>
-        <p class="account-setup-lead">You're signed in. Your bookings are in your account.</p>
+    {% elif request.customer %}
+    <div class="account-setup-panel account-setup-panel--priority">
+        <h2>{% if post_booking_continue_url %}Confirm your booking details{% else %}View your bookings{% endif %}</h2>
+        <p class="account-setup-lead">
+            {% if post_booking_continue_url %}
+            You're signed in. Next, confirm guest names and the cameras each person will bring so your tutor can prepare.
+            {% else %}
+            You're signed in. Your bookings are in your account.
+            {% endif %}
+        </p>
         <div class="account-form-actions account-form-actions--inline">
-            {% if facebook_share_items %}
+            {% if post_booking_continue_url %}
+            <a href="{{ post_booking_continue_url }}" class="btn-primary">Continue</a>
+            {% elif facebook_share_items %}
             <button type="button" class="btn-primary" id="payment-success-my-bookings" data-fb-share-open>
                 My bookings
             </button>
@@ -225,6 +188,114 @@
         </div>
     </div>
     {% include 'bookings/partials/facebook_share_modal.html' %}
+    {% endif %}
+
+    <div class="booking-info success-booking-details">
+        <div class="success-booking-details__header">
+            <h2>Booking Details</h2>
+            {% if bookings and bookings|length > 1 %}
+            <p class="success-booking-details__hint">Swipe to see each place</p>
+            {% endif %}
+        </div>
+
+        {% if bookings and bookings|length > 1 %}
+        <div class="success-booking-carousel" data-success-carousel>
+            <div class="success-booking-carousel__track" tabindex="0" aria-label="Booking confirmations">
+                {% for booking in bookings %}
+                {% include "payments/partials/success_booking_slide.html" with booking=booking %}
+                {% endfor %}
+            </div>
+            <div class="success-booking-carousel__controls">
+                <button type="button" class="success-booking-carousel__nav" data-carousel-prev aria-label="Previous booking">‹</button>
+                <div class="success-booking-carousel__dots" role="tablist" aria-label="Booking pages">
+                    {% for booking in bookings %}
+                    <button
+                        type="button"
+                        class="success-booking-carousel__dot{% if forloop.first %} is-active{% endif %}"
+                        data-carousel-dot="{{ forloop.counter0 }}"
+                        aria-label="Show booking {{ forloop.counter }} of {{ bookings|length }}"
+                        {% if forloop.first %}aria-current="true"{% endif %}
+                    ></button>
+                    {% endfor %}
+                </div>
+                <button type="button" class="success-booking-carousel__nav" data-carousel-next aria-label="Next booking">›</button>
+            </div>
+            <p class="success-booking-carousel__status" data-carousel-status aria-live="polite">
+                1 of {{ bookings|length }}
+            </p>
+        </div>
+        {% elif bookings %}
+        {% include "payments/partials/success_booking_slide.html" with booking=bookings.0 %}
+        {% else %}
+        {% include "payments/partials/success_booking_slide.html" with booking=booking %}
+        {% endif %}
+
+        <p class="success-booking-details__email-note">
+            {% if bookings and bookings|length > 1 %}
+            You will receive a confirmation email for each booking shortly.
+            {% else %}
+            You will receive a confirmation email shortly.
+            {% endif %}
+        </p>
+    </div>
+    {% elif checkout_pending %}
+    <p class="success-message">Thank you for your booking. Your payment has been processed successfully.</p>
+    <div class="booking-info">
+        <p>Your confirmation email is on its way{% if payment_account.email %} to <strong>{{ payment_account.email }}</strong>{% endif %}.</p>
+        <p>Create a password below to view your bookings online any time.</p>
+    </div>
+
+    {% if payment_account %}
+    <div class="account-setup-panel account-setup-panel--priority">
+        {% if payment_account.mode == 'setup' %}
+        <h2>Complete your account</h2>
+        <p class="account-setup-lead">
+            Hi {{ payment_account.firstname }}, set a password for <strong>{{ payment_account.email }}</strong>
+            to view your bookings and course details any time.
+        </p>
+        <form method="post" action="{% url 'account:complete_setup' %}" class="booking-form account-form account-form--inline">
+            {% csrf_token %}
+            {{ account_setup_form.email }}
+            {% if payment_account.booking_reference %}
+            <input type="hidden" name="ref" value="{{ payment_account.booking_reference }}">
+            {% endif %}
+            <div class="booking-form-row booking-form-row--2">
+                <div class="form-group">
+                    <label for="{{ account_setup_form.password1.id_for_label }}">Password</label>
+                    {{ account_setup_form.password1 }}
+                </div>
+                <div class="form-group">
+                    <label for="{{ account_setup_form.password2.id_for_label }}">Confirm password</label>
+                    {{ account_setup_form.password2 }}
+                </div>
+            </div>
+            <div class="account-form-actions account-form-actions--inline">
+                <button type="submit" class="btn-primary">Save password and continue</button>
+                <a href="{{ post_booking_continue_url|default:'#' }}" class="btn-secondary">Set up later</a>
+            </div>
+        </form>
+        {% else %}
+        <h2>View your bookings</h2>
+        <p class="account-setup-lead">
+            An account already exists for <strong>{{ payment_account.email }}</strong>.
+            Sign in to see this booking and any others.
+        </p>
+        <div class="account-form-actions account-form-actions--inline">
+            <a href="{% url 'account:login' %}?next={% url 'account:my_bookings' %}" class="btn-primary">Sign in to my bookings</a>
+            {% if payment_account.booking_reference %}
+            <a href="{% url 'bookings:confirm' payment_account.booking_reference %}" class="btn-secondary">View this booking</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% elif request.GET.session_id %}
+    <p class="success-message">Thank you. Your payment has been processed successfully.</p>
+    <div class="booking-info">
+        <p>We could not load your booking details from this payment reference. If you have just paid, check your confirmation email or contact us.</p>
+    </div>
+    {% else %}
+    <p class="success-message">Thank you. Your payment has been processed successfully.</p>
     {% endif %}
 
     <div class="actions">
@@ -368,5 +439,68 @@
 {% endif %}
 {% if facebook_share_items %}
 <script src="{% static 'js/fb-share-modal.js' %}"></script>
+{% endif %}
+{% if bookings and bookings|length > 1 %}
+<script>
+(function () {
+    var root = document.querySelector('[data-success-carousel]');
+    if (!root) return;
+
+    var track = root.querySelector('.success-booking-carousel__track');
+    var slides = Array.prototype.slice.call(root.querySelectorAll('.success-booking-carousel__slide'));
+    var dots = Array.prototype.slice.call(root.querySelectorAll('[data-carousel-dot]'));
+    var prev = root.querySelector('[data-carousel-prev]');
+    var next = root.querySelector('[data-carousel-next]');
+    var status = root.querySelector('[data-carousel-status]');
+    if (!track || !slides.length) return;
+
+    function currentIndex() {
+        var width = track.clientWidth || 1;
+        return Math.round(track.scrollLeft / width);
+    }
+
+    function goTo(index) {
+        var clamped = Math.max(0, Math.min(slides.length - 1, index));
+        track.scrollTo({ left: clamped * track.clientWidth, behavior: 'smooth' });
+        sync(clamped);
+    }
+
+    function sync(index) {
+        if (typeof index !== 'number') index = currentIndex();
+        dots.forEach(function (dot, i) {
+            var active = i === index;
+            dot.classList.toggle('is-active', active);
+            if (active) dot.setAttribute('aria-current', 'true');
+            else dot.removeAttribute('aria-current');
+        });
+        if (prev) prev.disabled = index <= 0;
+        if (next) next.disabled = index >= slides.length - 1;
+        if (status) status.textContent = (index + 1) + ' of ' + slides.length;
+    }
+
+    if (prev) prev.addEventListener('click', function () { goTo(currentIndex() - 1); });
+    if (next) next.addEventListener('click', function () { goTo(currentIndex() + 1); });
+    dots.forEach(function (dot) {
+        dot.addEventListener('click', function () {
+            goTo(parseInt(dot.getAttribute('data-carousel-dot'), 10) || 0);
+        });
+    });
+    track.addEventListener('scroll', function () {
+        window.clearTimeout(track._carouselTimer);
+        track._carouselTimer = window.setTimeout(function () { sync(); }, 60);
+    }, { passive: true });
+    track.addEventListener('keydown', function (event) {
+        if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            goTo(currentIndex() - 1);
+        } else if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            goTo(currentIndex() + 1);
+        }
+    });
+    window.addEventListener('resize', function () { sync(); });
+    sync(0);
+})();
+</script>
 {% endif %}
 {% endblock %}

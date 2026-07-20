@@ -10,7 +10,9 @@ from core.views_student import (
     StudentLoginView,
     StudentSignupView,
     booking_calendar_ics,
+    edit_booking_camera,
     my_bookings,
+    post_booking_attendee_details,
     post_booking_community,
     student_logout,
 )
@@ -33,9 +35,15 @@ urlpatterns = [
         name='password_reset_complete',
     ),
     path('complete-setup/', CompleteAccountSetupView.as_view(), name='complete_setup'),
+    path('booking-details/', post_booking_attendee_details, name='post_booking_attendee_details'),
     path('join-community/', post_booking_community, name='post_booking_community'),
     path('logout/', student_logout, name='logout'),
     path('my-bookings/', my_bookings, name='my_bookings'),
+    path(
+        'my-bookings/<str:booking_reference>/camera/',
+        edit_booking_camera,
+        name='edit_booking_camera',
+    ),
     path(
         'my-bookings/<str:booking_reference>/calendar.ics',
         booking_calendar_ics,

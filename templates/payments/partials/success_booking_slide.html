@@ -1,0 +1,13 @@
+<article class="success-booking-carousel__slide">
+    <p><strong>Booking Reference:</strong> {{ booking.booking_reference }}</p>
+    <p><strong>Course:</strong> {{ booking.workshop.course.title|default:"Workshop" }}</p>
+    <p><strong>Date:</strong> {{ booking.workshop.start_date|date:"d F Y" }} at {{ booking.workshop.start_date|date:"g:i A" }}</p>
+    {% if booking.workshop.venue %}
+    <p><strong>Location:</strong> {{ booking.workshop.venue.name|default:"TBC" }}{% if booking.workshop.venue.city %}, {{ booking.workshop.venue.city }}{% endif %}</p>
+    {% endif %}
+    <p><strong>Student:</strong> {{ booking.student_first_name }} {{ booking.student_last_name }}</p>
+    {% if booking.voucher_code %}
+    <p><strong>Voucher used:</strong> {{ booking.voucher_code }} (-£{{ booking.voucher_discount|floatformat:2 }})</p>
+    {% endif %}
+    <p><strong>Amount Paid:</strong> £{{ booking.price_paid|floatformat:2 }}</p>
+</article>

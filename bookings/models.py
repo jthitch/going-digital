@@ -65,6 +65,23 @@ class Booking(models.Model):
         default=False,
         help_text='Student has requested a loan camera for this place.',
     )
+    camera_make = models.CharField(
+        max_length=120,
+        blank=True,
+        default='',
+        help_text='Camera manufacturer (e.g. Canon, Nikon).',
+    )
+    camera_model = models.CharField(
+        max_length=120,
+        blank=True,
+        default='',
+        help_text='Camera model (e.g. EOS R6, D850).',
+    )
+    attendee_details_collected_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When post-checkout attendee/camera details were collected.',
+    )
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     booking_reference = models.CharField(max_length=50, unique=True, db_index=True)
@@ -182,6 +199,44 @@ class BookingTermsAcceptance(models.Model):
 
     def __str__(self):
         return f'Terms accepted for basket {self.basket_id} at {self.accepted_at:%Y-%m-%d %H:%M}'
+
+
+class CameraMake(models.Model):
+    """Camera manufacturer options for student booking forms."""
+
+    name = models.CharField(max_length=120, unique=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Camera make'
+        verbose_name_plural = 'Camera makes'
+
+    def __str__(self):
+        return self.name
+
+
+class CameraModel(models.Model):
+    """Camera model options, scoped to a manufacturer."""
+
+    make = models.ForeignKey(
+        CameraMake,
+        on_delete=models.CASCADE,
+        related_name='models',
+    )
+    name = models.CharField(max_length=120)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        unique_together = [('make', 'name')]
+        verbose_name = 'Camera model'
+        verbose_name_plural = 'Camera models'
+
+    def __str__(self):
+        return f'{self.make.name} {self.name}'
 
 
 class Voucher(models.Model):
