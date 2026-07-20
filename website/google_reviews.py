@@ -405,6 +405,29 @@ def _highlights_from_admin(config):
     return highlights
 
 
+def _build_reviews_url(config, api_key=''):
+    """
+    Return a reliable outbound URL for reading Google reviews.
+
+    Prefer the dedicated Google reviews page (place ID), then Maps (CID),
+    then the admin-configured fallback URL.
+    """
+    place_id = _normalize_place_id(config.google_place_id)
+    if not place_id:
+        place_id = _normalize_place_id(getattr(django_settings, 'GOOGLE_PLACE_ID', ''))
+    if not place_id and api_key:
+        place_id = _resolve_place_id(config, api_key)
+    if place_id:
+        return f'https://search.google.com/local/reviews?placeid={place_id}'
+
+    cid = _google_cid_for_config(config)
+    if cid:
+        return f'https://www.google.com/maps?cid={cid}'
+
+    fallback = (config.reviews_url or '').strip()
+    return fallback or 'https://www.google.com/maps'
+
+
 def invalidate_google_reviews_cache(*, place_id=''):
     """Clear cached review display (and optional live place payload) after admin edits."""
     cache.delete(DISPLAY_CACHE_KEY)
@@ -441,6 +464,7 @@ def _build_google_reviews_display():
     if not featured_reviews:
         featured_reviews = _highlights_from_admin(config)
 
+    reviews_url = _build_reviews_url(config, api_key=api_key)
     full_stars, has_partial_star = _rating_stars(rating)
     empty_stars = max(0, 5 - full_stars - (1 if has_partial_star else 0))
     return {
@@ -448,7 +472,7 @@ def _build_google_reviews_display():
         'rating': rating,
         'rating_display': _format_rating(rating),
         'review_count': review_count,
-        'reviews_url': config.reviews_url,
+        'reviews_url': reviews_url,
         'full_stars': full_stars,
         'has_partial_star': has_partial_star,
         'empty_stars': empty_stars,

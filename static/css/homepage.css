@@ -36,10 +36,12 @@
 .hero-slide.active {
     opacity: 1;
     z-index: 1;
+    pointer-events: auto;
 }
 
 .hero-slide:not(.active) {
     z-index: 0;
+    pointer-events: none;
 }
 
 .hero-overlay {
