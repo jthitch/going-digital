@@ -1,0 +1,93 @@
+{% load i18n jazzmin %}
+{% get_jazzmin_ui_tweaks as jazzmin_ui %}
+
+{% if action_index == 0 %}
+<div class="actions gd-changelist-actions">
+    {% block actions %}
+        {% block actions-form %}
+            {% for field in action_form %}
+                <div class="gd-changelist-actions__field d-none" aria-hidden="true">{{ field }}</div>
+            {% endfor %}
+        {% endblock %}
+
+        <div class="gd-changelist-actions__bar d-none align-items-center flex-wrap gap-2" id="gd-changelist-actions-bar">
+            {% for field in action_form %}
+                {% for value, label in field.field.choices %}
+                    {% if value %}
+                        {% if value == 'delete_selected' %}
+                            <button
+                                type="button"
+                                class="btn btn-outline-danger btn-sm gd-changelist-delete-trigger"
+                                data-action="{{ value }}"
+                                title="{% trans 'Delete selected' %}"
+                            >
+                                <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                <span class="visually-hidden">{% trans 'Delete selected' %}</span>
+                            </button>
+                        {% else %}
+                            <button
+                                type="button"
+                                class="btn btn-outline-secondary btn-sm gd-changelist-run-action"
+                                data-action="{{ value }}"
+                            >
+                                {{ label }}
+                            </button>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+
+            {% block actions-submit %}
+                <button
+                    type="submit"
+                    class="d-none"
+                    name="index"
+                    value="{{ action_index|default:0 }}"
+                    id="gd-changelist-action-submit"
+                >{% trans 'Go' %}</button>
+            {% endblock %}
+
+            {% block actions-counter %}
+                {% if actions_selection_counter %}
+                    <span class="action-counter small text-muted mb-0" data-actions-icnt="{{ cl.result_list|length }}">{{ selection_note }}</span>
+                    {% if cl.result_count != cl.result_list|length %}
+                        <span class="all hidden">{{ selection_note_all }}</span>
+                        <span class="question hidden">
+                            <a href="#" title="{% trans 'Click here to select the objects across all pages' %}">
+                                {% blocktranslate with cl.result_count as total_count %}Select all {{ total_count }} {{ module_name }}{% endblocktranslate %}
+                            </a>
+                        </span>
+                        <span class="clear hidden"><a href="#">{% trans 'Clear selection' %}</a></span>
+                    {% endif %}
+                {% endif %}
+            {% endblock %}
+        </div>
+    {% endblock %}
+</div>
+
+<div
+    class="modal fade"
+    id="gd-delete-selected-modal"
+    tabindex="-1"
+    aria-labelledby="gd-delete-selected-modal-title"
+    aria-hidden="true"
+>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="gd-delete-selected-modal-title">{% trans 'Delete selected items?' %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'Close' %}"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0" id="gd-delete-selected-modal-body">
+                    {% trans 'Are you sure you want to delete the selected items? This cannot be undone.' %}
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans 'Cancel' %}</button>
+                <button type="button" class="btn btn-danger" id="gd-delete-selected-confirm">{% trans 'Delete' %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
