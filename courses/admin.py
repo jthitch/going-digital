@@ -673,6 +673,7 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
         'createdby_display',
         'updatedby_display',
         'image_preview',
+        'applicable_discount_codes_display',
         'created_at',
         'updated_at',
     ]
@@ -705,6 +706,7 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
                 'image_preview',
                 'images',
                 'image_upload',
+                'applicable_discount_codes_display',
                 'user_display',
                 'createdby_display',
                 'updatedby_display',
@@ -765,6 +767,7 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
         return initial
 
     def add_view(self, request, form_url='', extra_context=None):
+        self._current_request = request
         extra_context = extra_context or {}
         source = get_duplicate_source_workshop(request)
         if source:
@@ -774,6 +777,10 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
             )
             extra_context['is_workshop_duplicate'] = True
         return super().add_view(request, form_url, extra_context)
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        self._current_request = request
+        return super().change_view(request, object_id, form_url, extra_context)
 
     def get_urls(self):
         urls = super().get_urls()
@@ -899,6 +906,49 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
     @admin.display(description='Created by')
     def createdby_display(self, obj):
         return obj.get_createdby_display()
+
+    @admin.display(description='Discount codes')
+    def applicable_discount_codes_display(self, obj):
+        from bookings.discount_codes import (
+            codes_for_workshop,
+            codes_owned_by_user,
+            format_discount_codes_html,
+        )
+
+        if obj and obj.pk:
+            html = format_discount_codes_html(codes_for_workshop(obj))
+        else:
+            request = getattr(self, '_current_request', None)
+            user = getattr(request, 'user', None) if request else None
+            if user and not user_has_full_region_access(user) and getattr(user, 'is_region_scoped', False):
+                codes = list(codes_owned_by_user(user))
+                if codes:
+                    html = format_html(
+                        '<p style="margin:0 0 0.5rem;">Your active discount codes '
+                        '(attach workshops on each code after saving this course):</p>{}',
+                        format_discount_codes_html(codes),
+                    )
+                else:
+                    html = (
+                        'No discount codes yet. Create one under Bookings → Discount codes, '
+                        'then attach this workshop.'
+                    )
+            else:
+                html = (
+                    'Save this workshop, then create or edit a discount code and select this '
+                    'workshop. Applicable codes will appear here.'
+                )
+
+        try:
+            add_url = reverse('admin:bookings_discountcode_add')
+            html = format_html(
+                '{}<p style="margin:0.75rem 0 0;"><a href="{}">Create a discount code</a></p>',
+                html,
+                add_url,
+            )
+        except Exception:
+            pass
+        return html
 
     @admin.display(description='Updated by')
     def updatedby_display(self, obj):

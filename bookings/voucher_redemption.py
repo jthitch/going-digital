@@ -5,6 +5,11 @@ from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 
+from bookings.discount_codes import (
+    apply_discount_code_to_booking,
+    get_discount_code_by_code,
+    redeem_discount_code_for_booking,
+)
 from bookings.gift_voucher_basket import get_or_create_customer
 from bookings.models import Booking, Voucher
 
@@ -68,6 +73,7 @@ def clear_booking_voucher(booking):
     list_price = booking.list_price or booking.workshop.price
     booking.list_price = list_price
     booking.voucher_id = None
+    booking.discount_code = None
     booking.voucher_code = ''
     booking.voucher_discount = Decimal('0.00')
     booking.price_paid = list_price
@@ -75,6 +81,7 @@ def clear_booking_voucher(booking):
         update_fields=[
             'list_price',
             'voucher_id',
+            'discount_code',
             'voucher_code',
             'voucher_discount',
             'price_paid',
@@ -85,43 +92,55 @@ def clear_booking_voucher(booking):
 
 
 def apply_voucher_to_booking(booking, voucher_code):
-    """Validate voucher and update booking pricing (does not mark voucher redeemed yet)."""
+    """Validate gift voucher or discount code and update booking pricing."""
     voucher = get_voucher_by_code(voucher_code)
-    validate_voucher_for_workshop(voucher, booking.workshop)
+    if voucher:
+        validate_voucher_for_workshop(voucher, booking.workshop)
 
-    list_price = Decimal(str(booking.list_price or booking.workshop.price))
-    discount = calculate_voucher_discount(voucher, list_price)
-    price_paid = list_price - discount
+        list_price = Decimal(str(booking.list_price or booking.workshop.price))
+        discount = calculate_voucher_discount(voucher, list_price)
+        price_paid = list_price - discount
 
-    if Decimal('0') < price_paid < STRIPE_GBP_MINIMUM:
-        raise ValidationError(
-            f'The remaining balance (£{price_paid:.2f}) is below the minimum card payment '
-            f'(£{STRIPE_GBP_MINIMUM:.2f}). Use a smaller voucher amount or pay the full price.'
+        if Decimal('0') < price_paid < STRIPE_GBP_MINIMUM:
+            raise ValidationError(
+                f'The remaining balance (£{price_paid:.2f}) is below the minimum card payment '
+                f'(£{STRIPE_GBP_MINIMUM:.2f}). Use a smaller voucher amount or pay the full price.'
+            )
+
+        booking.list_price = list_price
+        booking.voucher_id = voucher.id
+        booking.discount_code = None
+        booking.voucher_code = voucher.voucher_code
+        booking.voucher_discount = discount
+        booking.price_paid = price_paid
+        booking.save(
+            update_fields=[
+                'list_price',
+                'voucher_id',
+                'discount_code',
+                'voucher_code',
+                'voucher_discount',
+                'price_paid',
+                'updated_at',
+            ]
         )
+        return booking
 
-    booking.list_price = list_price
-    booking.voucher_id = voucher.id
-    booking.voucher_code = voucher.voucher_code
-    booking.voucher_discount = discount
-    booking.price_paid = price_paid
-    booking.save(
-        update_fields=[
-            'list_price',
-            'voucher_id',
-            'voucher_code',
-            'voucher_discount',
-            'price_paid',
-            'updated_at',
-        ]
-    )
-    return booking
+    if get_discount_code_by_code(voucher_code):
+        return apply_discount_code_to_booking(booking, voucher_code)
+
+    raise ValidationError('Voucher code not found.')
 
 
 def redeem_voucher_for_booking(booking):
     """
-    Mark gd_voucher as claimed after successful payment.
+    Mark gd_voucher or DiscountCode as claimed after successful payment.
     Idempotent when called again for the same booking.
     """
+    if booking.discount_code_id:
+        redeem_discount_code_for_booking(booking)
+        return
+
     if not booking.voucher_id or not booking.voucher_discount:
         return
 

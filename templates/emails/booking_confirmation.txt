@@ -1,32 +1,31 @@
 Dear {{ student_name }},
 
-Thank you for your booking. Your payment has been received and your place is confirmed.
+Thank you for your booking. Your payment has been received and your place{% if is_multi_booking %}s are{% else %} is{% endif %} confirmed.
 
-Booking reference: {{ booking_reference }}
-Course: {{ course_title }}
-Date: {{ workshop_date }}{% if workshop_time %} at {{ workshop_time }}{% endif %}
-Location: {{ location_name }}{% if location_city %}, {{ location_city }}{% endif %}
-{% if location_address %}Address: {{ location_address }}
-{% endif %}{% if voucher_code %}Voucher: {{ voucher_code }} (-£{{ voucher_discount }})
-{% endif %}Amount paid: £{{ price_paid }}
-{% if tutor_name %}Your tutor: {{ tutor_name }}{% if tutor_email %} ({{ tutor_email }}){% endif %}
-{% endif %}{% if special_requirements %}
-Special requirements noted: {{ special_requirements }}
+{% for item in booking_items %}
+{% if is_multi_booking %}Course {{ forloop.counter }}
+{% endif %}Booking reference: {{ item.booking_reference }}
+Course: {{ item.course_title }}
+Date: {{ item.workshop_date }}{% if item.workshop_time %} at {{ item.workshop_time }}{% endif %}
+Location: {{ item.location_name }}{% if item.location_city %}, {{ item.location_city }}{% endif %}
+{% if item.location_address %}Address: {{ item.location_address }}
+{% endif %}{% if item.voucher_code %}Voucher: {{ item.voucher_code }} (-£{{ item.voucher_discount }})
+{% endif %}Amount paid: £{{ item.price_paid }}
+{% if item.tutor_name %}Your tutor: {{ item.tutor_name }}{% if item.tutor_email %} ({{ item.tutor_email }}){% endif %}
+{% endif %}{% if item.special_requirements %}Special requirements noted: {{ item.special_requirements }}
+{% endif %}{% if item.google_calendar_url or item.outlook_calendar_url %}Add to calendar:
+{% if item.google_calendar_url %}Google Calendar: {{ item.google_calendar_url }}
+{% endif %}{% if item.outlook_calendar_url %}Outlook: {{ item.outlook_calendar_url }}
+{% endif %}{% if item.calendar_ics %}Calendar file attached: {{ item.calendar_ics_filename }}
+{% endif %}{% endif %}{% if item.workshop_url %}Workshop details: {{ item.workshop_url }}
 {% endif %}
-You will receive joining instructions from your local tutor before the workshop.
+{% endfor %}{% if is_multi_booking %}Total amount paid: £{{ total_price_paid }}
+{% endif %}
+You will receive joining instructions from your local tutor before the workshop{% if is_multi_booking %}s{% endif %}.
 {% if account_setup_url %}
 
 View your bookings online: set a password to complete your account:
 {{ account_setup_url }}
-{% endif %}
-{% if google_calendar_url or outlook_calendar_url %}
-
-Add to your calendar:
-{% if google_calendar_url %}Google Calendar: {{ google_calendar_url }}
-{% endif %}{% if outlook_calendar_url %}Outlook: {{ outlook_calendar_url }}
-{% endif %}{% if calendar_ics %}Calendar file attached: {{ calendar_ics_filename }}
-{% endif %}{% endif %}{% if workshop_url %}
-Workshop details: {{ workshop_url }}
 {% endif %}{% if show_facebook_groups_cta %}
 
 Join our Facebook community

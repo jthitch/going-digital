@@ -16,9 +16,13 @@ from .admin_booking_list import (
     load_unified_admin_bookings,
 )
 from .admin_mixins import RegionScopedBookingAdminMixin
-from .forms import ManualBookingAdminForm
+from .discount_codes import (
+    filter_discount_codes_for_user,
+    workshops_queryset_for_discount_admin,
+)
+from .forms import DiscountCodeAdminForm, ManualBookingAdminForm
 from .manual_booking import create_manual_booking
-from .models import Booking, BookingTermsAcceptance, CameraMake, CameraModel, Voucher
+from .models import Booking, BookingTermsAcceptance, CameraMake, CameraModel, DiscountCode, Voucher
 
 
 class CameraModelInline(admin.TabularInline):
@@ -57,6 +61,102 @@ class CameraMakeAdmin(admin.ModelAdmin):
     @admin.display(description='Models')
     def model_count(self, obj):
         return obj.models.count()
+
+
+@admin.register(DiscountCode)
+class DiscountCodeAdmin(admin.ModelAdmin):
+    form = DiscountCodeAdminForm
+    list_display = [
+        'code',
+        'discount_label_display',
+        'is_active',
+        'expiry_date',
+        'workshop_count',
+        'times_redeemed',
+        'created_by',
+        'created_at',
+    ]
+    list_filter = ['is_active', 'discount_type', 'expiry_date']
+    search_fields = ['code', 'notes', 'created_by__email', 'created_by__firstname']
+    filter_horizontal = []
+    readonly_fields = ['times_redeemed', 'created_by', 'created_at', 'updated_at']
+    fieldsets = (
+        (None, {
+            'fields': (
+                'code',
+                'discount_type',
+                'amount',
+                'is_active',
+                'expiry_date',
+                'workshops',
+                'notes',
+            ),
+        }),
+        ('Usage', {
+            'fields': ('times_redeemed', 'created_by', 'created_at', 'updated_at'),
+        }),
+    )
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request).select_related('created_by').prefetch_related('workshops')
+        return filter_discount_codes_for_user(qs, request.user)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form_class = super().get_form(request, obj, **kwargs)
+        workshop_qs = workshops_queryset_for_discount_admin(request.user)
+
+        class ScopedDiscountCodeForm(form_class):
+            def __init__(self, *args, **form_kwargs):
+                form_kwargs.setdefault('workshop_queryset', workshop_qs)
+                super().__init__(*args, **form_kwargs)
+
+        ScopedDiscountCodeForm.__name__ = form_class.__name__
+        ScopedDiscountCodeForm.__qualname__ = form_class.__qualname__
+        return ScopedDiscountCodeForm
+
+    def save_model(self, request, obj, form, change):
+        if not change and not obj.created_by_id:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+    def has_module_permission(self, request):
+        if user_has_full_region_access(request.user):
+            return super().has_module_permission(request)
+        return bool(request.user and getattr(request.user, 'is_region_scoped', False))
+
+    def has_view_permission(self, request, obj=None):
+        if user_has_full_region_access(request.user):
+            return super().has_view_permission(request, obj)
+        if not getattr(request.user, 'is_region_scoped', False):
+            return False
+        if obj is None:
+            return True
+        return obj.created_by_id == request.user.pk
+
+    def has_add_permission(self, request):
+        if user_has_full_region_access(request.user):
+            return super().has_add_permission(request)
+        return bool(getattr(request.user, 'is_region_scoped', False))
+
+    def has_change_permission(self, request, obj=None):
+        if user_has_full_region_access(request.user):
+            return super().has_change_permission(request, obj)
+        if not getattr(request.user, 'is_region_scoped', False):
+            return False
+        if obj is None:
+            return True
+        return obj.created_by_id == request.user.pk
+
+    def has_delete_permission(self, request, obj=None):
+        return self.has_change_permission(request, obj)
+
+    @admin.display(description='Discount')
+    def discount_label_display(self, obj):
+        return obj.discount_label
+
+    @admin.display(description='Workshops')
+    def workshop_count(self, obj):
+        return obj.workshops.count()
 
 
 @admin.register(Voucher)
@@ -140,6 +240,7 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
         'status',
         'list_price',
         'voucher_id',
+        'discount_code',
         'voucher_code',
         'voucher_discount',
         'voucher_redeemed_at',
@@ -171,6 +272,7 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
                 'voucher_code',
                 'voucher_discount',
                 'voucher_id',
+                'discount_code',
                 'voucher_admin_link',
                 'voucher_redeemed_at',
                 'price_paid',
@@ -393,6 +495,10 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
 
     @admin.display(description='Voucher record')
     def voucher_admin_link(self, obj):
+        if obj.discount_code_id:
+            url = reverse('admin:bookings_discountcode_change', args=[obj.discount_code_id])
+            label = obj.voucher_code or f'Discount #{obj.discount_code_id}'
+            return format_html('<a href="{}">{}</a>', url, label)
         if not obj.voucher_id:
             return '—'
         url = reverse('admin:bookings_voucher_change', args=[obj.voucher_id])

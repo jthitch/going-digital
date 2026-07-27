@@ -1,10 +1,13 @@
 """
 Booking forms.
 """
+from decimal import Decimal
+
 from django import forms
+from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.core.exceptions import ValidationError
 
-from .models import Booking
+from .models import Booking, DiscountCode
 from .workshop_basket import (
     loan_cameras_reserved_in_basket,
     places_available_message,
@@ -237,4 +240,63 @@ class ManualBookingAdminForm(forms.ModelForm):
             cleaned['list_price'] = workshop_price
         if cleaned.get('price_paid') is None:
             cleaned['price_paid'] = cleaned.get('list_price') or workshop_price
+        return cleaned
+
+
+class DiscountCodeAdminForm(forms.ModelForm):
+    workshops = forms.ModelMultipleChoiceField(
+        queryset=DiscountCode._meta.get_field('workshops').related_model.objects.none(),
+        required=True,
+        widget=FilteredSelectMultiple('workshops', is_stacked=False),
+        help_text='Select the workshops this code can be used on.',
+    )
+
+    class Meta:
+        model = DiscountCode
+        fields = [
+            'code',
+            'discount_type',
+            'amount',
+            'is_active',
+            'expiry_date',
+            'workshops',
+            'notes',
+        ]
+
+    def __init__(self, *args, workshop_queryset=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from courses.models import Workshop
+
+        qs = workshop_queryset
+        if qs is None:
+            qs = Workshop.objects.select_related('course', 'venue').order_by('-date', 'id')
+        self.fields['workshops'].queryset = qs
+        self.fields['code'].help_text = 'Letters and numbers only. Stored in uppercase.'
+        self.fields['amount'].help_text = (
+            'For fixed amount enter pounds (e.g. 10 for £10 off). '
+            'For percentage enter the percent (e.g. 10 for 10% off).'
+        )
+        self.fields['discount_type'].label = 'Discount type'
+
+    def clean_code(self):
+        code = (self.cleaned_data.get('code') or '').strip().upper()
+        if not code:
+            raise ValidationError('Enter a discount code.')
+        if ' ' in code:
+            raise ValidationError('Codes cannot contain spaces.')
+        return code
+
+    def clean(self):
+        cleaned = super().clean()
+        discount_type = cleaned.get('discount_type')
+        amount = cleaned.get('amount')
+        if amount is None:
+            return cleaned
+        if amount <= 0:
+            self.add_error('amount', 'Amount must be greater than zero.')
+        if discount_type == DiscountCode.DISCOUNT_PERCENT and amount > Decimal('100'):
+            self.add_error('amount', 'Percentage cannot be more than 100.')
+        workshops = cleaned.get('workshops')
+        if workshops is not None and not workshops.exists():
+            self.add_error('workshops', 'Select at least one workshop.')
         return cleaned

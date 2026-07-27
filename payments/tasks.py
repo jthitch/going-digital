@@ -4,7 +4,10 @@ Email sending for payments (sync for now; can move to Celery later).
 import logging
 
 from django.conf import settings
-from bookings.email_context import booking_confirmation_context
+from bookings.email_context import (
+    booking_confirmation_subject,
+    bookings_confirmation_context,
+)
 from bookings.gift_voucher_basket import get_basket
 from bookings.models import Booking
 from core.mail import franchisee_emails_for_workshop, send_filtered_mail, send_html_email
@@ -13,45 +16,81 @@ logger = logging.getLogger(__name__)
 
 
 def send_booking_confirmation_email(booking_id):
-    """Send booking confirmation to the student; BCC franchisees and tutor."""
-    try:
-        booking = (
-            Booking.objects.select_related(
-                'workshop', 'workshop__course', 'workshop__venue', 'payment',
-            )
-            .get(id=booking_id)
-        )
-    except Booking.DoesNotExist:
-        logger.warning('Booking %s not found for confirmation email', booking_id)
+    """Send booking confirmation for a single booking id."""
+    return send_booking_confirmation_emails([booking_id])
+
+
+def send_booking_confirmation_emails(booking_ids):
+    """
+    Send one confirmation email covering all booking ids in a checkout.
+    BCC franchisees/tutors for every workshop involved.
+    """
+    ids = [int(booking_id) for booking_id in booking_ids if booking_id]
+    if not ids:
         return False
 
-    workshop = booking.workshop
-    course_title = workshop.course.title if workshop and workshop.course else 'Workshop'
-    subject = f'Booking confirmed: {course_title}'
-    context = booking_confirmation_context(booking)
+    bookings = list(
+        Booking.objects.filter(id__in=ids)
+        .select_related('workshop', 'workshop__course', 'workshop__venue', 'payment')
+        .order_by('id')
+    )
+    if not bookings:
+        logger.warning('Bookings %s not found for confirmation email', ids)
+        return False
 
-    student_email = booking.student_email.strip()
-    bcc = [
-        addr for addr in franchisee_emails_for_workshop(workshop)
-        if addr.lower() != student_email.lower()
-    ]
+    # Preserve checkout order when metadata provides an ordered id list.
+    by_id = {booking.id: booking for booking in bookings}
+    ordered = [by_id[booking_id] for booking_id in ids if booking_id in by_id]
+    if not ordered:
+        return False
+
+    subject = booking_confirmation_subject(ordered)
+    context = bookings_confirmation_context(ordered)
+
+    student_email = ordered[0].student_email.strip()
+    bcc = []
+    seen_bcc = set()
+    for booking in ordered:
+        for addr in franchisee_emails_for_workshop(booking.workshop):
+            key = addr.lower()
+            if key == student_email.lower() or key in seen_bcc:
+                continue
+            seen_bcc.add(key)
+            bcc.append(addr)
 
     attachments = []
-    if context.get('calendar_ics'):
-        attachments.append((
-            context['calendar_ics_filename'],
-            context['calendar_ics'],
-            'text/calendar; method=PUBLISH; charset=UTF-8',
-        ))
-
+    seen_filenames = set()
     from courses.venue_documents import booking_email_venue_document_attachment
     from courses.workshop_documents import booking_email_workshop_document_attachments
 
-    venue_document = booking_email_venue_document_attachment(workshop)
-    if venue_document:
-        attachments.append(venue_document)
+    for item in context['booking_items']:
+        if item.get('calendar_ics'):
+            filename = item['calendar_ics_filename']
+            if filename not in seen_filenames:
+                seen_filenames.add(filename)
+                attachments.append((
+                    filename,
+                    item['calendar_ics'],
+                    'text/calendar; method=PUBLISH; charset=UTF-8',
+                ))
 
-    attachments.extend(booking_email_workshop_document_attachments(workshop))
+        workshop = item.get('workshop')
+        if not workshop:
+            continue
+
+        venue_document = booking_email_venue_document_attachment(workshop)
+        if venue_document:
+            filename = venue_document[0]
+            if filename not in seen_filenames:
+                seen_filenames.add(filename)
+                attachments.append(venue_document)
+
+        for attachment in booking_email_workshop_document_attachments(workshop):
+            filename = attachment[0]
+            if filename in seen_filenames:
+                continue
+            seen_filenames.add(filename)
+            attachments.append(attachment)
 
     send_html_email(
         to=[student_email],

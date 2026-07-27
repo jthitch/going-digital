@@ -189,7 +189,19 @@ class GdUserCreationForm(BaseUserCreationForm):
 
     class Meta(BaseUserCreationForm.Meta):
         model = User
-        fields = ('email', 'firstname', 'lastname', 'user_type_id')
+        fields = (
+            'email',
+            'firstname',
+            'lastname',
+            'telephone',
+            'mobile',
+            'company',
+            'address1',
+            'address2',
+            'town_city',
+            'postcode',
+            'user_type_id',
+        )
 
     class Media:
         css = {'all': ('admin/css/widgets.css',)}

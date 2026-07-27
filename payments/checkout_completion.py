@@ -161,7 +161,7 @@ def _complete_workshop_basket(metadata, payment):
     """Confirm all bookings in a workshop basket payment."""
     from collections import Counter
 
-    from payments.tasks import send_booking_confirmation_email
+    from payments.tasks import send_booking_confirmation_emails
 
     basket_id = int(metadata['workshop_basket_id'])
     booking_ids = metadata.get('booking_ids') or []
@@ -176,7 +176,7 @@ def _complete_workshop_basket(metadata, payment):
         if basket:
             booking_ids = basket['basket_data'].get('booking_ids') or []
 
-    should_send_emails = []
+    should_send_confirmation = False
     places_by_workshop = Counter()
     payment_id = payment.pk
     apply_places = False
@@ -199,17 +199,27 @@ def _complete_workshop_basket(metadata, payment):
 
             places_by_workshop[booking.workshop_id] += 1
 
-            if not pay_meta.get('voucher_redeemed') and booking.voucher_id:
+            if not pay_meta.get('voucher_redeemed') and (
+                booking.voucher_id or booking.discount_code_id
+            ):
                 from bookings.voucher_redemption import redeem_voucher_for_booking
                 redeem_voucher_for_booking(booking)
 
-            email_key = f'confirmation_email_sent_{booking_id}'
-            if not pay_meta.get(email_key):
-                pay_meta[email_key] = True
-                should_send_emails.append(booking_id)
-
         if not pay_meta.get('voucher_redeemed'):
             pay_meta['voucher_redeemed'] = True
+
+        if not booking_ids:
+            already_emailed = True
+        else:
+            already_emailed = bool(pay_meta.get('confirmation_email_sent')) or all(
+                pay_meta.get(f'confirmation_email_sent_{booking_id}')
+                for booking_id in booking_ids
+            )
+        if booking_ids and not already_emailed:
+            should_send_confirmation = True
+            pay_meta['confirmation_email_sent'] = True
+            for booking_id in booking_ids:
+                pay_meta[f'confirmation_email_sent_{booking_id}'] = True
 
         if apply_places:
             pay_meta['places_booked_applied'] = True
@@ -222,14 +232,16 @@ def _complete_workshop_basket(metadata, payment):
         for workshop_id, count in places_to_apply.items():
             _increment_workshop_places_booked(workshop_id, count)
 
-    for booking_id in should_send_emails:
+    if should_send_confirmation:
         try:
-            send_booking_confirmation_email(booking_id)
+            send_booking_confirmation_emails(booking_ids)
         except Exception:
             with transaction.atomic():
                 locked_payment = Payment.objects.select_for_update().get(pk=payment_id)
                 pay_meta = dict(locked_payment.metadata or {})
-                pay_meta.pop(f'confirmation_email_sent_{booking_id}', None)
+                pay_meta.pop('confirmation_email_sent', None)
+                for booking_id in booking_ids:
+                    pay_meta.pop(f'confirmation_email_sent_{booking_id}', None)
                 locked_payment.metadata = pay_meta
                 locked_payment.save(update_fields=['metadata', 'updated_at'])
             raise
@@ -272,10 +284,11 @@ def _complete_booking(metadata):
             should_send_email = True
 
         if not pay_meta.get('voucher_redeemed'):
-            if booking.voucher_id:
+            if booking.voucher_id or booking.discount_code_id:
                 from bookings.voucher_redemption import redeem_voucher_for_booking
                 redeem_voucher_for_booking(booking)
                 pay_meta['voucher_id'] = booking.voucher_id
+                pay_meta['discount_code_id'] = booking.discount_code_id
                 pay_meta['voucher_code'] = booking.voucher_code
                 pay_meta['voucher_discount'] = str(booking.voucher_discount)
             pay_meta['voucher_redeemed'] = True

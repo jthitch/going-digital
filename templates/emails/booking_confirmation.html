@@ -1,60 +1,66 @@
 {% extends "emails/base.html" %}
 
-{% block title %}Booking confirmed — {{ course_title }}{% endblock %}
+{% block title %}Booking confirmed{% if is_multi_booking %} — {{ booking_count }} courses{% else %} — {{ course_title }}{% endif %}{% endblock %}
 
 {% block header_style %}padding:24px 28px;background:#f0f0f0;text-align:center;border-bottom:1px solid #e0e0e0;{% endblock %}
 
 {% block content %}
 <p style="margin:0 0 16px;">Dear {{ student_name }},</p>
 
-<p style="margin:0 0 16px;">Thank you for your booking. Your payment has been received and your place is confirmed.</p>
+<p style="margin:0 0 16px;">Thank you for your booking. Your payment has been received and your place{% if is_multi_booking %}s are{% else %} is{% endif %} confirmed.</p>
 
+{% for item in booking_items %}
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#f9f9f9;border:1px solid #e8e8e8;">
     <tr>
         <td style="padding:16px 18px;">
-            <p style="margin:0 0 8px;"><strong>Booking reference:</strong> {{ booking_reference }}</p>
-            <p style="margin:0 0 8px;"><strong>Course:</strong> {{ course_title }}</p>
-            <p style="margin:0 0 8px;"><strong>Date:</strong> {{ workshop_date }}{% if workshop_time %} at {{ workshop_time }}{% endif %}</p>
-            <p style="margin:0 0 8px;"><strong>Location:</strong> {{ location_name }}{% if location_city %}, {{ location_city }}{% endif %}</p>
-            {% if location_address %}
-            <p style="margin:0 0 8px;"><strong>Address:</strong> {{ location_address|linebreaksbr }}</p>
+            {% if is_multi_booking %}
+            <p style="margin:0 0 12px;font-size:15px;"><strong>{% if booking_count > 1 %}Course {{ forloop.counter }}{% endif %}</strong></p>
             {% endif %}
-            {% if voucher_code %}
-            <p style="margin:0 0 8px;"><strong>Voucher:</strong> {{ voucher_code }} (-£{{ voucher_discount }})</p>
+            <p style="margin:0 0 8px;"><strong>Booking reference:</strong> {{ item.booking_reference }}</p>
+            <p style="margin:0 0 8px;"><strong>Course:</strong> {{ item.course_title }}</p>
+            <p style="margin:0 0 8px;"><strong>Date:</strong> {{ item.workshop_date }}{% if item.workshop_time %} at {{ item.workshop_time }}{% endif %}</p>
+            <p style="margin:0 0 8px;"><strong>Location:</strong> {{ item.location_name }}{% if item.location_city %}, {{ item.location_city }}{% endif %}</p>
+            {% if item.location_address %}
+            <p style="margin:0 0 8px;"><strong>Address:</strong> {{ item.location_address|linebreaksbr }}</p>
             {% endif %}
-            <p style="margin:0 0 8px;"><strong>Amount paid:</strong> £{{ price_paid }}</p>
-            {% if tutor_name %}
-            <p style="margin:0;"><strong>Your tutor:</strong> {{ tutor_name }}{% if tutor_email %} (<a href="mailto:{{ tutor_email }}" style="color:#0066cc;">{{ tutor_email }}</a>){% endif %}</p>
+            {% if item.voucher_code %}
+            <p style="margin:0 0 8px;"><strong>Voucher:</strong> {{ item.voucher_code }} (-£{{ item.voucher_discount }})</p>
+            {% endif %}
+            <p style="margin:0 0 8px;"><strong>Amount paid:</strong> £{{ item.price_paid }}</p>
+            {% if item.tutor_name %}
+            <p style="margin:0 0 8px;"><strong>Your tutor:</strong> {{ item.tutor_name }}{% if item.tutor_email %} (<a href="mailto:{{ item.tutor_email }}" style="color:#0066cc;">{{ item.tutor_email }}</a>){% endif %}</p>
+            {% endif %}
+            {% if item.special_requirements %}
+            <p style="margin:0 0 8px;"><strong>Special requirements noted:</strong> {{ item.special_requirements }}</p>
+            {% endif %}
+            {% if item.google_calendar_url or item.outlook_calendar_url %}
+            <p style="margin:8px 0 0;">
+                <strong>Add to calendar:</strong>
+                {% if item.google_calendar_url %}<a href="{{ item.google_calendar_url }}" style="color:#0066cc;margin-right:12px;">Google</a>{% endif %}
+                {% if item.outlook_calendar_url %}<a href="{{ item.outlook_calendar_url }}" style="color:#0066cc;margin-right:12px;">Outlook</a>{% endif %}
+                {% if item.calendar_ics %}<span style="color:#666;">or open <strong>{{ item.calendar_ics_filename }}</strong></span>{% endif %}
+            </p>
+            {% endif %}
+            {% if item.workshop_url %}
+            <p style="margin:8px 0 0;"><a href="{{ item.workshop_url }}" style="color:#0066cc;">View workshop details</a></p>
             {% endif %}
         </td>
     </tr>
 </table>
+{% endfor %}
 
-{% if special_requirements %}
-<p style="margin:0 0 16px;"><strong>Special requirements noted:</strong> {{ special_requirements }}</p>
+{% if is_multi_booking %}
+<p style="margin:0 0 16px;"><strong>Total amount paid:</strong> £{{ total_price_paid }}</p>
 {% endif %}
 
-<p style="margin:0 0 16px;">You will receive joining instructions from your local tutor before the workshop.</p>
+<p style="margin:0 0 16px;">You will receive joining instructions from your local tutor before the workshop{% if is_multi_booking %}s{% endif %}.</p>
 
 {% if account_setup_url %}
 <p style="margin:0 0 16px;">
     <strong>View your bookings online:</strong>
     <a href="{{ account_setup_url }}" style="color:#0066cc;">Set a password to complete your account</a>
-    and see this booking any time.
+    and see {% if is_multi_booking %}these bookings{% else %}this booking{% endif %} any time.
 </p>
-{% endif %}
-
-{% if google_calendar_url or outlook_calendar_url %}
-<p style="margin:0 0 8px;"><strong>Add to your calendar</strong></p>
-<p style="margin:0 0 16px;">
-    {% if google_calendar_url %}<a href="{{ google_calendar_url }}" style="color:#0066cc;margin-right:12px;">Google Calendar</a>{% endif %}
-    {% if outlook_calendar_url %}<a href="{{ outlook_calendar_url }}" style="color:#0066cc;margin-right:12px;">Outlook</a>{% endif %}
-    {% if calendar_ics %}<span style="color:#666;">or open the attached <strong>{{ calendar_ics_filename }}</strong> file</span>{% endif %}
-</p>
-{% endif %}
-
-{% if workshop_url %}
-<p style="margin:0;"><a href="{{ workshop_url }}" style="color:#0066cc;">View workshop details on our website</a></p>
 {% endif %}
 
 {% include "emails/partials/facebook_groups_cta.html" %}

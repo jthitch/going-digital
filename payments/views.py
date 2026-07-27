@@ -118,12 +118,15 @@ def _booking_payment_metadata(booking, request=None):
         'booking_id': booking.id,
         'booking_reference': booking.booking_reference,
     }
-    if booking.voucher_id:
-        metadata['voucher_id'] = booking.voucher_id
+    if booking.voucher_id or booking.discount_code_id:
         metadata['voucher_code'] = booking.voucher_code
         metadata['voucher_discount'] = str(booking.voucher_discount)
         if booking.list_price is not None:
             metadata['list_price'] = str(booking.list_price)
+    if booking.voucher_id:
+        metadata['voucher_id'] = booking.voucher_id
+    if booking.discount_code_id:
+        metadata['discount_code_id'] = booking.discount_code_id
     metadata.update(_checkout_site_url_metadata(request))
     return metadata
 

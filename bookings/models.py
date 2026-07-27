@@ -99,6 +99,14 @@ class Booking(models.Model):
         blank=True,
         help_text='gd_voucher.id applied at checkout (redeemed after payment)',
     )
+    discount_code = models.ForeignKey(
+        'DiscountCode',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bookings',
+        help_text='Franchisee/admin promotional code applied at checkout.',
+    )
     voucher_code = models.CharField(max_length=255, blank=True, default='')
     voucher_discount = models.DecimalField(
         max_digits=10,
@@ -108,7 +116,7 @@ class Booking(models.Model):
     voucher_redeemed_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text='When the voucher was marked redeemed against this booking',
+        help_text='When the voucher/discount code was marked redeemed against this booking',
     )
     price_paid = models.DecimalField(
         max_digits=10,
@@ -168,7 +176,76 @@ class Booking(models.Model):
 
     @property
     def used_voucher(self):
-        return bool(self.voucher_id and self.voucher_code)
+        return bool((self.voucher_id or self.discount_code_id) and self.voucher_code)
+
+
+class DiscountCode(models.Model):
+    """
+    Franchisee/admin promotional discount codes (fixed £ or % off).
+    Distinct from purchased gift vouchers in gd_voucher.
+    """
+
+    DISCOUNT_FIXED = 'fixed'
+    DISCOUNT_PERCENT = 'percent'
+    DISCOUNT_TYPE_CHOICES = [
+        (DISCOUNT_FIXED, 'Fixed amount (£)'),
+        (DISCOUNT_PERCENT, 'Percentage (%)'),
+    ]
+
+    code = models.CharField(max_length=40, unique=True, db_index=True)
+    discount_type = models.CharField(
+        max_length=10,
+        choices=DISCOUNT_TYPE_CHOICES,
+        default=DISCOUNT_FIXED,
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        help_text='Pounds off for fixed codes, or percentage (e.g. 10 for 10%).',
+    )
+    is_active = models.BooleanField(default=True)
+    expiry_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text='Optional. Code stops working after this date.',
+    )
+    workshops = models.ManyToManyField(
+        Workshop,
+        related_name='discount_codes',
+        blank=True,
+        help_text='Workshops this code can be used on.',
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='discount_codes',
+        null=True,
+        blank=True,
+    )
+    times_redeemed = models.PositiveIntegerField(default=0)
+    notes = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Discount code'
+        verbose_name_plural = 'Discount codes'
+
+    def __str__(self):
+        return self.code
+
+    def save(self, *args, **kwargs):
+        if self.code:
+            self.code = self.code.strip().upper()
+        super().save(*args, **kwargs)
+
+    @property
+    def discount_label(self):
+        if self.discount_type == self.DISCOUNT_PERCENT:
+            return f'{self.amount.normalize()}% off'
+        return f'£{self.amount:.2f} off'
 
 
 class BookingTermsAcceptance(models.Model):

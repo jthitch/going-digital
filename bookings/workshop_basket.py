@@ -11,6 +11,10 @@ from bookings.gift_voucher_basket import (
     get_stripe_gateway_id,
     parse_device_and_browser,
 )
+from bookings.discount_codes import (
+    get_discount_code_by_code,
+    validate_discount_code_for_basket,
+)
 from bookings.models import Booking
 from bookings.voucher_redemption import (
     STRIPE_GBP_MINIMUM,
@@ -82,8 +86,10 @@ def _empty_basket():
     return {
         'items': [],
         'voucher_id': None,
+        'discount_code_id': None,
         'voucher_code': '',
         'voucher_discount': '0.00',
+        'discount_eligible_workshop_ids': [],
     }
 
 
@@ -273,14 +279,18 @@ def _recalculate_voucher(basket, workshops_by_id):
     code = basket.get('voucher_code') or ''
     if not code:
         basket['voucher_id'] = None
+        basket['discount_code_id'] = None
         basket['voucher_discount'] = '0.00'
+        basket['discount_eligible_workshop_ids'] = []
         return
     try:
         apply_voucher_to_session_basket(basket, code, workshops_by_id)
     except ValidationError:
         basket['voucher_id'] = None
+        basket['discount_code_id'] = None
         basket['voucher_code'] = ''
         basket['voucher_discount'] = '0.00'
+        basket['discount_eligible_workshop_ids'] = []
 
 
 def apply_voucher_to_session_basket(basket, voucher_code, workshops_by_id=None):
@@ -290,16 +300,38 @@ def apply_voucher_to_session_basket(basket, voucher_code, workshops_by_id=None):
         raise ValidationError('Your basket is empty.')
 
     voucher = get_voucher_by_code(voucher_code)
-    if not voucher:
+    if voucher:
+        for item in basket['items']:
+            workshop = workshops_by_id.get(item['workshop_id'])
+            if workshop:
+                validate_voucher_for_workshop(voucher, workshop)
+
+        list_total = basket_list_total(basket, workshops_by_id)
+        discount = calculate_voucher_discount(voucher, list_total)
+        amount_due = list_total - discount
+        if Decimal('0') < amount_due < STRIPE_GBP_MINIMUM:
+            raise ValidationError(
+                f'The remaining balance (£{amount_due:.2f}) is below the minimum card payment '
+                f'(£{STRIPE_GBP_MINIMUM:.2f}).'
+            )
+
+        basket['voucher_id'] = voucher.id
+        basket['discount_code_id'] = None
+        basket['voucher_code'] = voucher.voucher_code
+        basket['voucher_discount'] = str(discount)
+        basket['discount_eligible_workshop_ids'] = list(workshops_by_id.keys())
+        return basket
+
+    discount_code = get_discount_code_by_code(voucher_code)
+    if not discount_code:
         raise ValidationError('Voucher code not found.')
 
-    for item in basket['items']:
-        workshop = workshops_by_id.get(item['workshop_id'])
-        if workshop:
-            validate_voucher_for_workshop(voucher, workshop)
-
+    discount, allowed_ids = validate_discount_code_for_basket(
+        discount_code,
+        workshops_by_id,
+        basket['items'],
+    )
     list_total = basket_list_total(basket, workshops_by_id)
-    discount = calculate_voucher_discount(voucher, list_total)
     amount_due = list_total - discount
     if Decimal('0') < amount_due < STRIPE_GBP_MINIMUM:
         raise ValidationError(
@@ -307,16 +339,20 @@ def apply_voucher_to_session_basket(basket, voucher_code, workshops_by_id=None):
             f'(£{STRIPE_GBP_MINIMUM:.2f}).'
         )
 
-    basket['voucher_id'] = voucher.id
-    basket['voucher_code'] = voucher.voucher_code
+    basket['voucher_id'] = None
+    basket['discount_code_id'] = discount_code.id
+    basket['voucher_code'] = discount_code.code
     basket['voucher_discount'] = str(discount)
+    basket['discount_eligible_workshop_ids'] = list(allowed_ids)
     return basket
 
 
 def clear_voucher_from_session_basket(basket):
     basket['voucher_id'] = None
+    basket['discount_code_id'] = None
     basket['voucher_code'] = ''
     basket['voucher_discount'] = '0.00'
+    basket['discount_eligible_workshop_ids'] = []
     return basket
 
 
@@ -333,23 +369,31 @@ def _resolve_customer(request, purchaser_email, firstname=None, lastname=None, p
     return customer
 
 
-def _allocate_discounts(booking_amounts, total_discount):
-    """Split voucher discount across bookings proportionally (last booking gets remainder)."""
+def _allocate_discounts(booking_amounts, total_discount, eligible_mask=None):
+    """Split voucher discount across bookings proportionally (last eligible gets remainder)."""
     total_discount = Decimal(str(total_discount))
-    if total_discount <= 0:
-        return [Decimal('0.00')] * len(booking_amounts)
-    subtotal = sum(booking_amounts)
-    if subtotal <= 0:
-        return [Decimal('0.00')] * len(booking_amounts)
-    allocations = []
+    n = len(booking_amounts)
+    if total_discount <= 0 or n == 0:
+        return [Decimal('0.00')] * n
+    if eligible_mask is None:
+        eligible_mask = [True] * n
+    eligible_total = sum(
+        amount for amount, ok in zip(booking_amounts, eligible_mask) if ok
+    )
+    if eligible_total <= 0:
+        return [Decimal('0.00')] * n
+
+    allocations = [Decimal('0.00')] * n
     allocated = Decimal('0.00')
-    for idx, amount in enumerate(booking_amounts):
-        if idx == len(booking_amounts) - 1:
+    eligible_indexes = [i for i, ok in enumerate(eligible_mask) if ok]
+    for pos, idx in enumerate(eligible_indexes):
+        amount = booking_amounts[idx]
+        if pos == len(eligible_indexes) - 1:
             share = total_discount - allocated
         else:
-            share = (total_discount * amount / subtotal).quantize(Decimal('0.01'))
+            share = (total_discount * amount / eligible_total).quantize(Decimal('0.01'))
             allocated += share
-        allocations.append(share)
+        allocations[idx] = share
     return allocations
 
 
@@ -378,9 +422,15 @@ def create_pending_bookings_for_basket(basket, customer):
             })
 
     list_amounts = [spec['list_price'] for spec in booking_specs]
+    eligible_ids = set(basket.get('discount_eligible_workshop_ids') or [])
+    if basket.get('discount_code_id') and eligible_ids:
+        eligible_mask = [spec['workshop'].pk in eligible_ids for spec in booking_specs]
+    else:
+        eligible_mask = None
     discount_alloc = _allocate_discounts(
         list_amounts,
         Decimal(str(basket.get('voucher_discount') or '0')),
+        eligible_mask=eligible_mask,
     )
 
     booking_ids = []
@@ -400,10 +450,16 @@ def create_pending_bookings_for_basket(basket, customer):
             price_paid=price_paid,
             status='pending',
         )
-        if basket.get('voucher_id'):
-            booking.voucher_id = basket['voucher_id']
-            booking.voucher_code = basket.get('voucher_code', '')
-            booking.voucher_discount = discount_share
+        apply_code = bool(basket.get('voucher_id') or basket.get('discount_code_id'))
+        if apply_code:
+            # Gift vouchers apply to every place; promo codes only to eligible workshops.
+            if basket.get('discount_code_id') and discount_share <= 0:
+                pass
+            else:
+                booking.voucher_id = basket.get('voucher_id')
+                booking.discount_code_id = basket.get('discount_code_id')
+                booking.voucher_code = basket.get('voucher_code', '')
+                booking.voucher_discount = discount_share
         booking.save()
         booking_ids.append(booking.id)
         try:
@@ -441,8 +497,10 @@ def persist_workshop_basket(request, basket, booking_ids, customer):
         'booking_ids': booking_ids,
         'list_total': str(list_total),
         'voucher_id': basket.get('voucher_id'),
+        'discount_code_id': basket.get('discount_code_id'),
         'voucher_code': basket.get('voucher_code', ''),
         'voucher_discount': str(discount),
+        'discount_eligible_workshop_ids': basket.get('discount_eligible_workshop_ids') or [],
         'total': str(total),
         'purchaser_email': purchaser_email,
         'items': basket.get('items', []),
@@ -516,25 +574,35 @@ def apply_voucher_to_gd_basket(basket_id, voucher_code):
     session_like = {
         'items': data.get('items', []),
         'voucher_id': None,
+        'discount_code_id': None,
         'voucher_code': '',
         'voucher_discount': '0.00',
+        'discount_eligible_workshop_ids': [],
     }
     workshops = {b.workshop_id: b.workshop for b in bookings}
     apply_voucher_to_session_basket(session_like, voucher_code, workshops)
 
     list_amounts = [Decimal(str(b.list_price or b.workshop.price)) for b in bookings]
+    eligible_ids = set(session_like.get('discount_eligible_workshop_ids') or [])
+    if session_like.get('discount_code_id') and eligible_ids:
+        eligible_mask = [b.workshop_id in eligible_ids for b in bookings]
+    else:
+        eligible_mask = None
     discount_alloc = _allocate_discounts(
         list_amounts,
         Decimal(str(session_like.get('voucher_discount') or '0')),
+        eligible_mask=eligible_mask,
     )
     for booking, list_price, discount_share in zip(bookings, list_amounts, discount_alloc):
         booking.voucher_id = session_like.get('voucher_id')
+        booking.discount_code_id = session_like.get('discount_code_id')
         booking.voucher_code = session_like.get('voucher_code', '')
         booking.voucher_discount = discount_share
         booking.price_paid = max(Decimal('0.00'), list_price - discount_share)
         booking.save(
             update_fields=[
                 'voucher_id',
+                'discount_code',
                 'voucher_code',
                 'voucher_discount',
                 'price_paid',
@@ -543,8 +611,10 @@ def apply_voucher_to_gd_basket(basket_id, voucher_code):
         )
 
     data['voucher_id'] = session_like.get('voucher_id')
+    data['discount_code_id'] = session_like.get('discount_code_id')
     data['voucher_code'] = session_like.get('voucher_code', '')
     data['voucher_discount'] = session_like.get('voucher_discount', '0.00')
+    data['discount_eligible_workshop_ids'] = session_like.get('discount_eligible_workshop_ids') or []
     data['total'] = str(
         max(Decimal('0.00'), Decimal(str(data.get('list_total', '0'))) - Decimal(data['voucher_discount']))
     )
@@ -579,12 +649,14 @@ def clear_voucher_from_gd_basket(basket_id):
     booking_ids = data.get('booking_ids') or []
     for booking in Booking.objects.filter(id__in=booking_ids, status='pending'):
         booking.voucher_id = None
+        booking.discount_code = None
         booking.voucher_code = ''
         booking.voucher_discount = Decimal('0.00')
         booking.price_paid = booking.list_price or booking.workshop.price
         booking.save(
             update_fields=[
                 'voucher_id',
+                'discount_code',
                 'voucher_code',
                 'voucher_discount',
                 'price_paid',
@@ -592,8 +664,10 @@ def clear_voucher_from_gd_basket(basket_id):
             ]
         )
     data['voucher_id'] = None
+    data['discount_code_id'] = None
     data['voucher_code'] = ''
     data['voucher_discount'] = '0.00'
+    data['discount_eligible_workshop_ids'] = []
     data['total'] = data.get('list_total', '0.00')
     from django.utils import timezone as dj_tz
     now = dj_tz.now().isoformat()

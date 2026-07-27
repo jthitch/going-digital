@@ -449,6 +449,7 @@ JAZZMIN_SETTINGS = {
         "bookings": "fas fa-ticket-alt",
         "bookings.Booking": "fas fa-ticket-alt",
         "bookings.Voucher": "fas fa-gift",
+        "bookings.DiscountCode": "fas fa-percent",
         "payments.Payment": "fas fa-credit-card",
     },
     

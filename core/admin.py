@@ -50,7 +50,10 @@ class UserAdmin(BaseUserAdmin):
     ]
     fieldsets = (
         (None, {'fields': ('email', 'password_reset_link')}),
-        ('Personal info', {'fields': ('firstname', 'lastname', 'telephone', 'mobile')}),
+        ('Personal info', {'fields': ('firstname', 'lastname', 'telephone', 'mobile', 'company')}),
+        ('Address', {
+            'fields': ('address1', 'address2', 'town_city', 'postcode'),
+        }),
         ('Social profiles', {
             'fields': ('facebook_url', 'twitter_url', 'linkedin_url', 'social_profile_links'),
         }),
@@ -64,6 +67,13 @@ class UserAdmin(BaseUserAdmin):
                 'email',
                 'firstname',
                 'lastname',
+                'telephone',
+                'mobile',
+                'company',
+                'address1',
+                'address2',
+                'town_city',
+                'postcode',
                 'user_type_id',
                 'regions',
                 'venues',
