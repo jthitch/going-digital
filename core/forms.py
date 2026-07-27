@@ -125,6 +125,8 @@ class GdUserChangeForm(UserChangeForm):
         self.can_assign_venues = can_assign_venues
         super().__init__(*args, **kwargs)
         self.fields.pop('password', None)
+        if 'email' in self.fields:
+            self.fields['email'].widget.attrs.setdefault('size', 50)
         self.fields['regions'].queryset = Region.objects.filter(active=1).order_by('region_name')
         if self.instance.pk:
             region_ids = RegionUser.objects.filter(user_id=self.instance.pk).values_list(

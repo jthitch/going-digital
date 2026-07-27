@@ -1,0 +1,34 @@
+{% extends "admin/gd/search_first_change_list.html" %}
+{% load i18n %}
+
+{% block changelist_extra_filters %}
+<div class="gd-changelist-filter-group gd-changelist-date-range">
+    <span class="gd-changelist-filter-group__label">{% trans 'Date range' %}</span>
+    <div class="gd-changelist-date-range__inputs">
+        <input
+            type="date"
+            name="date_from"
+            id="workshop-date-from"
+            class="form-control gd-changelist-filter-input"
+            value="{{ request.GET.date_from }}"
+            aria-label="{% trans 'From date' %}"
+        >
+        <span class="gd-changelist-date-range__sep" aria-hidden="true">to</span>
+        <input
+            type="date"
+            name="date_to"
+            id="workshop-date-to"
+            class="form-control gd-changelist-filter-input"
+            value="{{ request.GET.date_to }}"
+            aria-label="{% trans 'To date' %}"
+        >
+    </div>
+    <span class="gd-changelist-filter-group__hint">{% trans 'Start date in range; open-dated workshops always included.' %}</span>
+</div>
+{% endblock %}
+
+{% block changelist_filters_footer_extra %}
+<a class="btn btn-sm btn-link gd-changelist-show-all-link" href="?show_all=1{% if cl.is_popup %}&amp;_popup=1{% endif %}">
+    {% trans 'Show all historic workshops' %}
+</a>
+{% endblock %}

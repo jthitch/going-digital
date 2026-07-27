@@ -8,6 +8,7 @@ from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_GET
 
+from .admin_changelist import GdActiveFilter, SearchFirstChangeListMixin
 from .admin_mixins import (
     LegacyAuditAdminMixin,
     PlatformAdminOnlyMixin,
@@ -16,6 +17,15 @@ from .admin_mixins import (
     RegionScopedWorkshopAdminMixin,
 )
 from .region_scope import user_can_access_workshop, user_has_full_region_access
+from .workshop_admin_list import (
+    WORKSHOP_CHANGE_LIST_EXTRA_PARAMS,
+    WORKSHOP_CHANGE_LIST_FORM_FIELD_PARAMS,
+    apply_workshop_custom_date_range,
+    is_workshop_changelist_request,
+    narrow_workshop_changelist,
+    order_workshop_changelist,
+    workshop_changelist_show_full_history,
+)
 from .workshop_duplicate import (
     duplicate_workshop_querystring,
     get_duplicate_source_workshop,
@@ -148,12 +158,18 @@ class ContentAdmin(LegacyAuditAdminMixin, PlatformAdminOnlyMixin, admin.ModelAdm
 
 
 @admin.register(CourseSkillLevel)
-class CourseSkillLevelAdmin(LegacyAuditAdminMixin, PlatformAdminOnlyMixin, admin.ModelAdmin):
+class CourseSkillLevelAdmin(
+    LegacyAuditAdminMixin,
+    PlatformAdminOnlyMixin,
+    SearchFirstChangeListMixin,
+    admin.ModelAdmin,
+):
     form = CourseSkillLevelAdminForm
     list_display = ['level_name', 'active', 'display_order']
     list_display_links = ['level_name']
-    list_filter = ['active']
+    list_filter = [GdActiveFilter]
     search_fields = ['skill_level']
+    search_help_text = 'Search by skill level name.'
     ordering = ['display_order', 'id']
     readonly_fields = ['createdby_id', 'updatedby_id', 'created_at', 'updated_at']
 
@@ -163,12 +179,18 @@ class CourseSkillLevelAdmin(LegacyAuditAdminMixin, PlatformAdminOnlyMixin, admin
 
 
 @admin.register(CourseCategory)
-class CourseCategoryAdmin(LegacyAuditAdminMixin, PlatformAdminOnlyMixin, admin.ModelAdmin):
+class CourseCategoryAdmin(
+    LegacyAuditAdminMixin,
+    PlatformAdminOnlyMixin,
+    SearchFirstChangeListMixin,
+    admin.ModelAdmin,
+):
     form = CourseCategoryAdminForm
     list_display = ['course_category', 'parent', 'active', 'exclude_from_course_list', 'display_order']
-    list_filter = ['active', 'exclude_from_course_list']
+    list_filter = [GdActiveFilter, 'exclude_from_course_list']
     list_editable = ['active', 'exclude_from_course_list']
     search_fields = ['course_category']
+    search_help_text = 'Search by category name.'
     ordering = ['display_order', 'course_category']
     readonly_fields = ['createdby_id', 'updatedby_id', 'created_at', 'updated_at']
 
@@ -326,10 +348,11 @@ class RegionAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
 
 
 @admin.register(Instructor)
-class InstructorAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
+class InstructorAdmin(PlatformAdminOnlyMixin, SearchFirstChangeListMixin, admin.ModelAdmin):
     list_display = ['user', 'specialties', 'years_experience', 'is_active']
     list_filter = ['is_active', 'years_experience']
     search_fields = ['user__email', 'user__firstname', 'user__lastname', 'specialties']
+    search_help_text = 'Search by name, email, or specialties.'
     readonly_fields = ['created_at', 'updated_at']
 
 
@@ -342,11 +365,26 @@ class CourseMediaInline(admin.TabularInline):
 
 
 @admin.register(Course)
-class CourseAdmin(LegacyAuditAdminMixin, RegionScopedCourseAdminMixin, admin.ModelAdmin):
+class CourseAdmin(
+    LegacyAuditAdminMixin,
+    RegionScopedCourseAdminMixin,
+    SearchFirstChangeListMixin,
+    admin.ModelAdmin,
+):
     """Course admin - maps to legacy gd_course table. Content editable inline."""
     form = CourseAdminForm
     change_form_template = 'admin/courses/course/change_form.html'
     inlines = [CourseMediaInline]
+    list_display = ['course_name', 'course_skill_level', 'course_category', 'active', 'created_at']
+    list_filter = [GdActiveFilter, 'course_skill_level', 'course_category', 'created_at']
+    search_fields = ['course_name', 'course_description', 'description_for_workshop', 'slug']
+    search_help_text = 'Search by course name, description, or URL slug.'
+    prepopulated_fields = {'slug': ('course_name',)}
+    readonly_fields = [
+        'createdby_id', 'updatedby_id', 'created_at', 'updated_at',
+        'card_list_image_preview',
+    ]
+    list_editable = ['active']
 
     class Media:
         js = (
@@ -354,21 +392,11 @@ class CourseAdmin(LegacyAuditAdminMixin, RegionScopedCourseAdminMixin, admin.Mod
             'courses/js/admin-course-card-image.js',
         )
         css = {'all': ('admin/css/course-admin.css',)}
-    list_display = ['course_name', 'course_skill_level', 'course_category', 'active', 'created_at']
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
         if hasattr(form, '_save_content') and form.cleaned_data:
             form._save_content(obj, request)
-
-    list_filter = ['active', 'course_skill_level', 'course_category', 'created_at']
-    search_fields = ['course_name', 'course_description', 'description_for_workshop', 'slug']
-    prepopulated_fields = {'slug': ('course_name',)}
-    readonly_fields = [
-        'createdby_id', 'updatedby_id', 'created_at', 'updated_at',
-        'card_list_image_preview',
-    ]
-    list_editable = ['active']
 
     READONLY_FORM_FIELD_DISPLAY = {
         'course_url': 'display_course_url',
@@ -645,10 +673,21 @@ class WorkshopDocumentInline(admin.TabularInline):
 
 
 @admin.register(Workshop)
-class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin.ModelAdmin):
+class WorkshopAdmin(
+    LegacyAuditAdminMixin,
+    RegionScopedWorkshopAdminMixin,
+    SearchFirstChangeListMixin,
+    admin.ModelAdmin,
+):
     audit_set_user_id_on_create = True
     form = WorkshopAdminForm
     change_form_template = 'admin/courses/workshop/change_form.html'
+    change_list_template = 'admin/courses/workshop/change_list.html'
+    gd_changelist_extra_params = WORKSHOP_CHANGE_LIST_EXTRA_PARAMS
+    gd_changelist_form_field_params = WORKSHOP_CHANGE_LIST_FORM_FIELD_PARAMS
+    filter_input_length = {
+        'course__id__exact': 2,
+    }
     actions = [duplicate_workshop_action]
     inlines = [WorkshopDocumentInline]
     autocomplete_fields = ['course', 'venue']
@@ -665,9 +704,19 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
         'spaces_booked_percent',
         'active',
     ]
-    list_filter = ['active', 'date', 'course']
-    search_fields = ['course__course_name', 'venue__venue_name', 'venue__location']
-    date_hierarchy = 'date'
+    list_filter = [
+        GdActiveFilter,
+        ('course', admin.RelatedOnlyFieldListFilter),
+    ]
+    search_fields = [
+        'id',
+        'course__course_name',
+        'venue__venue_name',
+        'venue__location',
+        'strapline',
+        'blurb',
+    ]
+    search_help_text = 'Search by course, venue, location, strapline, or workshop ID.'
     readonly_fields = [
         'user_display',
         'createdby_display',
@@ -778,10 +827,6 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
             extra_context['is_workshop_duplicate'] = True
         return super().add_view(request, form_url, extra_context)
 
-    def change_view(self, request, object_id, form_url='', extra_context=None):
-        self._current_request = request
-        return super().change_view(request, object_id, form_url, extra_context)
-
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
@@ -827,9 +872,15 @@ class WorkshopAdmin(LegacyAuditAdminMixin, RegionScopedWorkshopAdminMixin, admin
         return super().change_view(request, object_id, form_url, extra_context)
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related(
+        qs = super().get_queryset(request).select_related(
             'course', 'venue',
         ).prefetch_related('gallery_images__image', 'documents')
+        qs = apply_workshop_custom_date_range(request, qs)
+        if is_workshop_changelist_request(request):
+            qs = order_workshop_changelist(qs)
+            if not workshop_changelist_show_full_history(request):
+                qs = narrow_workshop_changelist(qs)
+        return qs
 
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
@@ -1080,7 +1131,7 @@ class VenueApprovalStateFilter(admin.SimpleListFilter):
 
 
 @admin.register(Venue)
-class VenueAdmin(RegionScopedVenueAdminMixin, admin.ModelAdmin):
+class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.ModelAdmin):
     form = VenueAdminForm
     change_list_template = 'admin/courses/venue/change_list.html'
     prepopulated_fields = {'slug': ('venue_name',)}
@@ -1095,8 +1146,9 @@ class VenueAdmin(RegionScopedVenueAdminMixin, admin.ModelAdmin):
         'get_county_display',
         'active',
     ]
-    list_filter = [VenueApprovalStateFilter, 'active', 'region_id']
+    list_filter = [VenueApprovalStateFilter, GdActiveFilter, 'region_id']
     search_fields = ['venue_name', 'venue_address', 'location', 'slug']
+    search_help_text = 'Search by name, address, location, or URL slug.'
     inlines = [VenueMediaInline]
 
     def get_fieldsets(self, request, obj=None):

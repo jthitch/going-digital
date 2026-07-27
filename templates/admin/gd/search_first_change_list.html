@@ -1,0 +1,113 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static admin_list jazzmin admin_changelist_tags %}
+
+{% block search %}
+    <div class="col-12 pb-4" id="change-list-filters">
+        <div class="d-flex flex-wrap gap-2 align-items-start justify-content-between">
+            <form id="changelist-search" class="gd-changelist-search flex-grow-1" method="GET">
+                {% if cl.has_filters %}
+                    {% changelist_filters_active request as filters_active %}
+                {% endif %}
+                <div class="gd-changelist-search__primary d-flex flex-wrap gap-2 align-items-center">
+                    {% if cl.search_fields %}
+                        <label class="visually-hidden" for="searchbar">{% trans 'Search' %}</label>
+                        <input
+                            class="form-control gd-changelist-search__input"
+                            type="search"
+                            name="q"
+                            value="{{ cl.query }}"
+                            id="searchbar"
+                            {% if cl.search_help_text %}placeholder="{{ cl.search_help_text }}"{% else %}placeholder="{% trans 'Search…' %}"{% endif %}
+                            autocomplete="off"
+                        >
+                    {% endif %}
+
+                    {% if cl.has_filters or cl.search_fields %}
+                        <button type="submit" class="btn {{ jazzmin_ui.button_classes.primary }}">
+                            {% trans 'Search' %}
+                        </button>
+                    {% endif %}
+
+                    {% if cl.has_filters %}
+                        <button
+                            class="btn btn-outline-secondary gd-changelist-filters-toggle"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#gd-changelist-filters-panel"
+                            aria-expanded="{% if filters_active %}true{% else %}false{% endif %}"
+                            aria-controls="gd-changelist-filters-panel"
+                        >
+                            <i class="fas fa-filter" aria-hidden="true"></i>
+                            {% trans 'Filters' %}
+                        </button>
+                    {% endif %}
+
+                    {% if show_result_count %}
+                        <span class="small quiet ms-1 gd-changelist-result-count">
+                            {% blocktrans count counter=cl.result_count %}{{ counter }} result{% plural %}{{ counter }} results{% endblocktrans %}
+                            (<a href="?{% if cl.is_popup %}_popup=1{% endif %}">
+                                {% if cl.show_full_result_count %}
+                                    {% blocktrans with full_result_count=cl.full_result_count %}{{ full_result_count }} total{% endblocktrans %}
+                                {% else %}
+                                    {% trans "Show all" %}
+                                {% endif %}
+                            </a>)
+                        </span>
+                    {% endif %}
+                </div>
+
+                {% if cl.has_filters %}
+                    {% block changelist_filters_panel %}
+                    <div
+                        class="collapse gd-changelist-filters-panel{% if filters_active %} show{% endif %}"
+                        id="gd-changelist-filters-panel"
+                    >
+                        <div class="gd-changelist-filters-card">
+                            <div class="gd-changelist-filters-card__header">
+                                <h2 class="gd-changelist-filters-card__title">{% trans 'Refine results' %}</h2>
+                                <p class="gd-changelist-filters-card__lead mb-0">
+                                    {% block changelist_filters_lead %}
+                                    {% trans 'Optional filters — press Search or Apply filters to update the list.' %}
+                                    {% endblock %}
+                                </p>
+                            </div>
+                            <div class="gd-changelist-filters-grid">
+                                {% for spec in cl.filter_specs %}
+                                <div class="gd-changelist-filter-group">
+                                    <span class="gd-changelist-filter-group__label">{{ spec.title }}</span>
+                                    {% jazzmin_list_filter cl spec %}
+                                </div>
+                                {% endfor %}
+                                {% block changelist_extra_filters %}{% endblock %}
+                            </div>
+                            <div class="gd-changelist-filters-card__footer">
+                                <button type="submit" class="btn btn-sm {{ jazzmin_ui.button_classes.primary }}">
+                                    {% trans 'Apply filters' %}
+                                </button>
+                                <a class="btn btn-sm btn-outline-secondary" href="?{% if cl.is_popup %}_popup=1{% endif %}">
+                                    {% trans 'Clear filters' %}
+                                </a>
+                                {% block changelist_filters_footer_extra %}{% endblock %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endblock %}
+                {% endif %}
+
+                {% admin_extra_filters cl as extra_filters %}
+                {% for pair in extra_filters.items %}
+                    {% gd_changelist_emit_hidden_param cl.model_admin pair.0 as emit_hidden %}
+                    {% if emit_hidden %}
+                    <input type="hidden" name="{{ pair.0 }}" value="{{ pair.1 }}">
+                    {% endif %}
+                {% endfor %}
+            </form>
+
+            {% block object-tools %}
+                {% block object-tools-items %}
+                    {% change_list_object_tools %}
+                {% endblock %}
+            {% endblock %}
+        </div>
+    </div>
+{% endblock %}

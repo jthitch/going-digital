@@ -494,6 +494,166 @@ body.app-courses.model-workshop.change-list .gd-workshop-booked-full .gd-worksho
     color: var(--gd-booked-full-fg);
 }
 
+/* Changelist: search-first layout (workshop and shared gd template) */
+.gd-changelist-search__primary {
+    width: 100%;
+}
+
+.gd-changelist-search__input {
+    flex: 1 1 16rem;
+    min-width: min(100%, 20rem);
+    max-width: 42rem;
+}
+
+.gd-changelist-filters-panel {
+    margin-top: 1rem;
+}
+
+.gd-changelist-filters-card {
+    border: 1px solid var(--gd-dashboard-card-border, #dee2e6);
+    border-radius: 0.5rem;
+    background: var(--body-bg, #fff);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+}
+
+html[data-bs-theme="dark"] .gd-changelist-filters-card {
+    background: var(--body-bg, #343a40);
+    border-color: var(--border-color, #565e64);
+    box-shadow: none;
+}
+
+.gd-changelist-filters-card__header {
+    padding: 0.875rem 1.125rem;
+    border-bottom: 1px solid var(--hairline-color, #e9ecef);
+    background: var(--darkened-bg, #f8f9fa);
+}
+
+html[data-bs-theme="dark"] .gd-changelist-filters-card__header {
+    background: rgba(0, 0, 0, 0.15);
+    border-bottom-color: var(--border-color, #565e64);
+}
+
+.gd-changelist-filters-card__title {
+    margin: 0 0 0.25rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--body-fg, #212529);
+}
+
+.gd-changelist-filters-card__lead {
+    font-size: 0.8125rem;
+    color: var(--body-quiet-color, #6c757d);
+}
+
+.gd-changelist-filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+    gap: 1rem 1.25rem;
+    padding: 1.125rem;
+    align-items: start;
+}
+
+.gd-changelist-filters-grid > .form-group {
+    margin-bottom: 0;
+}
+
+.gd-changelist-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.gd-changelist-filter-group__label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--body-fg, #212529);
+}
+
+.gd-changelist-filter-group__hint {
+    font-size: 0.75rem;
+    color: var(--body-quiet-color, #6c757d);
+}
+
+.gd-changelist-filter-input,
+.gd-changelist-filters-grid .form-control.search-filter {
+    min-height: calc(2.25rem + 2px);
+    border-radius: 0.375rem;
+    border-color: var(--bs-border-color, #ced4da);
+    font-size: 0.875rem;
+}
+
+.gd-changelist-filters-grid .select2-container {
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+.gd-changelist-filters-grid .select2-container .select2-selection--single {
+    min-height: calc(2.25rem + 2px);
+    border-radius: 0.375rem;
+    border-color: var(--bs-border-color, #ced4da);
+}
+
+.gd-changelist-date-range__inputs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.gd-changelist-date-range__inputs .gd-changelist-filter-input {
+    flex: 1 1 8.5rem;
+    width: auto;
+    min-width: 8.5rem;
+}
+
+.gd-changelist-date-range__sep {
+    font-size: 0.8125rem;
+    color: var(--body-quiet-color, #6c757d);
+    flex-shrink: 0;
+}
+
+.gd-changelist-filters-card__footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    padding: 0.75rem 1.125rem;
+    border-top: 1px solid var(--hairline-color, #e9ecef);
+    background: var(--darkened-bg, #f8f9fa);
+}
+
+html[data-bs-theme="dark"] .gd-changelist-filters-card__footer {
+    background: rgba(0, 0, 0, 0.12);
+    border-top-color: var(--border-color, #565e64);
+}
+
+.gd-changelist-show-all-link {
+    margin-left: auto;
+    font-size: 0.8125rem;
+    text-decoration: none;
+}
+
+.gd-changelist-show-all-link:hover {
+    text-decoration: underline;
+}
+
+.gd-changelist-result-count {
+    flex: 1 1 100%;
+}
+
+@media (min-width: 768px) {
+    .gd-changelist-result-count {
+        flex: 0 1 auto;
+    }
+
+    .gd-changelist-filters-grid {
+        grid-template-columns: minmax(10rem, 11rem) minmax(14rem, 1.4fr) minmax(16rem, 1.6fr);
+    }
+}
+
 /* Django autocomplete Select2 (uses --admin-autocomplete, not --default) */
 .select2-container--admin-autocomplete .select2-selection--single,
 .select2-container--admin-autocomplete .select2-selection--multiple {
@@ -893,4 +1053,50 @@ html[data-bs-theme="dark"] .calendar td.nonday a {
 
 html[data-bs-theme="dark"] .calendar-shortcuts a {
     background: var(--body-bg, #343a40) !important;
+}
+
+/* User change form (Jazzmin collapsible): chevron shows expand/collapse */
+body.app-core.model-user.change-form #jazzy-collapsible .collapsible-header {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    user-select: none;
+}
+
+body.app-core.model-user.change-form #jazzy-collapsible .collapsible-header:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+html[data-bs-theme="dark"] body.app-core.model-user.change-form #jazzy-collapsible .collapsible-header:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+body.app-core.model-user.change-form #jazzy-collapsible .collapsible-header .card-title {
+    margin-bottom: 0;
+    flex: 1 1 auto;
+}
+
+body.app-core.model-user.change-form #jazzy-collapsible .collapsible-header::after {
+    flex: 0 0 auto;
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    font-size: 0.875rem;
+    line-height: 1;
+    color: var(--bs-secondary-color, #6c757d);
+    content: "\f078";
+    transition: transform 0.15s ease;
+}
+
+body.app-core.model-user.change-form #jazzy-collapsible .card:has(.panel-collapse.collapse:not(.show)) .collapsible-header::after {
+    content: "\f054";
+}
+
+body.app-core.model-user.change-form .field-email input,
+body.app-core.model-user.add-form .field-email input {
+    width: 100%;
+    max-width: 36rem;
+    min-width: 22rem;
+    box-sizing: border-box;
 }
