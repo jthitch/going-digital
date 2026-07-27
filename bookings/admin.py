@@ -3,6 +3,7 @@ from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.urls import reverse
 from django.utils.html import format_html
 
+from courses.admin_changelist import GdActiveFilter, SearchFirstChangeListMixin
 from courses.admin_mixins import PlatformAdminOnlyMixin
 from courses.models import Workshop
 from courses.region_scope import (
@@ -160,7 +161,7 @@ class DiscountCodeAdmin(admin.ModelAdmin):
 
 
 @admin.register(Voucher)
-class VoucherAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
+class VoucherAdmin(PlatformAdminOnlyMixin, SearchFirstChangeListMixin, admin.ModelAdmin):
     list_display = [
         'id',
         'voucher_code',
@@ -171,8 +172,9 @@ class VoucherAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
         'expiry_date',
         'claimed_date',
     ]
-    list_filter = ['active', 'actioned', 'issue_date', 'expiry_date']
+    list_filter = [GdActiveFilter, 'actioned', 'issue_date', 'expiry_date']
     search_fields = ['voucher_code', 'email', 'notes']
+    search_help_text = 'Search by voucher code, email, or notes.'
     readonly_fields = [
         'id', 'basket_id', 'active', 'voucher_type_id', 'use_once', 'voucher_group_id',
         'user_id', 'customer_id', 'claimed_by_customer_id', 'claimed_on_booking_id',

@@ -336,8 +336,8 @@ JAZZMIN_SETTINGS = {
     # Copyright on the footer
     "copyright": "Going Digital",
     
-    # The model admin to search from the search bar
-    "search_model": ["core.User", "courses.Course"],
+    # The model admin to search from the search bar (empty = no header search boxes)
+    "search_model": [],
     
     # Field name on user model that contains avatar ImageField/URLField
     "user_avatar": None,

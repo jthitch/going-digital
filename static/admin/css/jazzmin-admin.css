@@ -1080,17 +1080,21 @@ body.app-core.model-user.change-form #jazzy-collapsible .collapsible-header .car
 
 body.app-core.model-user.change-form #jazzy-collapsible .collapsible-header::after {
     flex: 0 0 auto;
-    font-family: "Font Awesome 5 Free";
-    font-weight: 900;
-    font-size: 0.875rem;
-    line-height: 1;
+    content: '';
+    width: 0.45rem;
+    height: 0.45rem;
+    margin-top: -0.15rem;
+    border: solid currentColor;
+    border-width: 0 2px 2px 0;
     color: var(--bs-secondary-color, #6c757d);
-    content: "\f078";
+    transform: rotate(45deg);
     transition: transform 0.15s ease;
 }
 
 body.app-core.model-user.change-form #jazzy-collapsible .card:has(.panel-collapse.collapse:not(.show)) .collapsible-header::after {
-    content: "\f054";
+    transform: rotate(-45deg);
+    margin-top: 0;
+    margin-right: 0.1rem;
 }
 
 body.app-core.model-user.change-form .field-email input,

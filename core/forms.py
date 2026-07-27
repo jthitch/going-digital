@@ -78,6 +78,33 @@ def _venue_assignment_queryset(include_user_id=None):
     return qs.order_by('venue_name', 'id')
 
 
+class GdUserSelfProfileForm(forms.ModelForm):
+    """Franchisees editing their own gd_user row (contact details only)."""
+
+    class Meta:
+        model = User
+        fields = (
+            'email',
+            'firstname',
+            'lastname',
+            'telephone',
+            'mobile',
+            'company',
+            'address1',
+            'address2',
+            'town_city',
+            'postcode',
+            'facebook_url',
+            'twitter_url',
+            'linkedin_url',
+        )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'email' in self.fields:
+            self.fields['email'].widget.attrs.setdefault('size', 50)
+
+
 class GdUserChangeForm(UserChangeForm):
     """Change form without password hash display (reset link is on the admin page)."""
 

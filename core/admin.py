@@ -1,6 +1,8 @@
 from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.admin.options import ModelAdmin
+from django.core.exceptions import PermissionDenied
+from django.http import HttpResponseRedirect
 from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
@@ -8,7 +10,12 @@ from django.utils.safestring import mark_safe
 
 from courses.region_scope import user_has_full_region_access
 
-from .forms import GdUserChangeForm, GdUserCreationForm, GdUserPasswordResetForm
+from .forms import (
+    GdUserChangeForm,
+    GdUserCreationForm,
+    GdUserPasswordResetForm,
+    GdUserSelfProfileForm,
+)
 from .models import User
 
 
@@ -20,6 +27,25 @@ def _fieldsets_without_venues(fieldsets):
             opts = {**opts, 'fields': tuple(f for f in fields if f != 'venues')}
         stripped.append((title, opts))
     return stripped
+
+
+FRANCHISEE_SELF_PROFILE_FIELDSETS = (
+    (None, {'fields': ('email', 'password_reset_link')}),
+    ('Personal info', {'fields': ('firstname', 'lastname', 'telephone', 'mobile', 'company')}),
+    ('Address', {'fields': ('address1', 'address2', 'town_city', 'postcode')}),
+    ('Social profiles', {
+        'fields': ('facebook_url', 'twitter_url', 'linkedin_url', 'social_profile_links'),
+    }),
+)
+
+
+def _user_editing_own_profile(request, obj):
+    return (
+        obj is not None
+        and obj.pk == request.user.pk
+        and getattr(request.user, 'is_region_scoped', False)
+        and not user_has_full_region_access(request.user)
+    )
 
 
 @admin.register(User)
@@ -87,15 +113,78 @@ class UserAdmin(BaseUserAdmin):
         """Use core app URL name for password change (not auth_user_password_change)."""
         return [
             path(
+                'my-profile/',
+                self.admin_site.admin_view(self.my_profile_view),
+                name='core_user_my_profile',
+            ),
+            path(
                 '<id>/password/',
                 self.admin_site.admin_view(self.user_change_password),
                 name='core_user_password_change',
             ),
         ] + ModelAdmin.get_urls(self)
 
+    def my_profile_view(self, request):
+        if not request.user.is_authenticated or not request.user.is_staff:
+            raise PermissionDenied
+        if not (
+            user_has_full_region_access(request.user)
+            or getattr(request.user, 'is_region_scoped', False)
+        ):
+            raise PermissionDenied
+        return HttpResponseRedirect(
+            reverse('admin:core_user_change', args=[request.user.pk])
+        )
+
+    def changelist_view(self, request, extra_context=None):
+        if getattr(request.user, 'is_region_scoped', False) and not user_has_full_region_access(
+            request.user,
+        ):
+            return self.my_profile_view(request)
+        return super().changelist_view(request, extra_context)
+
+    def has_module_permission(self, request):
+        if user_has_full_region_access(request.user):
+            return super().has_module_permission(request)
+        return False
+
+    def has_view_permission(self, request, obj=None):
+        if user_has_full_region_access(request.user):
+            return super().has_view_permission(request, obj)
+        if _user_editing_own_profile(request, obj):
+            return True
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        if user_has_full_region_access(request.user):
+            return super().has_change_permission(request, obj)
+        if _user_editing_own_profile(request, obj):
+            return True
+        return False
+
+    def has_add_permission(self, request):
+        if user_has_full_region_access(request.user):
+            return super().has_add_permission(request)
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        if user_has_full_region_access(request.user):
+            return super().has_delete_permission(request, obj)
+        return False
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if user_has_full_region_access(request.user):
+            return qs
+        if getattr(request.user, 'is_region_scoped', False):
+            return qs.filter(pk=request.user.pk)
+        return qs.none()
+
     def get_fieldsets(self, request, obj=None):
         if obj is None:
             fieldsets = self.add_fieldsets
+        elif _user_editing_own_profile(request, obj):
+            fieldsets = FRANCHISEE_SELF_PROFILE_FIELDSETS
         else:
             fieldsets = self.fieldsets
         if user_has_full_region_access(request.user):
@@ -103,6 +192,9 @@ class UserAdmin(BaseUserAdmin):
         return _fieldsets_without_venues(fieldsets)
 
     def get_form(self, request, obj=None, **kwargs):
+        if _user_editing_own_profile(request, obj):
+            kwargs['form'] = GdUserSelfProfileForm
+            return super().get_form(request, obj, **kwargs)
         form_class = super().get_form(request, obj, **kwargs)
         can_assign_venues = user_has_full_region_access(request.user)
 
