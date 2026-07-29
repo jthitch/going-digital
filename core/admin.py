@@ -23,8 +23,13 @@ def _fieldsets_without_venues(fieldsets):
     stripped = []
     for title, opts in fieldsets:
         fields = opts.get('fields')
-        if fields and 'venues' in fields:
-            opts = {**opts, 'fields': tuple(f for f in fields if f != 'venues')}
+        if fields and ('venues' in fields or 'workshop_access_venues' in fields):
+            opts = {
+                **opts,
+                'fields': tuple(
+                    f for f in fields if f not in ('venues', 'workshop_access_venues')
+                ),
+            }
         stripped.append((title, opts))
     return stripped
 
@@ -83,7 +88,9 @@ class UserAdmin(BaseUserAdmin):
         ('Social profiles', {
             'fields': ('facebook_url', 'twitter_url', 'linkedin_url', 'social_profile_links'),
         }),
-        ('Permissions', {'fields': ('user_type_id', 'active', 'regions', 'venues')}),
+        ('Permissions', {
+            'fields': ('user_type_id', 'active', 'regions', 'venues', 'workshop_access_venues'),
+        }),
         ('Important dates', {'fields': ('last_login', 'created_at', 'updated_at')}),
     )
     add_fieldsets = (
@@ -197,10 +204,12 @@ class UserAdmin(BaseUserAdmin):
             return super().get_form(request, obj, **kwargs)
         form_class = super().get_form(request, obj, **kwargs)
         can_assign_venues = user_has_full_region_access(request.user)
+        can_assign_workshop_access = bool(request.user.is_superuser)
 
         class UserFormWithVenueAccess(form_class):
             def __init__(self, *args, **form_kwargs):
                 form_kwargs.setdefault('can_assign_venues', can_assign_venues)
+                form_kwargs.setdefault('can_assign_workshop_access', can_assign_workshop_access)
                 super().__init__(*args, **form_kwargs)
 
         UserFormWithVenueAccess.__name__ = form_class.__name__
@@ -286,3 +295,5 @@ class UserAdmin(BaseUserAdmin):
             form.sync_regions(obj)
         if hasattr(form, 'sync_venues'):
             form.sync_venues(obj)
+        if hasattr(form, 'sync_workshop_access_venues'):
+            form.sync_workshop_access_venues(obj)

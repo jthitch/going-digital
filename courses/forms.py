@@ -1138,8 +1138,18 @@ class WorkshopAdminForm(forms.ModelForm):
             if alt and alt.region_id and alt.region_id not in self.region_ids:
                 raise forms.ValidationError({'alt_course': 'This course is not available in your regions.'})
             venue = cleaned.get('venue')
-            if venue and venue.region_id and venue.region_id not in self.region_ids:
-                raise forms.ValidationError({'venue': 'This venue is not in your regions.'})
+            if venue and self.editor_user_id:
+                from core.models import User
+                from .region_scope import filter_venues_for_workshop_picker
+
+                editor = User.objects.filter(pk=self.editor_user_id).first()
+                if editor and not filter_venues_for_workshop_picker(
+                    Venue.objects.filter(pk=venue.pk),
+                    editor,
+                ).exists():
+                    raise forms.ValidationError({
+                        'venue': 'You cannot use this venue for workshops.',
+                    })
             if cleaned.get('active') and venue and not venue_is_approved(venue):
                 raise forms.ValidationError({
                     'active': (

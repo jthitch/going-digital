@@ -81,6 +81,10 @@ def workshop_changelist_show_full_history(request) -> bool:
         return True
     if params.get('course__id__exact'):
         return True
+    if params.get('tutor_id'):
+        return True
+    if params.get('region_id'):
+        return True
     return workshop_changelist_has_custom_date_range(request)
 
 

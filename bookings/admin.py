@@ -1,10 +1,13 @@
+from django import forms
 from django.contrib import admin, messages
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.html import format_html
 
 from courses.admin_changelist import GdActiveFilter, SearchFirstChangeListMixin
 from courses.admin_mixins import PlatformAdminOnlyMixin
+from courses.forms import BooleanToggleWidget
 from courses.models import Workshop
 from courses.region_scope import (
     filter_workshops_for_user,
@@ -162,6 +165,8 @@ class DiscountCodeAdmin(admin.ModelAdmin):
 
 @admin.register(Voucher)
 class VoucherAdmin(PlatformAdminOnlyMixin, SearchFirstChangeListMixin, admin.ModelAdmin):
+    """Legacy gd_voucher: read-only except active (platform admins may deactivate)."""
+
     list_display = [
         'id',
         'voucher_code',
@@ -175,8 +180,54 @@ class VoucherAdmin(PlatformAdminOnlyMixin, SearchFirstChangeListMixin, admin.Mod
     list_filter = [GdActiveFilter, 'actioned', 'issue_date', 'expiry_date']
     search_fields = ['voucher_code', 'email', 'notes']
     search_help_text = 'Search by voucher code, email, or notes.'
+    fieldsets = (
+        ('Status', {
+            'fields': ('active',),
+            'description': 'Inactive vouchers cannot be redeemed at checkout.',
+        }),
+        ('Voucher details', {
+            'fields': (
+                'id',
+                'voucher_code',
+                'value',
+                'email',
+                'issue_date',
+                'expiry_date',
+                'claimed_date',
+                'amount_claimed',
+                'claimed_booking_link',
+                'actioned',
+                'notes',
+            ),
+        }),
+        ('Legacy fields', {
+            'classes': ('collapse',),
+            'fields': (
+                'basket_id',
+                'voucher_type_id',
+                'use_once',
+                'voucher_group_id',
+                'user_id',
+                'customer_id',
+                'claimed_by_customer_id',
+                'claimed_on_booking_id',
+                'region_id',
+                'course_ids',
+                'workshop_id',
+                'payment_gateway_id',
+                'gateway_transaction_code',
+                'transaction_percentage_on_creation',
+                'minimum_workshops',
+                'allowed_course',
+                'createdby_id',
+                'updatedby_id',
+                'created_at',
+                'updated_at',
+            ),
+        }),
+    )
     readonly_fields = [
-        'id', 'basket_id', 'active', 'voucher_type_id', 'use_once', 'voucher_group_id',
+        'id', 'basket_id', 'voucher_type_id', 'use_once', 'voucher_group_id',
         'user_id', 'customer_id', 'claimed_by_customer_id', 'claimed_on_booking_id',
         'claimed_booking_link',
         'region_id', 'course_ids', 'workshop_id', 'actioned', 'email', 'issue_date',
@@ -185,6 +236,41 @@ class VoucherAdmin(PlatformAdminOnlyMixin, SearchFirstChangeListMixin, admin.Mod
         'notes', 'minimum_workshops', 'allowed_course', 'createdby_id', 'updatedby_id',
         'created_at', 'updated_at',
     ]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == 'active':
+            return forms.BooleanField(
+                required=False,
+                label='Active',
+                widget=BooleanToggleWidget(),
+            )
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form_class = super().get_form(request, obj, **kwargs)
+
+        class VoucherAdminForm(form_class):
+            def __init__(self, *args, **form_kwargs):
+                super().__init__(*args, **form_kwargs)
+                if self.instance.pk and 'active' in self.fields:
+                    self.fields['active'].initial = bool(self.instance.active)
+
+        VoucherAdminForm.__name__ = form_class.__name__
+        return VoucherAdminForm
+
+    def save_model(self, request, obj, form, change):
+        if 'active' in form.cleaned_data:
+            obj.active = 1 if form.cleaned_data['active'] else 0
+        if change:
+            obj.updatedby_id = request.user.pk
+            obj.updated_at = timezone.now()
+        super().save_model(request, obj, form, change)
 
     @admin.display(description='Claimed booking')
     def claimed_booking_link(self, obj):

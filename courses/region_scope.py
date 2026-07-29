@@ -45,6 +45,25 @@ def franchisee_owns_venue(user, venue):
     return venue.user_id is None and venue.createdby_id == user.pk
 
 
+def venue_workshop_access_venue_ids(user):
+    """Venue PKs where this franchisee may create workshops via superuser grant."""
+    from courses.models import VenueWorkshopAccess
+
+    return frozenset(
+        VenueWorkshopAccess.objects.filter(user_id=user.pk).values_list('venue_id', flat=True)
+    )
+
+
+def franchisee_has_venue_workshop_grant(user, venue):
+    if not venue or not getattr(user, 'pk', None):
+        return False
+    return venue.pk in venue_workshop_access_venue_ids(user)
+
+
+def _franchisee_owned_venues_q(user):
+    return Q(user_id=user.pk) | Q(user_id__isnull=True, createdby_id=user.pk)
+
+
 def filter_workshops_for_user(queryset, user):
     """Franchisees: only workshops they created or own, within assigned regions."""
     region_ids = get_user_region_ids(user)
@@ -58,20 +77,33 @@ def filter_workshops_for_user(queryset, user):
 
 
 def filter_venues_for_user(queryset, user):
-    """Franchisees: only venues they submitted/own, within assigned regions."""
+    """Franchisees: own venues, plus any with explicit workshop-access grants."""
     region_ids = get_user_region_ids(user)
     if region_ids is None:
         return queryset
     if not region_ids:
         return queryset.none()
-    return queryset.filter(region_id__in=region_ids).filter(
-        Q(user_id=user.pk) | Q(user_id__isnull=True, createdby_id=user.pk)
-    )
+    granted_ids = venue_workshop_access_venue_ids(user)
+    owned = queryset.filter(region_id__in=region_ids).filter(_franchisee_owned_venues_q(user))
+    if not granted_ids:
+        return owned
+    granted = queryset.filter(pk__in=granted_ids)
+    return (owned | granted).distinct()
 
 
 def filter_venues_for_workshop_picker(queryset, user):
-    """Franchisees may attach only their own venues (approved or pending approval)."""
-    return filter_venues_for_user(queryset, user)
+    """Venues the franchisee owns *or* has been granted workshop-creation access to."""
+    region_ids = get_user_region_ids(user)
+    if region_ids is None:
+        return queryset
+    if not region_ids:
+        return queryset.none()
+    granted_ids = venue_workshop_access_venue_ids(user)
+    owned = queryset.filter(region_id__in=region_ids).filter(_franchisee_owned_venues_q(user))
+    if not granted_ids:
+        return owned
+    granted = queryset.filter(pk__in=granted_ids)
+    return (owned | granted).distinct()
 
 
 def venue_is_approved(venue):
@@ -81,7 +113,11 @@ def venue_is_approved(venue):
 def user_can_access_venue(user, venue):
     if user_has_full_region_access(user):
         return True
-    if not venue or not venue.region_id:
+    if not venue:
+        return False
+    if franchisee_has_venue_workshop_grant(user, venue):
+        return True
+    if not venue.region_id:
         return False
     if not user_can_access_region(user, venue.region_id):
         return False

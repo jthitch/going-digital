@@ -16,7 +16,11 @@ from .admin_mixins import (
     RegionScopedVenueAdminMixin,
     RegionScopedWorkshopAdminMixin,
 )
-from .region_scope import user_can_access_workshop, user_has_full_region_access
+from .region_scope import (
+    filter_regions_for_user,
+    user_can_access_workshop,
+    user_has_full_region_access,
+)
 from .workshop_admin_list import (
     WORKSHOP_CHANGE_LIST_EXTRA_PARAMS,
     WORKSHOP_CHANGE_LIST_FORM_FIELD_PARAMS,
@@ -51,11 +55,50 @@ from .models import (
     LEVEL_DISPLAY_NAMES,
     Region,
     RegionUser,
+    Tutor,
     Venue,
     VenueMedia,
+    VenueWorkshopAccess,
     Workshop,
     WorkshopDocument,
 )
+
+
+class WorkshopRegionFilter(admin.SimpleListFilter):
+    """Filter workshops by legacy region_id (integer, not an ORM FK)."""
+
+    title = 'Region'
+    parameter_name = 'region_id'
+
+    def lookups(self, request, model_admin):
+        qs = filter_regions_for_user(Region.objects.filter(active=1), request.user)
+        return [(str(r.pk), r.region_name) for r in qs.order_by('region_name')]
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value:
+            return queryset.filter(region_id=value)
+        return queryset
+
+
+class WorkshopTutorFilter(admin.SimpleListFilter):
+    """Filter workshops by legacy tutor_id (integer, not an ORM FK)."""
+
+    title = 'Tutor'
+    parameter_name = 'tutor_id'
+
+    def lookups(self, request, model_admin):
+        return [
+            (str(tutor.pk), str(tutor))
+            for tutor in Tutor.objects.filter(active=1).order_by('lastname', 'firstname')
+        ]
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value:
+            return queryset.filter(tutor_id=value)
+        return queryset
+
 
 
 @admin.register(Image)
@@ -706,6 +749,8 @@ class WorkshopAdmin(
     ]
     list_filter = [
         GdActiveFilter,
+        WorkshopRegionFilter,
+        WorkshopTutorFilter,
         ('course', admin.RelatedOnlyFieldListFilter),
     ]
     search_fields = [
@@ -716,7 +761,7 @@ class WorkshopAdmin(
         'strapline',
         'blurb',
     ]
-    search_help_text = 'Search by course, venue, location, strapline, or workshop ID.'
+    search_help_text = 'Search by course, venue, location, tutor, region, strapline, or workshop ID.'
     readonly_fields = [
         'user_display',
         'createdby_display',
@@ -883,7 +928,30 @@ class WorkshopAdmin(
         return qs
 
     def get_search_results(self, request, queryset, search_term):
-        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        search_qs, use_distinct = super().get_search_results(request, queryset, search_term)
+        term = (search_term or '').strip()
+        if term:
+            from django.db.models import Q
+
+            tutor_ids = list(
+                Tutor.objects.filter(
+                    Q(firstname__icontains=term)
+                    | Q(lastname__icontains=term)
+                    | Q(email__icontains=term)
+                ).values_list('pk', flat=True)
+            )
+            region_ids = list(
+                Region.objects.filter(region_name__icontains=term).values_list('pk', flat=True)
+            )
+            extra = Q()
+            if tutor_ids:
+                extra |= Q(tutor_id__in=tutor_ids)
+            if region_ids:
+                extra |= Q(region_id__in=region_ids)
+            if tutor_ids or region_ids:
+                # Integer FKs cannot use related lookups; OR tutor/region name matches in.
+                search_qs = (search_qs | queryset.filter(extra)).distinct()
+                use_distinct = True
         # Manual booking picker: today first, then older workshops.
         if (
             request.path.endswith('/autocomplete/')
@@ -894,11 +962,11 @@ class WorkshopAdmin(
             from bookings.manual_booking import filter_workshops_for_manual_booking_picker
 
             include_future = request.GET.get('include_future') in ('1', 'true', 'yes', 'on')
-            queryset = filter_workshops_for_manual_booking_picker(
-                queryset,
+            search_qs = filter_workshops_for_manual_booking_picker(
+                search_qs,
                 include_future=include_future,
             )
-        return queryset, use_distinct
+        return search_qs, use_distinct
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -1130,6 +1198,29 @@ class VenueApprovalStateFilter(admin.SimpleListFilter):
         return queryset
 
 
+class VenueWorkshopAccessInline(admin.TabularInline):
+    """Superuser-only inline: grant franchisees permission to add workshops to this venue."""
+
+    model = VenueWorkshopAccess
+    extra = 1
+    autocomplete_fields = ['user']
+    readonly_fields = ['granted_by', 'created_at']
+    verbose_name = 'Workshop access grant'
+    verbose_name_plural = 'Franchisees allowed to add workshops'
+
+    def has_add_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+
 @admin.register(Venue)
 class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.ModelAdmin):
     form = VenueAdminForm
@@ -1149,7 +1240,7 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
     list_filter = [VenueApprovalStateFilter, GdActiveFilter, 'region_id']
     search_fields = ['venue_name', 'venue_address', 'location', 'slug']
     search_help_text = 'Search by name, address, location, or URL slug.'
-    inlines = [VenueMediaInline]
+    inlines = [VenueMediaInline, VenueWorkshopAccessInline]
 
     def get_fieldsets(self, request, obj=None):
         fieldsets = list(super().get_fieldsets(request, obj))
@@ -1442,5 +1533,16 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
         super().save_model(request, obj, form, change)
         if hasattr(form, '_save_content') and form.cleaned_data:
             form._save_content(obj, request)
+
+    def save_formset(self, request, form, formset, change):
+        """Stamp granted_by on new VenueWorkshopAccess rows."""
+        instances = formset.save(commit=False)
+        for obj in instances:
+            if hasattr(obj, 'granted_by_id') and not obj.granted_by_id:
+                obj.granted_by = request.user
+            obj.save()
+        formset.save_m2m()
+        for obj in formset.deleted_objects:
+            obj.delete()
 
 

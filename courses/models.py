@@ -791,6 +791,49 @@ class VenueMedia(models.Model):
         return self.caption or f"Image for {self.venue.venue_name}"
 
 
+class VenueWorkshopAccess(models.Model):
+    """
+    Grant a franchisee permission to create workshops at a venue they don't own.
+
+    The venue's primary owner (gd_venue.user_id) always has full access.
+    This table allows *additional* franchisees to pick the venue when creating
+    workshops, without giving them permission to edit the venue details.
+
+    Only super users may manage these grants (via the Venue admin inline).
+    """
+
+    id = models.AutoField(primary_key=True)
+    venue = models.ForeignKey(
+        Venue,
+        on_delete=models.CASCADE,
+        related_name='workshop_access_grants',
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='venue_workshop_access',
+    )
+    granted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'gd_venue_workshop_access'
+        verbose_name = 'Venue workshop access'
+        verbose_name_plural = 'Venue workshop access'
+        unique_together = [('venue', 'user')]
+        ordering = ['venue__venue_name', 'user__lastname']
+
+    def __str__(self):
+        user_name = self.user.get_full_name() or self.user.email
+        return f'{user_name} → {self.venue.venue_name}'
+
+
 class WorkshopGalleryImage(models.Model):
     """Links a workshop to one or more gd_image records for the public gallery."""
     workshop = models.ForeignKey(
