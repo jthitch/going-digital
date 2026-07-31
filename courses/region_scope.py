@@ -21,7 +21,7 @@ def get_user_region_ids(user):
     return None
 
 
-def filter_courses_for_user(queryset, user):
+def _filter_courses_by_region(queryset, user):
     """Global courses (no region) plus courses in the user's regions."""
     region_ids = get_user_region_ids(user)
     if region_ids is None:
@@ -29,6 +29,61 @@ def filter_courses_for_user(queryset, user):
     if not region_ids:
         return queryset.none()
     return queryset.filter(Q(region_id__isnull=True) | Q(region_id__in=region_ids))
+
+
+def filter_courses_for_user(queryset, user):
+    """
+    Courses visible to a franchisee in admin: region-eligible, minus workshop blocks.
+
+    Blocked courses are hidden from the course list and course autocomplete
+    (including the workshop form course picker).
+    """
+    queryset = _filter_courses_by_region(queryset, user)
+    region_ids = get_user_region_ids(user)
+    if region_ids is None:
+        return queryset
+    blocked_ids = course_workshop_block_ids(user)
+    if not blocked_ids:
+        return queryset
+    return queryset.exclude(pk__in=blocked_ids)
+
+
+def course_workshop_block_ids(user):
+    """Course PKs this franchisee may not select when creating/changing workshops."""
+    if not getattr(user, 'pk', None):
+        return frozenset()
+    if user_has_full_region_access(user):
+        return frozenset()
+    from courses.models import CourseWorkshopBlock
+
+    return frozenset(
+        CourseWorkshopBlock.objects.filter(user_id=user.pk).values_list('course_id', flat=True)
+    )
+
+
+def franchisee_course_blocked(user, course):
+    if not course or not getattr(user, 'pk', None):
+        return False
+    return course.pk in course_workshop_block_ids(user)
+
+
+def filter_courses_for_workshop_picker(queryset, user, *, include_course_ids=None):
+    """
+    Courses a franchisee may pick for a workshop: region-eligible, minus deny-list blocks.
+
+    include_course_ids re-includes the current workshop's course(s) so existing
+    workshops on a blocked course remain editable without switching course.
+    """
+    queryset = filter_courses_for_user(queryset, user)
+    keep = {pk for pk in (include_course_ids or ()) if pk}
+    if not keep:
+        return queryset
+    # Re-add kept courses that still pass region scope (even if blocked).
+    kept = _filter_courses_by_region(
+        queryset.model.objects.filter(pk__in=keep),
+        user,
+    )
+    return (queryset | kept).distinct()
 
 
 def franchisee_owns_workshop(user, workshop):
@@ -162,6 +217,8 @@ def user_can_access_region(user, region_id):
 def user_can_view_course(user, course):
     if user_has_full_region_access(user):
         return True
+    if franchisee_course_blocked(user, course):
+        return False
     region_ids = get_user_region_ids(user) or []
     if not region_ids:
         return False

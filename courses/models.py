@@ -580,25 +580,6 @@ class WorkshopDocument(models.Model):
         super().save(*args, **kwargs)
 
 
-class Instructor(models.Model):
-    """Instructor for photography courses."""
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='instructor_profile')
-    bio = models.TextField()
-    photo = models.ImageField(upload_to='instructors/', blank=True, null=True)
-    specialties = models.CharField(max_length=255, help_text="Comma-separated list of specialties")
-    years_experience = models.PositiveIntegerField(default=0)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        db_table = 'instructors'
-        ordering = ['user__lastname', 'user__firstname']
-    
-    def __str__(self):
-        return f"{self.user.get_full_name() or self.user.email}"
-
-
 class Venue(models.Model):
     """
     Legacy venue - maps to gd_venue.
@@ -832,6 +813,48 @@ class VenueWorkshopAccess(models.Model):
     def __str__(self):
         user_name = self.user.get_full_name() or self.user.email
         return f'{user_name} → {self.venue.venue_name}'
+
+
+class CourseWorkshopBlock(models.Model):
+    """
+    Deny a franchisee access to create workshops for a specific course.
+
+    By default all region-eligible courses are available. Superusers add rows
+    here to block courses. Existing workshops on a blocked course remain
+    editable; the franchisee simply cannot pick that course for new workshops
+    or switch an existing workshop onto it.
+    """
+
+    id = models.AutoField(primary_key=True)
+    course = models.ForeignKey(
+        'Course',
+        on_delete=models.CASCADE,
+        related_name='workshop_blocks',
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='course_workshop_blocks',
+    )
+    blocked_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'gd_course_workshop_block'
+        verbose_name = 'Course workshop block'
+        verbose_name_plural = 'Course workshop blocks'
+        unique_together = [('course', 'user')]
+        ordering = ['course__course_name', 'user__lastname']
+
+    def __str__(self):
+        user_name = self.user.get_full_name() or self.user.email
+        return f'{user_name} blocked from {self.course.course_name}'
 
 
 class WorkshopGalleryImage(models.Model):

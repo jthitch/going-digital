@@ -18,6 +18,7 @@ from .admin_mixins import (
 )
 from .region_scope import (
     filter_regions_for_user,
+    filter_workshops_for_user,
     user_can_access_workshop,
     user_has_full_region_access,
 )
@@ -36,22 +37,24 @@ from .workshop_duplicate import (
     workshop_duplicate_initial,
 )
 from .forms import (
+    AssistantAdminForm,
     CourseAdminForm,
     CourseCategoryAdminForm,
     CourseSkillLevelAdminForm,
     ImageAdminForm,
+    TutorAdminForm,
     VenueAdminForm,
     WorkshopAdminForm,
     BooleanToggleWidget,
 )
 from .models import (
+    Assistant,
     Content,
     Course,
     CourseCategory,
     CourseMedia,
     CourseSkillLevel,
     Image,
-    Instructor,
     LEVEL_DISPLAY_NAMES,
     Region,
     RegionUser,
@@ -390,13 +393,54 @@ class RegionAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
         return TemplateResponse(request, 'admin/courses/region/map.html', context)
 
 
-@admin.register(Instructor)
-class InstructorAdmin(PlatformAdminOnlyMixin, SearchFirstChangeListMixin, admin.ModelAdmin):
-    list_display = ['user', 'specialties', 'years_experience', 'is_active']
-    list_filter = ['is_active', 'years_experience']
-    search_fields = ['user__email', 'user__firstname', 'user__lastname', 'specialties']
-    search_help_text = 'Search by name, email, or specialties.'
-    readonly_fields = ['created_at', 'updated_at']
+@admin.register(Tutor)
+class TutorAdmin(PlatformAdminOnlyMixin, SearchFirstChangeListMixin, admin.ModelAdmin):
+    """Manage gd_tutor rows used by the workshop Tutor dropdown."""
+
+    change_list_template = 'admin/courses/tutor/change_list.html'
+    form = TutorAdminForm
+    list_display = ['lastname', 'firstname', 'email', 'active']
+    list_display_links = ['lastname', 'firstname']
+    list_editable = ['active']
+    list_filter = [GdActiveFilter]
+    search_fields = ['firstname', 'lastname', 'email']
+    search_help_text = 'Search by name or email.'
+    ordering = ['lastname', 'firstname']
+    fields = ['firstname', 'lastname', 'email', 'active']
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == 'active':
+            return forms.BooleanField(
+                required=False,
+                label='Active',
+                widget=BooleanToggleWidget(),
+            )
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
+
+@admin.register(Assistant)
+class AssistantAdmin(PlatformAdminOnlyMixin, SearchFirstChangeListMixin, admin.ModelAdmin):
+    """Manage gd_assistant rows used by the workshop Assistant dropdown."""
+
+    change_list_template = 'admin/courses/assistant/change_list.html'
+    form = AssistantAdminForm
+    list_display = ['lastname', 'firstname', 'email', 'active']
+    list_display_links = ['lastname', 'firstname']
+    list_editable = ['active']
+    list_filter = [GdActiveFilter]
+    search_fields = ['firstname', 'lastname', 'email']
+    search_help_text = 'Search by name or email.'
+    ordering = ['lastname', 'firstname']
+    fields = ['firstname', 'lastname', 'email', 'active']
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == 'active':
+            return forms.BooleanField(
+                required=False,
+                label='Active',
+                widget=BooleanToggleWidget(),
+            )
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
 class CourseMediaInline(admin.TabularInline):
@@ -876,12 +920,38 @@ class WorkshopAdmin(
         urls = super().get_urls()
         custom_urls = [
             path(
+                'calendar/',
+                self.admin_site.admin_view(self.calendar_view),
+                name='courses_workshop_calendar',
+            ),
+            path(
                 '<path:object_id>/students.csv/',
                 self.admin_site.admin_view(self.students_csv_view),
                 name='courses_workshop_students_csv',
             ),
         ]
         return custom_urls + urls
+
+    def calendar_view(self, request):
+        if not self.has_view_permission(request):
+            return HttpResponseForbidden('You do not have permission to view the workshop calendar.')
+
+        from courses.workshop_admin_calendar import build_workshop_calendar_context
+
+        qs = filter_workshops_for_user(
+            Workshop.objects.select_related('course', 'venue'),
+            request.user,
+        )
+        context = {
+            **self.admin_site.each_context(request),
+            **build_workshop_calendar_context(request, qs),
+            'title': 'Workshop calendar',
+            'opts': self.model._meta,
+            'changelist_url': reverse('admin:courses_workshop_changelist'),
+            'has_view_permission': self.has_view_permission(request),
+            'has_add_permission': self.has_add_permission(request),
+        }
+        return TemplateResponse(request, 'admin/courses/workshop/calendar.html', context)
 
     def students_csv_view(self, request, object_id):
         workshop = get_object_or_404(self.get_queryset(request), pk=object_id)

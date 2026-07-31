@@ -7,7 +7,15 @@ Unified course list / map filter bar — compact search trigger (Airbnb-style) +
             {% if map_view_active %}<input type="hidden" name="view" value="map">{% endif %}
             {% if current_category %}<input type="hidden" name="category" value="{{ current_category }}">{% endif %}
             {% if current_level %}<input type="hidden" name="level" value="{{ current_level }}">{% endif %}
-            {% if current_instructor %}<input type="hidden" name="instructor" value="{{ current_instructor }}">{% endif %}
+            {% if near_me_active %}
+            <input type="hidden" name="lat" id="course-near-lat" value="{{ near_lat }}">
+            <input type="hidden" name="lng" id="course-near-lng" value="{{ near_lng }}">
+            <input type="hidden" name="radius" id="course-near-radius" value="{{ near_radius }}">
+            {% else %}
+            <input type="hidden" name="lat" id="course-near-lat" value="">
+            <input type="hidden" name="lng" id="course-near-lng" value="">
+            <input type="hidden" name="radius" id="course-near-radius" value="{{ near_radius|default:25 }}">
+            {% endif %}
 
             <div class="map-filter-bar__collapsed">
                 <div class="map-filter-view-toggle" role="group" aria-label="View mode">
@@ -26,9 +34,7 @@ Unified course list / map filter bar — compact search trigger (Airbnb-style) +
                         </span>
                         <span class="map-filter-search-trigger__secondary">
                             {% if date_range_display %}{{ date_range_display }}{% else %}Any dates{% endif %}
-                            {% if not map_view_active %}
-                            · {% if current_city %}{% for venue in filter_venues %}{% if current_city == venue.id|stringformat:"s" %}{{ venue.venue_name }}{% endif %}{% endfor %}{% else %}All locations{% endif %}
-                            {% endif %}
+                            · {% if near_me_active %}Within {{ near_radius }} miles{% elif not map_view_active %}{% if current_city %}{% for venue in filter_venues %}{% if current_city == venue.id|stringformat:"s" %}{{ venue.venue_name }}{% endif %}{% endfor %}{% else %}All locations{% endif %}{% else %}All locations{% endif %}
                             {% if active_filter_count %} · {{ active_filter_count }} filter{{ active_filter_count|pluralize }}{% endif %}
                         </span>
                     </span>
@@ -100,7 +106,7 @@ Unified course list / map filter bar — compact search trigger (Airbnb-style) +
             <input type="hidden" name="date_to" form="course-filter-quick-form" id="filter-date-to" value="{{ current_date_to }}">
         </div>
 
-        {% if not map_view_active %}
+        {% if not map_view_active and not near_me_active %}
         <div class="search-panel-field search-panel-field--location">
             <label class="search-panel-field__label" for="course-search-location">Location</label>
             <div class="search-panel-field__control search-panel-field__control--select">
@@ -118,9 +124,43 @@ Unified course list / map filter bar — compact search trigger (Airbnb-style) +
                 <svg class="search-panel-field__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
         </div>
-        {% elif current_city %}
+        {% elif current_city and not near_me_active %}
         <input type="hidden" name="city" form="course-filter-quick-form" value="{{ current_city }}">
         {% endif %}
+
+        <div class="search-panel-field search-panel-field--near">
+            <span class="search-panel-field__label">Near me</span>
+            <div class="course-near" id="course-near-controls">
+                <button type="button"
+                        class="course-near__button{% if near_me_active %} is-active{% endif %}"
+                        id="course-near-me"
+                        form="course-filter-quick-form"
+                        aria-pressed="{{ near_me_active|yesno:'true,false' }}">
+                    <svg class="course-near__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+                    {% if near_me_active %}Using your location{% else %}Use my location{% endif %}
+                </button>
+                {% if near_me_active %}
+                <div class="course-near__radius" role="group" aria-label="Search radius">
+                    <button type="submit"
+                            form="course-filter-quick-form"
+                            class="course-near__radius-btn"
+                            name="radius"
+                            value="{{ near_radius_decrease }}"
+                            {% if near_radius <= near_radius_min %}disabled{% endif %}
+                            aria-label="Decrease radius to {{ near_radius_decrease }} miles">−</button>
+                    <span class="course-near__radius-value" aria-live="polite">{{ near_radius }} miles</span>
+                    <button type="submit"
+                            form="course-filter-quick-form"
+                            class="course-near__radius-btn"
+                            name="radius"
+                            value="{{ near_radius_increase }}"
+                            {% if near_radius >= near_radius_max %}disabled{% endif %}
+                            aria-label="Increase radius to {{ near_radius_increase }} miles">+</button>
+                </div>
+                {% endif %}
+            </div>
+            <p class="course-near__status" id="course-near-status" hidden></p>
+        </div>
 
         <button type="button" class="search-panel-field search-panel-field--filters" id="course-filters-open" aria-expanded="false" aria-controls="course-filter-modal">
             <svg class="search-panel-field__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>

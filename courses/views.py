@@ -136,11 +136,22 @@ def bookable_workshops_for_request(request, *, apply_location_filter=True):
     when the same workshop satisfies date, venue, and status constraints.
     Open-dated workshops are always included in date-filtered results.
     """
+    from courses.venue_list import apply_near_me_to_workshop_queryset, parse_near_me
+
     date_from, date_to, dt_from, dt_to = parse_course_list_date_range(request)
     queryset = bookable_workshops_queryset()
     queryset = apply_workshop_list_date_range(queryset, dt_from, dt_to)
     is_map_view = request.GET.get('view') == 'map'
-    if apply_location_filter and not is_map_view:
+    near_lat, near_lng, near_radius = parse_near_me(request.GET)
+    if near_lat is not None and near_lng is not None:
+        # Near-me applies on list and map; exact venue (?city=) is ignored while active.
+        queryset = apply_near_me_to_workshop_queryset(
+            queryset,
+            lat=near_lat,
+            lng=near_lng,
+            radius_miles=near_radius,
+        )
+    elif apply_location_filter and not is_map_view:
         queryset = apply_venue_filter_to_workshop_qs(
             queryset, request.GET.get('city', ''),
         )
@@ -536,7 +547,6 @@ class CourseListView(ListView):
                         'open_dated': workshop_is_open_dated(instance),
                         'price': float(instance_price),
                         'spaces_available': instance.spaces_available,
-                        'instructor_name': None,
                         'enrollment_open': instance.enrollment_open,
                         'is_full': instance.is_full,
                     })
@@ -545,11 +555,38 @@ class CourseListView(ListView):
         context['map_workshop_count'] = len(instances_data)
         
         # Current filters
+        from courses.venue_list import (
+            MAX_NEAR_RADIUS_MILES,
+            MIN_NEAR_RADIUS_MILES,
+            NEAR_RADIUS_STEP_MILES,
+            parse_near_me,
+        )
+
+        near_lat, near_lng, near_radius = parse_near_me(self.request.GET)
+        near_me_active = near_lat is not None and near_lng is not None
+
         context['current_category'] = self.request.GET.get('category', '')
         context['current_level'] = self.request.GET.get('level', '')
-        context['current_city'] = normalize_city_param(self.request.GET.get('city', ''))
+        # Exact venue filter is suppressed while near-me is active.
+        context['current_city'] = (
+            '' if near_me_active else normalize_city_param(self.request.GET.get('city', ''))
+        )
         context['current_search'] = self.request.GET.get('q', '')
-        context['current_instructor'] = self.request.GET.get('instructor', '')
+        context['near_me_active'] = near_me_active
+        context['near_lat'] = near_lat if near_me_active else ''
+        context['near_lng'] = near_lng if near_me_active else ''
+        context['near_radius'] = near_radius
+        context['near_radius_min'] = MIN_NEAR_RADIUS_MILES
+        context['near_radius_max'] = MAX_NEAR_RADIUS_MILES
+        context['near_radius_step'] = NEAR_RADIUS_STEP_MILES
+        context['near_radius_decrease'] = max(
+            MIN_NEAR_RADIUS_MILES,
+            near_radius - NEAR_RADIUS_STEP_MILES,
+        )
+        context['near_radius_increase'] = min(
+            MAX_NEAR_RADIUS_MILES,
+            near_radius + NEAR_RADIUS_STEP_MILES,
+        )
         date_from, date_to, _, _ = parse_course_list_date_range(self.request)
         context['current_date_from'] = date_from.isoformat() if date_from else ''
         context['current_date_to'] = date_to.isoformat() if date_to else ''
@@ -566,6 +603,8 @@ class CourseListView(ListView):
             if force_map:
                 params['view'] = 'map'
                 params.pop('city', None)
+            if near_me_active:
+                params.pop('city', None)
             return params
 
         def _filter_url(exclude=(), force_map=False):
@@ -581,7 +620,7 @@ class CourseListView(ListView):
             urlencode(filter_other_params_no_level) if filter_other_params_no_level else ''
         )
         context['clear_filters_url'] = _filter_url(
-            exclude=('category', 'level', 'city', 'q', 'instructor', 'date_from', 'date_to'),
+            exclude=('category', 'level', 'city', 'q', 'date_from', 'date_to', 'lat', 'lng', 'radius'),
             force_map=is_map_view,
         )
 
@@ -595,7 +634,13 @@ class CourseListView(ListView):
                 'label': context['current_search'],
                 'url': _filter_url(exclude=('q',), force_map=is_map_view),
             })
-        if context['current_city'] and not is_map_view:
+        if near_me_active:
+            active_filter_chips.append({
+                'type': 'Near me',
+                'label': f'Within {near_radius} miles',
+                'url': _filter_url(exclude=('lat', 'lng', 'radius'), force_map=is_map_view),
+            })
+        elif context['current_city'] and not is_map_view:
             location_label = venue_label_for_filter(context['current_city'], filter_venues)
             if location_label:
                 active_filter_chips.append({
@@ -621,12 +666,6 @@ class CourseListView(ListView):
                 'label': format_date_range_label(date_from, date_to),
                 'url': _filter_url(exclude=('date_from', 'date_to'), force_map=is_map_view),
             })
-        if context['current_instructor']:
-            active_filter_chips.append({
-                'type': 'Instructor',
-                'label': context['current_instructor'],
-                'url': _filter_url(exclude=('instructor',), force_map=is_map_view),
-            })
         context['active_filter_chips'] = active_filter_chips
         context['active_filter_count'] = len(active_filter_chips)
 
@@ -635,10 +674,12 @@ class CourseListView(ListView):
         
         # Base URL for infinite scroll (preserve filters, JS adds format=json&page=N)
         params = {k: v for k, v in self.request.GET.items() if k != 'page'}
+        if near_me_active:
+            params.pop('city', None)
         base = reverse('courses:course_list')
         context['infinite_scroll_url'] = (base + '?' + urlencode(params)) if params else base
 
-        filter_keys = ('q', 'category', 'level', 'city', 'date_from', 'date_to', 'instructor', 'view')
+        filter_keys = ('q', 'category', 'level', 'city', 'date_from', 'date_to', 'view', 'lat', 'lng')
         has_filters = any((self.request.GET.get(key) or '').strip() for key in filter_keys)
         context['seo_noindex'] = has_filters
         list_base = reverse('courses:course_list')
@@ -742,25 +783,73 @@ def redirect_photography_workshops_course_at_venue(request, slug, location_slug)
 class VenueListView(ListView):
     """
     Venue list page: /venues/
-    Shows all active venues with a slug.
+    Shows active venues with a slug, grouped by region.
+    Optional ?q= text search and near-me (?lat=&lng=&radius=) filtering.
     """
     model = Venue
     context_object_name = 'venues'
     template_name = 'courses/venue_list.html'
 
     def get_queryset(self):
-        return Venue.objects.filter(
-            active=1,
-        ).exclude(
-            Q(slug='') | Q(slug__isnull=True),
-        ).prefetch_related('media').order_by('venue_name')
+        from .venue_list import filter_venues_by_search, parse_near_me, public_venues_queryset
+
+        self.search_query = (self.request.GET.get('q') or '').strip()
+        self.near_lat, self.near_lng, self.near_radius = parse_near_me(self.request.GET)
+        self.near_me_active = self.near_lat is not None and self.near_lng is not None
+        qs = filter_venues_by_search(public_venues_queryset(), self.search_query)
+        return qs.prefetch_related('media').order_by('venue_name')
 
     def get_context_data(self, **kwargs):
+        from .venue_list import (
+            DEFAULT_NEAR_RADIUS_MILES,
+            MAX_NEAR_RADIUS_MILES,
+            MIN_NEAR_RADIUS_MILES,
+            NEAR_RADIUS_STEP_MILES,
+            filter_venues_near,
+            group_venues_by_region,
+        )
+
         context = super().get_context_data(**kwargs)
         # One evaluation for both count and template (no separate COUNT query).
         venues = list(context['venues'])
+        near_me_active = getattr(self, 'near_me_active', False)
+        near_lat = getattr(self, 'near_lat', None)
+        near_lng = getattr(self, 'near_lng', None)
+        near_radius = getattr(self, 'near_radius', DEFAULT_NEAR_RADIUS_MILES)
+
+        if near_me_active:
+            venues = filter_venues_near(
+                venues,
+                lat=near_lat,
+                lng=near_lng,
+                radius_miles=near_radius,
+            )
+            context['venue_groups'] = [{
+                'name': f'Within {near_radius} miles of you',
+                'venues': venues,
+            }] if venues else []
+        else:
+            context['venue_groups'] = group_venues_by_region(venues)
+
         context['venues'] = venues
         context['venue_count'] = len(venues)
+        context['current_search'] = getattr(self, 'search_query', '')
+        context['near_me_active'] = near_me_active
+        context['near_lat'] = near_lat if near_me_active else ''
+        context['near_lng'] = near_lng if near_me_active else ''
+        context['near_radius'] = near_radius
+        context['near_radius_min'] = MIN_NEAR_RADIUS_MILES
+        context['near_radius_max'] = MAX_NEAR_RADIUS_MILES
+        context['near_radius_step'] = NEAR_RADIUS_STEP_MILES
+        context['near_radius_decrease'] = max(
+            MIN_NEAR_RADIUS_MILES,
+            near_radius - NEAR_RADIUS_STEP_MILES,
+        )
+        context['near_radius_increase'] = min(
+            MAX_NEAR_RADIUS_MILES,
+            near_radius + NEAR_RADIUS_STEP_MILES,
+        )
+        context['seo_noindex'] = bool(context['current_search'] or near_me_active)
         return context
 
 

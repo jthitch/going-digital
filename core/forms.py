@@ -1,5 +1,6 @@
 """Forms for gd_user admin."""
 from django import forms
+from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.contrib.auth.forms import (
     BaseUserCreationForm,
     PasswordResetForm,
@@ -126,6 +127,33 @@ def _sync_user_workshop_access(user, venue_pks, editor_id=None):
             user_id=user.pk,
             defaults={'granted_by_id': editor_id},
         )
+
+
+def _sync_user_course_blocks(user, course_pks, editor_id=None):
+    """Sync CourseWorkshopBlock deny-list for this franchisee."""
+    from courses.models import CourseWorkshopBlock
+
+    course_pks = set(course_pks)
+    currently = set(
+        CourseWorkshopBlock.objects.filter(user_id=user.pk).values_list('course_id', flat=True)
+    )
+    to_remove = currently - course_pks
+    to_add = course_pks - currently
+    if to_remove:
+        CourseWorkshopBlock.objects.filter(user_id=user.pk, course_id__in=to_remove).delete()
+    for course_id in to_add:
+        CourseWorkshopBlock.objects.get_or_create(
+            course_id=course_id,
+            user_id=user.pk,
+            defaults={'blocked_by_id': editor_id},
+        )
+
+
+def _course_block_queryset():
+    """Active courses available to block for workshop creation."""
+    from courses.models import Course
+
+    return Course.objects.filter(active=True).order_by('course_name', 'id')
 
 
 class VenueMultipleChoiceField(forms.ModelMultipleChoiceField):
@@ -296,6 +324,17 @@ class GdUserChangeForm(UserChangeForm):
             'Same grants as “Franchisees allowed to add workshops” on the venue page.'
         ),
     )
+    blocked_courses = forms.ModelMultipleChoiceField(
+        queryset=None,
+        required=False,
+        label='Blocked courses',
+        help_text=(
+            'Courses this franchisee cannot select when creating workshops. '
+            'All other region-eligible courses remain available by default. '
+            'Existing workshops on a blocked course stay editable.'
+        ),
+        widget=FilteredSelectMultiple('blocked courses', is_stacked=False),
+    )
 
     class Meta(UserChangeForm.Meta):
         model = User
@@ -304,11 +343,22 @@ class GdUserChangeForm(UserChangeForm):
         exclude = ['password']
 
     class Media:
-        css = RegionGroupedVenueWidget.Media.css
-        js = RegionGroupedVenueWidget.Media.js
+        css = {
+            'all': (
+                'admin/css/widgets.css',
+                *RegionGroupedVenueWidget.Media.css.get('all', ()),
+            ),
+        }
+        js = (
+            'admin/js/jquery.init.js',
+            'admin/js/core.js',
+            'admin/js/SelectBox.js',
+            'admin/js/SelectFilter2.js',
+            *RegionGroupedVenueWidget.Media.js,
+        )
 
     def __init__(self, *args, can_assign_venues=False, can_assign_workshop_access=False, **kwargs):
-        from courses.models import Region, RegionUser, Venue, VenueWorkshopAccess
+        from courses.models import Course, CourseWorkshopBlock, Region, RegionUser, Venue, VenueWorkshopAccess
 
         self.can_assign_venues = can_assign_venues
         self.can_assign_workshop_access = can_assign_workshop_access
@@ -346,8 +396,16 @@ class GdUserChangeForm(UserChangeForm):
                     pk__in=granted_ids,
                 )
             self.fields['workshop_access_venues'].prepare_widget_grouping()
+
+            self.fields['blocked_courses'].queryset = _course_block_queryset()
+            if user_pk:
+                blocked_ids = CourseWorkshopBlock.objects.filter(user_id=user_pk).values_list(
+                    'course_id', flat=True,
+                )
+                self.fields['blocked_courses'].initial = Course.objects.filter(pk__in=blocked_ids)
         else:
             self.fields.pop('workshop_access_venues', None)
+            self.fields.pop('blocked_courses', None)
 
     def save(self, commit=True):
         # Admin calls save(commit=False) then obj.save(); region/venue sync in UserAdmin.save_model.
@@ -377,6 +435,17 @@ class GdUserChangeForm(UserChangeForm):
         venue_pks = [v.pk for v in self.cleaned_data['workshop_access_venues']]
         editor_id = getattr(self, '_editor_id', None)
         _sync_user_workshop_access(user, venue_pks, editor_id=editor_id)
+
+    def sync_blocked_courses(self, user):
+        if (
+            not self.can_assign_workshop_access
+            or 'blocked_courses' not in self.cleaned_data
+            or not user.pk
+        ):
+            return
+        course_pks = [c.pk for c in self.cleaned_data['blocked_courses']]
+        editor_id = getattr(self, '_editor_id', None)
+        _sync_user_course_blocks(user, course_pks, editor_id=editor_id)
 
 
 class GdUserCreationForm(BaseUserCreationForm):

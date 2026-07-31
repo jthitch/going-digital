@@ -1,11 +1,17 @@
 {% comment %}
-Filter modal form (level, category, dates, instructor).
+Filter modal form (level, category, dates, location).
 Optional id_prefix avoids duplicate HTML ids when multiple forms are in the DOM.
 {% endcomment %}
 <form method="get" action="{% url 'courses:course_list' %}" class="filters-form filters-form--modal" id="{% if id_prefix %}{{ id_prefix }}{% endif %}course-filters-form">
     {% if map_view_active %}<input type="hidden" name="view" value="map">{% endif %}
     <input type="hidden" name="category" value="{{ current_category }}">
     <input type="hidden" name="level" value="{{ current_level }}">
+    {% if current_search %}<input type="hidden" name="q" value="{{ current_search }}">{% endif %}
+    {% if near_me_active %}
+    <input type="hidden" name="lat" value="{{ near_lat }}">
+    <input type="hidden" name="lng" value="{{ near_lng }}">
+    <input type="hidden" name="radius" value="{{ near_radius }}">
+    {% endif %}
 
     <div class="filter-modal-scroll">
         <section class="filter-modal-section filter-modal-section--level" aria-labelledby="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-level-heading">
@@ -54,7 +60,7 @@ Optional id_prefix avoids duplicate HTML ids when multiple forms are in the DOM.
             </div>
         </section>
 
-        {% if not map_view_active %}
+        {% if not map_view_active and not near_me_active %}
         <section class="filter-modal-section filter-modal-section--location" aria-labelledby="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-location-heading">
             <h3 class="filter-modal-section__title" id="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-location-heading">Location</h3>
             <p class="filter-modal-section__hint">Show courses at a specific venue</p>
@@ -68,8 +74,11 @@ Optional id_prefix avoids duplicate HTML ids when multiple forms are in the DOM.
                 </select>
             </div>
         </section>
-        {% elif current_city %}
-        <input type="hidden" name="city" value="">
+        {% elif near_me_active %}
+        <section class="filter-modal-section filter-modal-section--location" aria-labelledby="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-location-heading">
+            <h3 class="filter-modal-section__title" id="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-location-heading">Location</h3>
+            <p class="filter-modal-section__hint">Showing courses within {{ near_radius }} miles of you. Clear the Near me chip to pick a specific venue.</p>
+        </section>
         {% endif %}
 
         <section class="filter-modal-section filter-modal-section--dates" aria-labelledby="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-dates-heading">
@@ -80,17 +89,6 @@ Optional id_prefix avoids duplicate HTML ids when multiple forms are in the DOM.
                 <input type="hidden" name="date_from" id="{% if id_prefix %}{{ id_prefix }}{% endif %}date_from" value="{{ current_date_from }}">
                 <input type="hidden" name="date_to" id="{% if id_prefix %}{{ id_prefix }}{% endif %}date_to" value="{{ current_date_to }}">
             </div>
-        </section>
-
-        <section class="filter-modal-section filter-modal-section--more" aria-labelledby="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-more-heading">
-            <h3 class="filter-modal-section__title" id="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-more-heading">More options</h3>
-            <div class="filter-group filter-group--compact">
-                <label for="{% if id_prefix %}{{ id_prefix }}{% endif %}instructor" class="filter-label">Instructor</label>
-                <input type="text" id="{% if id_prefix %}{{ id_prefix }}{% endif %}instructor" name="instructor" value="{{ current_instructor }}" placeholder="Search by instructor name..." class="filter-input">
-            </div>
-            {% if current_search %}
-            <input type="hidden" name="q" value="{{ current_search }}">
-            {% endif %}
         </section>
     </div>
 

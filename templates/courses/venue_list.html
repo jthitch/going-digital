@@ -13,44 +13,222 @@
             <span>Venues</span>
         </nav>
         <h1>Venues</h1>
-        <p class="venue-list-subtitle">{% if venue_count %}{{ venue_count }} photography course venues across the UK{% else %}Discover our venues{% endif %}</p>
+        <p class="venue-list-subtitle">
+            {% if near_me_active %}
+                {% if venue_count %}{{ venue_count }} venue{{ venue_count|pluralize }} within {{ near_radius }} mile{{ near_radius|pluralize }}{% else %}No venues within {{ near_radius }} mile{{ near_radius|pluralize }}{% endif %}
+                {% if current_search %} matching “{{ current_search }}”{% endif %}
+            {% elif current_search %}
+                {% if venue_count %}{{ venue_count }} venue{{ venue_count|pluralize }} matching “{{ current_search }}”{% else %}No venues match “{{ current_search }}”{% endif %}
+            {% else %}
+                {% if venue_count %}{{ venue_count }} photography course venue{{ venue_count|pluralize }} across the UK{% else %}Discover our venues{% endif %}
+            {% endif %}
+        </p>
+
+        <form method="get" action="{% url 'courses:venue_list' %}" class="venue-search" id="venue-search-form" role="search">
+            <label class="visually-hidden" for="venue-search-q">Search venues</label>
+            <div class="venue-search__control">
+                <svg class="venue-search__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="search"
+                       id="venue-search-q"
+                       name="q"
+                       value="{{ current_search }}"
+                       placeholder="Search by venue, town, postcode or region"
+                       class="venue-search__input"
+                       autocomplete="off"
+                       enterkeyhint="search">
+                {% if current_search and not near_me_active %}
+                <a href="{% url 'courses:venue_list' %}" class="venue-search__clear" aria-label="Clear search">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </a>
+                {% endif %}
+            </div>
+            <button type="submit" class="venue-search__submit">Search</button>
+
+            <input type="hidden" name="lat" id="venue-near-lat" value="{{ near_lat }}">
+            <input type="hidden" name="lng" id="venue-near-lng" value="{{ near_lng }}">
+            <input type="hidden" name="radius" id="venue-near-radius" value="{{ near_radius }}">
+
+            <div class="venue-near">
+                <button type="button"
+                        class="venue-near__button{% if near_me_active %} is-active{% endif %}"
+                        id="venue-near-me"
+                        aria-pressed="{{ near_me_active|yesno:'true,false' }}">
+                    <svg class="venue-near__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+                    Near me
+                </button>
+
+                {% if near_me_active %}
+                <div class="venue-near__radius" role="group" aria-label="Search radius">
+                    <button type="submit"
+                            class="venue-near__radius-btn"
+                            name="radius"
+                            value="{{ near_radius_decrease }}"
+                            {% if near_radius <= near_radius_min %}disabled{% endif %}
+                            aria-label="Decrease radius to {{ near_radius_decrease }} miles">−</button>
+                    <span class="venue-near__radius-value" aria-live="polite">{{ near_radius }} miles</span>
+                    <button type="submit"
+                            class="venue-near__radius-btn"
+                            name="radius"
+                            value="{{ near_radius_increase }}"
+                            {% if near_radius >= near_radius_max %}disabled{% endif %}
+                            aria-label="Increase radius to {{ near_radius_increase }} miles">+</button>
+                </div>
+                <a href="{% url 'courses:venue_list' %}{% if current_search %}?q={{ current_search|urlencode }}{% endif %}"
+                   class="venue-near__clear">Clear location</a>
+                {% endif %}
+            </div>
+
+            <p class="venue-near__status" id="venue-near-status" hidden></p>
+        </form>
     </header>
 
     <section class="venue-grid" aria-label="Venue list">
-        {% if venues %}
-            <div class="venue-grid-inner">
-                {% for venue in venues %}
-                <article class="venue-card">
-                    <a href="{% url 'courses:venue_detail' location_slug=venue.slug %}" class="venue-card-link">
-                        {% with first_media=venue.media.first %}
-                        {% if first_media and first_media.image %}
-                        <div class="venue-card-image">
-                            <img src="{{ first_media.image.url }}" alt="{{ venue.name }}" loading="lazy">
-                        </div>
-                        {% else %}
-                        <div class="venue-card-placeholder">📍</div>
-                        {% endif %}
-                        {% endwith %}
-                        <div class="venue-card-content">
-                            <h2 class="venue-card-title">{{ venue.name }}</h2>
-                            {% if venue.location %}
-                            <p class="venue-card-location">{{ venue.location }}</p>
+        {% if venue_groups %}
+            {% for group in venue_groups %}
+            <section class="venue-region-group" aria-labelledby="venue-region-{{ forloop.counter }}">
+                <div class="venue-region-header">
+                    <h2 class="venue-region-heading" id="venue-region-{{ forloop.counter }}">{{ group.name }}</h2>
+                    <span class="venue-region-count">{{ group.venues|length }} venue{{ group.venues|length|pluralize }}</span>
+                </div>
+                <div class="venue-grid-inner">
+                    {% for venue in group.venues %}
+                    <article class="venue-card">
+                        <a href="{% url 'courses:venue_detail' location_slug=venue.slug %}" class="venue-card-link">
+                            {% with first_media=venue.media.first %}
+                            {% if first_media and first_media.image %}
+                            <div class="venue-card-image">
+                                <img src="{{ first_media.image.url }}" alt="{{ venue.name }}" loading="lazy">
+                            </div>
+                            {% else %}
+                            <div class="venue-card-placeholder">📍</div>
                             {% endif %}
-                            {% if venue.venue_address %}
-                            <p class="venue-card-address">{{ venue.venue_address|truncatewords:12 }}</p>
-                            {% endif %}
-                            <span class="venue-card-cta">View venue →</span>
-                        </div>
-                    </a>
-                </article>
-                {% endfor %}
-            </div>
+                            {% endwith %}
+                            <div class="venue-card-content">
+                                <h3 class="venue-card-title">{{ venue.name }}</h3>
+                                {% if near_me_active and venue.distance_miles != None %}
+                                <p class="venue-card-distance">{{ venue.distance_miles }} mile{{ venue.distance_miles|pluralize }} away</p>
+                                {% endif %}
+                                {% if venue.location %}
+                                <p class="venue-card-location">{{ venue.location }}</p>
+                                {% endif %}
+                                {% if venue.venue_address %}
+                                <p class="venue-card-address">{{ venue.venue_address|truncatewords:12 }}</p>
+                                {% endif %}
+                                <span class="venue-card-cta">View venue →</span>
+                            </div>
+                        </a>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endfor %}
         {% else %}
             <div class="no-results">
-                <h3>No venues found</h3>
+                <h2>No venues found</h2>
+                {% if near_me_active %}
+                <p>
+                    Try increasing the radius
+                    {% if near_radius < near_radius_max %}
+                    (currently {{ near_radius }} miles)
+                    {% endif %}
+                    {% if current_search %} or clearing your text search{% endif %}.
+                </p>
+                {% elif current_search %}
+                <p>Try a different name, town, postcode, or region — or <a href="{% url 'courses:venue_list' %}">clear your search</a>.</p>
+                {% else %}
                 <p>Check back soon or <a href="{% url 'courses:contact' %}">contact us</a> for more information.</p>
+                {% endif %}
             </div>
         {% endif %}
     </section>
 </main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var form = document.getElementById('venue-search-form');
+    var nearBtn = document.getElementById('venue-near-me');
+    var latInput = document.getElementById('venue-near-lat');
+    var lngInput = document.getElementById('venue-near-lng');
+    var radiusInput = document.getElementById('venue-near-radius');
+    var statusEl = document.getElementById('venue-near-status');
+    if (!form || !nearBtn || !latInput || !lngInput || !radiusInput) return;
+
+    var defaultRadius = {{ near_radius|default:25 }};
+
+    function setStatus(message, isError) {
+        if (!statusEl) return;
+        if (!message) {
+            statusEl.hidden = true;
+            statusEl.textContent = '';
+            statusEl.classList.remove('is-error');
+            return;
+        }
+        statusEl.hidden = false;
+        statusEl.textContent = message;
+        statusEl.classList.toggle('is-error', Boolean(isError));
+    }
+
+    function clearNearFields() {
+        latInput.value = '';
+        lngInput.value = '';
+    }
+
+    nearBtn.addEventListener('click', function () {
+        if (nearBtn.getAttribute('aria-pressed') === 'true') {
+            // Already active — re-locate and refresh.
+        }
+
+        if (!navigator.geolocation) {
+            setStatus('Location is not supported in this browser.', true);
+            return;
+        }
+
+        nearBtn.disabled = true;
+        setStatus('Finding your location…');
+
+        navigator.geolocation.getCurrentPosition(
+            function (position) {
+                latInput.value = String(position.coords.latitude);
+                lngInput.value = String(position.coords.longitude);
+                if (!radiusInput.value) {
+                    radiusInput.value = String(defaultRadius);
+                }
+                setStatus('');
+                form.submit();
+            },
+            function (error) {
+                nearBtn.disabled = false;
+                var message = 'Could not get your location.';
+                if (error && error.code === 1) {
+                    message = 'Location permission was denied. Allow location access to use Near me.';
+                } else if (error && error.code === 3) {
+                    message = 'Location request timed out. Please try again.';
+                }
+                setStatus(message, true);
+            },
+            {
+                enableHighAccuracy: false,
+                timeout: 12000,
+                maximumAge: 60000
+            }
+        );
+    });
+
+    // Text search alone should not keep a stale near-me location unless Near me is active.
+    form.addEventListener('submit', function (event) {
+        var submitter = event.submitter;
+        if (submitter && submitter.name === 'radius') {
+            radiusInput.value = submitter.value;
+            return;
+        }
+        // Plain Search click: if Near me is not active, drop coords.
+        if (nearBtn.getAttribute('aria-pressed') !== 'true') {
+            clearNearFields();
+            radiusInput.value = String(defaultRadius);
+        }
+    });
+})();
+</script>
 {% endblock %}

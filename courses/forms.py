@@ -893,6 +893,58 @@ class CourseCategoryAdminForm(forms.ModelForm):
         return category
 
 
+class TutorAdminForm(forms.ModelForm):
+    """Tutor admin: legacy 0/1 active as a boolean toggle."""
+
+    active = forms.BooleanField(required=False, label='Active', widget=BooleanToggleWidget())
+
+    class Meta:
+        model = Tutor
+        fields = ['firstname', 'lastname', 'email', 'active']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['firstname'].required = True
+        self.fields['lastname'].required = True
+        if self.instance.pk:
+            self.fields['active'].initial = _legacy_01_checked(self.instance.active)
+        else:
+            self.fields['active'].initial = True
+
+    def save(self, commit=True):
+        tutor = super().save(commit=False)
+        tutor.active = 1 if self.cleaned_data.get('active') else 0
+        if commit:
+            tutor.save()
+        return tutor
+
+
+class AssistantAdminForm(forms.ModelForm):
+    """Assistant admin: legacy 0/1 active as a boolean toggle."""
+
+    active = forms.BooleanField(required=False, label='Active', widget=BooleanToggleWidget())
+
+    class Meta:
+        model = Assistant
+        fields = ['firstname', 'lastname', 'email', 'active']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['firstname'].required = True
+        self.fields['lastname'].required = True
+        if self.instance.pk:
+            self.fields['active'].initial = _legacy_01_checked(self.instance.active)
+        else:
+            self.fields['active'].initial = True
+
+    def save(self, commit=True):
+        assistant = super().save(commit=False)
+        assistant.active = 1 if self.cleaned_data.get('active') else 0
+        if commit:
+            assistant.save()
+        return assistant
+
+
 WORKSHOP_BYLINE_ADMIN_HELP = format_html(
     '<div class="gd-byline-help" role="note">'
     '<p class="gd-byline-help-lead">'
@@ -961,13 +1013,13 @@ class WorkshopAdminForm(forms.ModelForm):
         label='Region',
     )
     tutor = forms.ModelChoiceField(
-        queryset=Tutor.objects.all().order_by('lastname', 'firstname'),
+        queryset=Tutor.objects.filter(active=1).order_by('lastname', 'firstname'),
         required=False,
         empty_label='---------',
         label='Tutor',
     )
     assistant = forms.ModelChoiceField(
-        queryset=Assistant.objects.all().order_by('lastname', 'firstname'),
+        queryset=Assistant.objects.filter(active=1).order_by('lastname', 'firstname'),
         required=False,
         empty_label='---------',
         label='Assistant',
@@ -1029,22 +1081,39 @@ class WorkshopAdminForm(forms.ModelForm):
 
             region_qs = Region.objects.filter(active=1, pk__in=region_ids).order_by('region_name')
             self.fields['region'].queryset = region_qs
-            course_qs = Course.objects.filter(
+            from .region_scope import filter_courses_for_workshop_picker
+
+            include_course_ids = []
+            if self.instance.pk:
+                if self.instance.course_id:
+                    include_course_ids.append(self.instance.course_id)
+                if self.instance.alt_course_id:
+                    include_course_ids.append(self.instance.alt_course_id)
+            editor = None
+            if self.editor_user_id:
+                from core.models import User
+                editor = User.objects.filter(pk=self.editor_user_id).first()
+            course_base = Course.objects.filter(
                 Q(region_id__isnull=True) | Q(region_id__in=region_ids)
             ).order_by('course_name')
+            if editor:
+                course_qs = filter_courses_for_workshop_picker(
+                    course_base,
+                    editor,
+                    include_course_ids=include_course_ids,
+                )
+            else:
+                course_qs = course_base
             self.fields['alt_course'].queryset = course_qs
             if 'course' in self.fields:
                 self.fields['course'].queryset = course_qs
-            if 'venue' in self.fields and self.editor_user_id:
-                from core.models import User
-                from .region_scope import filter_venues_for_workshop_picker, venue_is_approved
+            if 'venue' in self.fields and editor:
+                from .region_scope import filter_venues_for_workshop_picker
 
-                editor = User.objects.filter(pk=self.editor_user_id).first()
-                if editor:
-                    self.fields['venue'].queryset = filter_venues_for_workshop_picker(
-                        Venue.objects.all().order_by('venue_name'),
-                        editor,
-                    )
+                self.fields['venue'].queryset = filter_venues_for_workshop_picker(
+                    Venue.objects.all().order_by('venue_name'),
+                    editor,
+                )
             if len(region_ids) == 1 and not self.instance.pk:
                 self.fields['region'].initial = region_qs.first()
         if self.instance.pk:
@@ -1090,6 +1159,16 @@ class WorkshopAdminForm(forms.ModelForm):
         self._set_initial_from_id('assistant', Assistant, 'assistant_id')
         self._set_initial_from_id('alt_course', Course, 'alt_course_id', skip_zero=True)
         self._set_initial_from_id('workshop_type', WorkshopType, 'workshop_type_id')
+        tutor_qs = Tutor.objects.filter(active=1)
+        current_tutor_id = self.instance.tutor_id if self.instance.pk else None
+        if current_tutor_id:
+            tutor_qs = Tutor.objects.filter(Q(pk=current_tutor_id) | Q(active=1))
+        self.fields['tutor'].queryset = tutor_qs.order_by('lastname', 'firstname')
+        assistant_qs = Assistant.objects.filter(active=1)
+        current_assistant_id = self.instance.assistant_id if self.instance.pk else None
+        if current_assistant_id:
+            assistant_qs = Assistant.objects.filter(Q(pk=current_assistant_id) | Q(active=1))
+        self.fields['assistant'].queryset = assistant_qs.order_by('lastname', 'firstname')
         venue = self.instance.venue if self.instance.pk and self.instance.venue_id else None
         if venue and venue.document_id:
             from courses.venue_documents import venue_document_email_enabled
@@ -1137,6 +1216,30 @@ class WorkshopAdminForm(forms.ModelForm):
             alt = cleaned.get('alt_course')
             if alt and alt.region_id and alt.region_id not in self.region_ids:
                 raise forms.ValidationError({'alt_course': 'This course is not available in your regions.'})
+            if self.editor_user_id:
+                from core.models import User
+                from .region_scope import franchisee_course_blocked
+
+                editor = User.objects.filter(pk=self.editor_user_id).first()
+                if editor:
+                    current_course_id = self.instance.course_id if self.instance.pk else None
+                    current_alt_id = self.instance.alt_course_id if self.instance.pk else None
+                    if (
+                        course
+                        and franchisee_course_blocked(editor, course)
+                        and course.pk != current_course_id
+                    ):
+                        raise forms.ValidationError({
+                            'course': 'You do not have permission to create workshops for this course.',
+                        })
+                    if (
+                        alt
+                        and franchisee_course_blocked(editor, alt)
+                        and alt.pk != current_alt_id
+                    ):
+                        raise forms.ValidationError({
+                            'alt_course': 'You do not have permission to use this course.',
+                        })
             venue = cleaned.get('venue')
             if venue and self.editor_user_id:
                 from core.models import User

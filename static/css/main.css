@@ -1893,6 +1893,290 @@ footer,
     margin: 0;
 }
 
+.venue-search {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 1.25rem;
+    max-width: 40rem;
+}
+
+.venue-search__control {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex: 1 1 16rem;
+    min-width: 0;
+    min-height: 3rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-secondary);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-theme="dark"] .venue-search__control {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.venue-search__control:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.15);
+}
+
+.venue-search__icon {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+}
+
+.venue-search__input {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.35;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.venue-search__input::placeholder {
+    color: var(--text-secondary);
+    font-weight: 400;
+    opacity: 0.85;
+}
+
+/* Native clear affordance would sit alongside our own reset link */
+.venue-search__input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.venue-search__clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 999px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.venue-search__clear:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .venue-search__clear:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.venue-search__submit {
+    flex-shrink: 0;
+    min-height: 3rem;
+    padding: 0.7rem 1.35rem;
+    border: none;
+    border-radius: 10px;
+    background: var(--primary-color);
+    color: #fff;
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.venue-search__submit:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3);
+}
+
+.venue-near {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55rem;
+    flex: 1 1 100%;
+}
+
+.venue-near__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 2.5rem;
+    padding: 0.45rem 0.9rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.venue-near__button:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.venue-near__button.is-active {
+    border-color: var(--primary-color);
+    background: rgba(74, 158, 255, 0.12);
+    color: var(--primary-color);
+}
+
+.venue-near__button:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+.venue-near__icon {
+    flex-shrink: 0;
+}
+
+.venue-near__radius {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 2.5rem;
+    padding: 0.2rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: var(--bg-secondary);
+}
+
+.venue-near__radius-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.venue-near__radius-btn:hover:not(:disabled) {
+    color: var(--primary-color);
+}
+
+.venue-near__radius-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.venue-near__radius-value {
+    min-width: 5.5rem;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.venue-near__clear {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.venue-near__clear:hover {
+    text-decoration: underline;
+}
+
+.venue-near__status {
+    flex: 1 1 100%;
+    margin: 0.15rem 0 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.venue-near__status.is-error {
+    color: var(--error-text, #c0392b);
+}
+
+.venue-card-distance {
+    margin: 0 0 0.35rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+@media (max-width: 480px) {
+    .venue-search__submit {
+        flex: 1 1 auto;
+    }
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.venue-region-group {
+    margin-bottom: 2.75rem;
+}
+
+.venue-region-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.venue-region-heading {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+}
+
+.venue-region-count {
+    flex-shrink: 0;
+    padding: 0.15rem 0.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+[data-theme="dark"] .venue-region-count {
+    background: rgba(255, 255, 255, 0.06);
+}
+
 .venue-grid-inner {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

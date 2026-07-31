@@ -9,7 +9,7 @@ from courses.models import Workshop
 from courses.region_scope import filter_workshops_for_user, user_has_full_region_access
 from courses.workshop_querysets import bookable_workshop_ordering
 
-UPCOMING_WORKSHOPS_PAGE_SIZE = 5
+UPCOMING_WORKSHOPS_PAGE_SIZE = 10
 UPCOMING_PAGE_PARAM = 'upcoming_page'
 
 

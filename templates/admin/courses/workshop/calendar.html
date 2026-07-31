@@ -1,0 +1,102 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans 'Workshop calendar' %} — {{ calendar_title }} | {{ block.super }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/workshop-calendar.css' %}">
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{{ changelist_url }}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; {% trans 'Calendar' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="gd-workshop-calendar-page">
+    <header class="gd-workshop-calendar-header">
+        <div class="gd-workshop-calendar-header__titles">
+            <h1 class="gd-workshop-calendar-title">{% trans 'Workshop calendar' %}</h1>
+            <p class="gd-workshop-calendar-subtitle mb-0">
+                {{ calendar_title }}
+                · {% blocktrans count counter=calendar_workshop_count %}{{ counter }} dated workshop{% plural %}{{ counter }} dated workshops{% endblocktrans %}
+            </p>
+        </div>
+        <div class="gd-workshop-calendar-nav" role="navigation" aria-label="{% trans 'Month navigation' %}">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ calendar_prev_url }}">{% trans 'Previous' %}</a>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ calendar_today_url }}">{% trans 'This month' %}</a>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ calendar_next_url }}">{% trans 'Next' %}</a>
+            <a class="btn btn-outline-primary btn-sm" href="{{ changelist_url }}">{% trans 'List view' %}</a>
+            {% if has_add_permission %}
+            <a class="btn btn-success btn-sm" href="{% url 'admin:courses_workshop_add' %}">
+                <i class="fa fa-plus-circle" aria-hidden="true"></i>
+                {% trans 'Add workshop' %}
+            </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="gd-workshop-calendar-grid" role="grid" aria-label="{{ calendar_title }}">
+        <div class="gd-workshop-calendar-weekdays" role="row">
+            {% for label in calendar_weekday_labels %}
+            <div class="gd-workshop-calendar-weekday" role="columnheader">{{ label }}</div>
+            {% endfor %}
+        </div>
+        {% for week in calendar_weeks %}
+        <div class="gd-workshop-calendar-week" role="row">
+            {% for day in week %}
+            <div
+                class="gd-workshop-calendar-day{% if not day.in_month %} gd-workshop-calendar-day--muted{% endif %}{% if day.is_today %} gd-workshop-calendar-day--today{% endif %}"
+                role="gridcell"
+                {% if day.in_month %}aria-label="{{ day.date|date:'j F Y' }}"{% endif %}
+            >
+                <div class="gd-workshop-calendar-day__num">{{ day.date.day }}</div>
+                {% if day.workshops %}
+                <ul class="gd-workshop-calendar-events">
+                    {% for workshop in day.workshops %}
+                    <li>
+                        <a
+                            href="{{ workshop.url }}"
+                            class="gd-workshop-calendar-event{% if not workshop.active %} gd-workshop-calendar-event--inactive{% endif %}"
+                            title="{{ workshop.label }}"
+                        >
+                            {% if workshop.time_label %}<span class="gd-workshop-calendar-event__time">{{ workshop.time_label }}</span>{% endif %}
+                            <span class="gd-workshop-calendar-event__label">{{ workshop.label }}</span>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if calendar_open_dated_count %}
+    <section class="gd-workshop-calendar-open" aria-labelledby="gd-open-dated-heading">
+        <h2 id="gd-open-dated-heading" class="gd-workshop-calendar-open__title">
+            {% trans 'Open-dated workshops' %}
+            <span class="gd-workshop-calendar-open__count">({{ calendar_open_dated_count }})</span>
+        </h2>
+        <p class="gd-workshop-calendar-open__hint">
+            {% trans 'These have no fixed date, so they are not shown on the month grid.' %}
+        </p>
+        {% if calendar_open_dated %}
+        <ul class="gd-workshop-calendar-open__list">
+            {% for workshop in calendar_open_dated %}
+            <li>
+                <a href="{{ workshop.url }}"{% if not workshop.active %} class="text-muted"{% endif %}>{{ workshop.label }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,6 +1,14 @@
 {% extends "admin/gd/search_first_change_list.html" %}
 {% load i18n %}
 
+{% block object-tools-items %}
+<a href="{% url 'admin:courses_workshop_calendar' %}" class="btn btn-outline-primary">
+    <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+    {% trans 'Calendar' %}
+</a>
+{{ block.super }}
+{% endblock %}
+
 {% block changelist_extra_filters %}
 <div class="gd-changelist-filter-group gd-changelist-date-range">
     <span class="gd-changelist-filter-group__label">{% trans 'Date range' %}</span>

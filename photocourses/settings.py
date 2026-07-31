@@ -396,7 +396,8 @@ JAZZMIN_SETTINGS = {
         "courses.CourseSkillLevel",
         "courses.Region",
         "courses.Workshop",
-        "courses.Instructor",
+        "courses.Tutor",
+        "courses.Assistant",
         "courses.Image",
         "website",
         "website.HeroImage",
@@ -417,6 +418,12 @@ JAZZMIN_SETTINGS = {
                 "icon": "fas fa-map-marked-alt",
                 "permissions": ["courses.view_region"],
             },
+            {
+                "name": "Workshop calendar",
+                "url": "admin:courses_workshop_calendar",
+                "icon": "fas fa-calendar-alt",
+                "permissions": ["courses.view_workshop"],
+            },
         ],
         "bookings": [
             {
@@ -435,7 +442,8 @@ JAZZMIN_SETTINGS = {
         "courses.Course": "fas fa-book",
         "courses.Region": "fas fa-map-marked-alt",
         "courses.Workshop": "fas fa-calendar-alt",
-        "courses.Instructor": "fas fa-chalkboard-teacher",
+        "courses.Tutor": "fas fa-chalkboard-teacher",
+        "courses.Assistant": "fas fa-user-friends",
         "website": "fas fa-globe",
         "website.HeroImage": "fas fa-image",
         "website.GiftVoucherPageImage": "fas fa-gift",

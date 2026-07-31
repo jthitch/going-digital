@@ -254,27 +254,6 @@
     </section>
     {% endif %}
     
-    <!-- Instructor (only shown on location-specific pages) -->
-    {% if is_location_specific and featured_instance and featured_instance.instructor %}
-    <section class="instructor">
-        <h2>Instructor</h2>
-        <div class="instructor-profile">
-            {% if featured_instance.instructor.photo %}
-            <img src="{{ featured_instance.instructor.photo.url }}" 
-                 alt="{{ featured_instance.instructor.user.get_full_name|default:featured_instance.instructor.user.username }}" 
-                 class="instructor-photo">
-            {% endif %}
-            <div class="instructor-info">
-                <h3>{{ featured_instance.instructor.user.get_full_name|default:featured_instance.instructor.user.username }}</h3>
-                <p>{{ featured_instance.instructor.bio|linebreaks }}</p>
-                {% if featured_instance.instructor.specialties %}
-                <p><strong>Specialties:</strong> {{ featured_instance.instructor.specialties }}</p>
-                {% endif %}
-            </div>
-        </div>
-    </section>
-    {% endif %}
-    
     <!-- Available Workshops (Dates & Locations) -->
     <div class="google-rating-badge-wrap">
         {% include 'partials/google_rating_badge.html' %}

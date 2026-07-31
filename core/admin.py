@@ -20,15 +20,18 @@ from .models import User
 
 
 def _fieldsets_without_venues(fieldsets):
+    strip_fields = frozenset({
+        'venues',
+        'workshop_access_venues',
+        'blocked_courses',
+    })
     stripped = []
     for title, opts in fieldsets:
         fields = opts.get('fields')
-        if fields and ('venues' in fields or 'workshop_access_venues' in fields):
+        if fields and any(f in strip_fields for f in fields):
             opts = {
                 **opts,
-                'fields': tuple(
-                    f for f in fields if f not in ('venues', 'workshop_access_venues')
-                ),
+                'fields': tuple(f for f in fields if f not in strip_fields),
             }
         stripped.append((title, opts))
     return stripped
@@ -89,7 +92,14 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('facebook_url', 'twitter_url', 'linkedin_url', 'social_profile_links'),
         }),
         ('Permissions', {
-            'fields': ('user_type_id', 'active', 'regions', 'venues', 'workshop_access_venues'),
+            'fields': (
+                'user_type_id',
+                'active',
+                'regions',
+                'venues',
+                'workshop_access_venues',
+                'blocked_courses',
+            ),
         }),
         ('Important dates', {'fields': ('last_login', 'created_at', 'updated_at')}),
     )
@@ -297,3 +307,5 @@ class UserAdmin(BaseUserAdmin):
             form.sync_venues(obj)
         if hasattr(form, 'sync_workshop_access_venues'):
             form.sync_workshop_access_venues(obj)
+        if hasattr(form, 'sync_blocked_courses'):
+            form.sync_blocked_courses(obj)

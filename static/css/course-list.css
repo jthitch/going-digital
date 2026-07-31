@@ -1405,6 +1405,116 @@ body.map-filter-search-open .map-filter-search-panel {
     filter: brightness(1.05);
 }
 
+.course-near {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.course-near__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 2.75rem;
+    padding: 0.55rem 0.95rem;
+    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+    border-radius: 12px;
+    background: var(--bg-secondary, #f8f8f8);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+[data-theme="dark"] .course-near__button {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.course-near__button:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.course-near__button.is-active {
+    border-color: var(--primary-color);
+    background: rgba(74, 158, 255, 0.12);
+    color: var(--primary-color);
+}
+
+.course-near__button:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+.course-near__icon {
+    flex-shrink: 0;
+}
+
+.course-near__radius {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 2.75rem;
+    padding: 0.2rem;
+    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+    border-radius: 999px;
+    background: var(--bg-secondary, #f8f8f8);
+}
+
+[data-theme="dark"] .course-near__radius {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.course-near__radius-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.course-near__radius-btn:hover:not(:disabled) {
+    color: var(--primary-color);
+}
+
+.course-near__radius-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.course-near__radius-value {
+    min-width: 5.5rem;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.course-near__status {
+    margin: 0.35rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.course-near__status.is-error {
+    color: var(--error-text, #c0392b);
+}
+
 .map-filter-search-backdrop {
     position: fixed;
     inset: 0;

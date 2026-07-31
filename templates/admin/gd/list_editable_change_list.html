@@ -1,0 +1,47 @@
+{% extends "admin/gd/search_first_change_list.html" %}
+{% load i18n admin_list jazzmin %}
+
+{% block object-tools %}
+<div class="object-tools d-flex flex-wrap gap-2 align-items-center">
+    {% if cl.formset and cl.result_count %}
+    <button
+        type="submit"
+        form="changelist-form"
+        name="_save"
+        value="1"
+        class="btn {{ jazzmin_ui.button_classes.success }}"
+    >
+        {% trans 'Save' %}
+    </button>
+    {% endif %}
+    {% block object-tools-items %}
+        {% change_list_object_tools %}
+    {% endblock %}
+</div>
+{% endblock %}
+
+{% block pagination %}
+{% get_jazzmin_ui_tweaks as jazzmin_ui %}
+<div class="col-5">
+    <div class="dataTables_info" role="status" aria-live="polite">
+        {{ cl.result_count }}
+        {% if cl.result_count == 1 %}
+            {{ cl.opts.verbose_name }}
+        {% else %}
+            {{ cl.opts.verbose_name_plural }}
+        {% endif %}
+        {% if show_all_url %}&nbsp;&nbsp;
+            <a href="{{ show_all_url }}" class="btn btn-sm {{ jazzmin_ui.button_classes.secondary }}">{% trans 'Show all' %}</a>
+        {% endif %}
+    </div>
+</div>
+<div class="col-7">
+    <ul class="pagination pagination-sm m-0 float-end">
+        {% if pagination_required %}
+            {% for i in page_range %}
+                {% jazzmin_paginator_number cl i %}
+            {% endfor %}
+        {% endif %}
+    </ul>
+</div>
+{% endblock %}

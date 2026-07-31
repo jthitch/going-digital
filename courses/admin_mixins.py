@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from courses.region_scope import (
     filter_courses_for_user,
+    filter_courses_for_workshop_picker,
     filter_venues_for_user,
     filter_venues_for_workshop_picker,
     filter_workshops_for_user,
@@ -116,7 +117,17 @@ class RegionScopedWorkshopAdminMixin:
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == 'course' and not user_has_full_region_access(request.user):
-            kwargs['queryset'] = filter_courses_for_user(kwargs.get('queryset', db_field.remote_field.model.objects.all()), request.user)
+            include_ids = []
+            object_id = request.resolver_match.kwargs.get('object_id') if request.resolver_match else None
+            if object_id:
+                workshop = self.model.objects.filter(pk=object_id).only('course_id').first()
+                if workshop and workshop.course_id:
+                    include_ids.append(workshop.course_id)
+            kwargs['queryset'] = filter_courses_for_workshop_picker(
+                kwargs.get('queryset', db_field.remote_field.model.objects.all()),
+                request.user,
+                include_course_ids=include_ids,
+            )
         if db_field.name == 'venue' and not user_has_full_region_access(request.user):
             kwargs['queryset'] = filter_venues_for_workshop_picker(
                 kwargs.get('queryset', db_field.remote_field.model.objects.all()),
@@ -128,7 +139,7 @@ class RegionScopedWorkshopAdminMixin:
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
         if request.path.endswith('/autocomplete/'):
             if queryset.model.__name__ == 'Course':
-                queryset = filter_courses_for_user(queryset, request.user)
+                queryset = filter_courses_for_workshop_picker(queryset, request.user)
             elif queryset.model.__name__ == 'Venue':
                 queryset = filter_venues_for_workshop_picker(queryset, request.user)
         return queryset, use_distinct
