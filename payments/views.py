@@ -748,9 +748,13 @@ def _populate_gift_voucher_success_context(context, metadata):
 
 
 def _populate_success_from_bookings(context, bookings):
+    from bookings.franchisee_contract import franchisee_contract_notice
+
     booking_list = list(bookings)
     if not booking_list:
         return
+    for booking in booking_list:
+        booking.franchisee_contract_notice = franchisee_contract_notice(booking.workshop)
     if len(booking_list) == 1:
         context['booking'] = booking_list[0]
     else:

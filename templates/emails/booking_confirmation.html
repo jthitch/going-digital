@@ -44,6 +44,9 @@
             {% if item.workshop_url %}
             <p style="margin:8px 0 0;"><a href="{{ item.workshop_url }}" style="color:#0066cc;">View workshop details</a></p>
             {% endif %}
+            {% if item.franchisee_contract_notice %}
+            <p style="margin:12px 0 0;font-size:13px;color:#555;line-height:1.45;">{{ item.franchisee_contract_notice }}</p>
+            {% endif %}
         </td>
     </tr>
 </table>

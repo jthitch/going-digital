@@ -18,6 +18,8 @@ Location: {{ item.location_name }}{% if item.location_city %}, {{ item.location_
 {% endif %}{% if item.outlook_calendar_url %}Outlook: {{ item.outlook_calendar_url }}
 {% endif %}{% if item.calendar_ics %}Calendar file attached: {{ item.calendar_ics_filename }}
 {% endif %}{% endif %}{% if item.workshop_url %}Workshop details: {{ item.workshop_url }}
+{% endif %}{% if item.franchisee_contract_notice %}
+{{ item.franchisee_contract_notice }}
 {% endif %}
 {% endfor %}{% if is_multi_booking %}Total amount paid: £{{ total_price_paid }}
 {% endif %}

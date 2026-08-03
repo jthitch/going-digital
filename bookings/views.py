@@ -256,6 +256,9 @@ class BookingConfirmationView(DetailView):
             [booking],
             self.request,
         )
+        from .franchisee_contract import franchisee_contract_notice
+
+        context['franchisee_contract_notice'] = franchisee_contract_notice(booking.workshop)
         return context
 
 

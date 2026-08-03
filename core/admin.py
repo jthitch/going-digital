@@ -40,7 +40,9 @@ def _fieldsets_without_venues(fieldsets):
 FRANCHISEE_SELF_PROFILE_FIELDSETS = (
     (None, {'fields': ('email', 'password_reset_link')}),
     ('Personal info', {'fields': ('firstname', 'lastname', 'telephone', 'mobile', 'company')}),
-    ('Address', {'fields': ('address1', 'address2', 'town_city', 'postcode')}),
+    ('Address', {
+        'fields': ('address', 'address1', 'address2', 'town_city', 'postcode'),
+    }),
     ('Social profiles', {
         'fields': ('facebook_url', 'twitter_url', 'linkedin_url', 'social_profile_links'),
     }),
@@ -86,7 +88,7 @@ class UserAdmin(BaseUserAdmin):
         (None, {'fields': ('email', 'password_reset_link')}),
         ('Personal info', {'fields': ('firstname', 'lastname', 'telephone', 'mobile', 'company')}),
         ('Address', {
-            'fields': ('address1', 'address2', 'town_city', 'postcode'),
+            'fields': ('address', 'address1', 'address2', 'town_city', 'postcode'),
         }),
         ('Social profiles', {
             'fields': ('facebook_url', 'twitter_url', 'linkedin_url', 'social_profile_links'),

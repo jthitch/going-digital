@@ -42,6 +42,7 @@ class FranchiseeProfileAdminTests(SimpleTestCase):
         fieldsets = self.user_admin.get_fieldsets(request, user)
         flat_fields = [f for _title, opts in fieldsets for f in opts.get('fields', ())]
         self.assertIn('telephone', flat_fields)
+        self.assertIn('address', flat_fields)
         self.assertIn('postcode', flat_fields)
         self.assertNotIn('user_type_id', flat_fields)
         self.assertNotIn('regions', flat_fields)

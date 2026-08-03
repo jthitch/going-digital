@@ -10,4 +10,7 @@
     <p><strong>Voucher used:</strong> {{ booking.voucher_code }} (-£{{ booking.voucher_discount|floatformat:2 }})</p>
     {% endif %}
     <p><strong>Amount Paid:</strong> £{{ booking.price_paid|floatformat:2 }}</p>
+    {% if booking.franchisee_contract_notice %}
+    <p class="success-booking-franchisee-notice">{{ booking.franchisee_contract_notice }}</p>
+    {% endif %}
 </article>

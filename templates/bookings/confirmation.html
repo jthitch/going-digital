@@ -78,6 +78,10 @@
                 <p>{{ booking.special_requirements|linebreaksbr }}</p>
             </div>
             {% endif %}
+
+            {% if franchisee_contract_notice %}
+            <p class="booking-franchisee-notice">{{ franchisee_contract_notice }}</p>
+            {% endif %}
         </div>
 
         {% if show_facebook_groups_cta %}

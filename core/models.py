@@ -57,7 +57,12 @@ class User(AbstractBaseUser):
     # password from AbstractBaseUser - map to gd_user.password
     secure_code = models.CharField(max_length=255, null=True, blank=True, db_column='secure_code')
     company = models.CharField(max_length=255, null=True, blank=True, db_column='company')
-    address = models.TextField(null=True, blank=True, db_column='address')
+    address = models.TextField(
+        null=True,
+        blank=True,
+        db_column='address',
+        verbose_name='Address (legacy)',
+    )
     address1 = models.CharField(max_length=255, null=True, blank=True, db_column='address1')
     address2 = models.CharField(max_length=255, null=True, blank=True, db_column='address2')
     town_city = models.CharField(max_length=255, null=True, blank=True, db_column='town_city')
@@ -177,6 +182,18 @@ class User(AbstractBaseUser):
 
     def get_full_name(self):
         return f"{self.firstname} {self.lastname}".strip() or self.email
+
+    def get_display_address(self):
+        """Structured address, or legacy free-text address when address1 is blank."""
+        address1 = (self.address1 or '').strip()
+        if not address1:
+            return (self.address or '').strip()
+        parts = [address1]
+        for value in (self.address2, self.town_city, self.postcode):
+            part = (value or '').strip()
+            if part:
+                parts.append(part)
+        return ', '.join(parts)
 
     def get_short_name(self):
         return self.firstname or self.email

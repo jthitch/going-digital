@@ -10,6 +10,10 @@ from website.seo import absolute_url_from_base, site_base_url, site_url_for_book
 from courses.models import Tutor
 
 from .calendar import calendar_data_for_booking
+from .franchisee_contract import (
+    franchisee_contract_details,
+    franchisee_contract_notice_from_details,
+)
 from .social_media import facebook_groups_context_for_bookings, facebook_share_items_for_bookings
 
 
@@ -46,6 +50,10 @@ def _booking_item_context(booking, *, site_url):
         workshop_url = absolute_url_from_base(site_url, workshop.get_absolute_url())
 
     calendar = calendar_data_for_booking(booking, site_base=site_url)
+    contract = franchisee_contract_details(workshop)
+    franchisee_name = contract['name'] if contract else ''
+    franchisee_address = contract['address'] if contract else ''
+    notice = franchisee_contract_notice_from_details(contract)
 
     return {
         'booking': booking,
@@ -69,6 +77,9 @@ def _booking_item_context(booking, *, site_url):
         'calendar_ics': calendar['calendar_ics'],
         'calendar_ics_filename': calendar['calendar_ics_filename'],
         'workshop': workshop,
+        'franchisee_name': franchisee_name,
+        'franchisee_address': franchisee_address,
+        'franchisee_contract_notice': notice,
     }
 
 
@@ -139,6 +150,9 @@ def bookings_confirmation_context(bookings, *, request=None):
         'outlook_calendar_url': first['outlook_calendar_url'],
         'calendar_ics': first['calendar_ics'],
         'calendar_ics_filename': first['calendar_ics_filename'],
+        'franchisee_name': first['franchisee_name'],
+        'franchisee_address': first['franchisee_address'],
+        'franchisee_contract_notice': first['franchisee_contract_notice'],
     }
     context.update(facebook_groups_context_for_bookings(bookings))
     context['facebook_share_items'] = facebook_share_items_for_bookings(

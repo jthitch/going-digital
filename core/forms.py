@@ -270,6 +270,7 @@ class GdUserSelfProfileForm(forms.ModelForm):
             'telephone',
             'mobile',
             'company',
+            'address',
             'address1',
             'address2',
             'town_city',
@@ -283,6 +284,8 @@ class GdUserSelfProfileForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if 'email' in self.fields:
             self.fields['email'].widget.attrs.setdefault('size', 50)
+        if 'address' in self.fields:
+            self.fields['address'].label = 'Address (legacy)'
 
 
 class GdUserChangeForm(UserChangeForm):
