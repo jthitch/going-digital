@@ -27,10 +27,16 @@ class RegionGroupedVenueWidget(forms.SelectMultiple):
         self.venue_meta_by_value = {}
         attrs = dict(attrs or {})
         css = (attrs.get('class') or '').split()
-        if 'gd-region-grouped-venue' not in css:
-            css.append('gd-region-grouped-venue')
+        for cls in ('gd-region-grouped-venue', 'select2-hidden-accessible'):
+            if cls not in css:
+                css.append(cls)
         attrs['class'] = ' '.join(css).strip()
         attrs['data-verbose-name'] = verbose_name
+        # Jazzmin applies Select2 to every <select>; keep this one out of that
+        # enhancement and visually hidden — region-grouped-venue.js builds the UI.
+        attrs['aria-hidden'] = 'true'
+        attrs['tabindex'] = '-1'
+        attrs['style'] = 'display: none !important;'
         super().__init__(attrs)
 
     def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
@@ -306,13 +312,13 @@ class GdUserChangeForm(UserChangeForm):
     venues = VenueMultipleChoiceField(
         queryset=None,
         required=False,
-        label='Owned venues',
-        verbose_name='owned venues',
+        label='Venues',
+        verbose_name='venues',
         help_text=(
             'Primary venue owner (same as the User field on each venue). '
             'Selecting a venue already owned by another franchisee moves ownership to this user. '
             'To let someone run workshops at a venue without owning it, use '
-            '“Workshop access venues” below (superusers only).'
+            '“Shared venues” below (superusers only).'
         ),
         help_above_widget=True,
         label_owned_by=True,
@@ -320,12 +326,13 @@ class GdUserChangeForm(UserChangeForm):
     workshop_access_venues = VenueMultipleChoiceField(
         queryset=None,
         required=False,
-        label='Workshop access venues',
-        verbose_name='workshop access venues',
+        label='Shared venues',
+        verbose_name='shared venues',
         help_text=(
             'Venues this franchisee may use when creating workshops, without becoming the owner. '
             'Same grants as “Franchisees allowed to add workshops” on the venue page.'
         ),
+        help_above_widget=True,
     )
     blocked_courses = forms.ModelMultipleChoiceField(
         queryset=None,
@@ -470,8 +477,8 @@ class GdUserCreationForm(BaseUserCreationForm):
     venues = VenueMultipleChoiceField(
         queryset=None,
         required=False,
-        label='Owned venues',
-        verbose_name='owned venues',
+        label='Venues',
+        verbose_name='Venues',
         help_text=(
             'Primary venue owner. Selecting a venue already owned by another franchisee '
             'moves ownership to this user.'

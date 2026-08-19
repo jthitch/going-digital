@@ -11,6 +11,8 @@ Optional id_prefix avoids duplicate HTML ids when multiple forms are in the DOM.
     <input type="hidden" name="lat" value="{{ near_lat }}">
     <input type="hidden" name="lng" value="{{ near_lng }}">
     <input type="hidden" name="radius" value="{{ near_radius }}">
+    {% elif place_search_active %}
+    <input type="hidden" name="radius" value="{{ near_radius }}">
     {% endif %}
 
     <div class="filter-modal-scroll">
@@ -60,7 +62,7 @@ Optional id_prefix avoids duplicate HTML ids when multiple forms are in the DOM.
             </div>
         </section>
 
-        {% if not map_view_active and not near_me_active %}
+        {% if not map_view_active and not location_search_active %}
         <section class="filter-modal-section filter-modal-section--location" aria-labelledby="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-location-heading">
             <h3 class="filter-modal-section__title" id="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-location-heading">Location</h3>
             <p class="filter-modal-section__hint">Show courses at a specific venue</p>
@@ -78,6 +80,11 @@ Optional id_prefix avoids duplicate HTML ids when multiple forms are in the DOM.
         <section class="filter-modal-section filter-modal-section--location" aria-labelledby="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-location-heading">
             <h3 class="filter-modal-section__title" id="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-location-heading">Location</h3>
             <p class="filter-modal-section__hint">Showing courses within {{ near_radius }} miles of you. Clear the Near me chip to pick a specific venue.</p>
+        </section>
+        {% elif place_search_active %}
+        <section class="filter-modal-section filter-modal-section--location" aria-labelledby="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-location-heading">
+            <h3 class="filter-modal-section__title" id="{% if id_prefix %}{{ id_prefix }}{% endif %}filter-location-heading">Location</h3>
+            <p class="filter-modal-section__hint">Showing courses within {{ near_radius }} miles of {{ place_search_label }}. Clear the search to pick a specific venue.</p>
         </section>
         {% endif %}
 

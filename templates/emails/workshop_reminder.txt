@@ -1,0 +1,27 @@
+Dear {{ student_name }},
+
+{{ reminder_intro }}
+
+Booking reference: {{ booking_reference }}
+Course: {{ course_title }}
+Date: {{ workshop_date }}{% if workshop_time %} at {{ workshop_time }}{% endif %}
+Location: {{ location_name }}{% if location_city %}, {{ location_city }}{% endif %}
+{% if location_address %}Address: {{ location_address }}
+{% endif %}{% if special_requirements %}Special requirements noted: {{ special_requirements }}
+{% endif %}{% if google_calendar_url or outlook_calendar_url %}Add to calendar:
+{% if google_calendar_url %}Google Calendar: {{ google_calendar_url }}
+{% endif %}{% if outlook_calendar_url %}Outlook: {{ outlook_calendar_url }}
+{% endif %}{% if calendar_ics %}Calendar file attached: {{ calendar_ics_filename }}
+{% endif %}{% endif %}{% if workshop_url %}Workshop details: {{ workshop_url }}
+{% endif %}
+{% for title, text in workshop_notes %}{{ title }}:
+{{ text }}
+
+{% endfor %}{% if tutor_name %}Your tutor
+{{ tutor_name }}
+{% if tutor_email %}Email: {{ tutor_email }}
+{% endif %}{% if tutor_telephone %}Telephone: {{ tutor_telephone }}
+{% endif %}
+{% endif %}{{ reminder_closing }}{% if not tutor_name %} Contact us at {{ contact_email }}.{% endif %}
+
+Questions? Contact us at {{ contact_email }}

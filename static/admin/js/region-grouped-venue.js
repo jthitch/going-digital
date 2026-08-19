@@ -80,10 +80,20 @@
         if ($select.data('select2')) {
             $select.select2('destroy');
         }
+        // Jazzmin may leave a Select2 chrome sibling after destroy / race.
+        $select
+            .siblings('.select2-container')
+            .add($select.next('.select2-container'))
+            .add($select.prev('.select2-container'))
+            .remove();
+        select.classList.add('select2-hidden-accessible');
+        select.setAttribute('aria-hidden', 'true');
+        select.style.setProperty('display', 'none', 'important');
     }
 
     function buildPicker(select) {
         if (select.dataset.gdVenuePickerInit === '1') {
+            destroySelect2IfPresent(select);
             return;
         }
         select.dataset.gdVenuePickerInit = '1';
@@ -318,5 +328,8 @@
     } else {
         initAll();
     }
+    // Jazzmin applySelect2() runs on document.ready; re-hide after it.
     window.setTimeout(initAll, 0);
+    window.setTimeout(initAll, 50);
+    window.setTimeout(initAll, 250);
 })();

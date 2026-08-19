@@ -345,7 +345,6 @@
             <div data-instances-list>
             {% for city, instances in instances_by_city.items %}
             <div class="city-group" data-city-group>
-                <h3>{{ city }}</h3>
                 <ul class="instance-list">
                     {% for instance in instances %}
                     <li class="instance-item{% if instance.byline_plain %} instance-item--has-byline{% endif %}{% if instance.is_open_dated %} instance-item--open-dated{% endif %}"

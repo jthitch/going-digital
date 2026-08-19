@@ -1,0 +1,71 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Reminder — {{ course_title }}{% endblock %}
+
+{% block header_style %}padding:24px 28px;background:#f0f0f0;text-align:center;border-bottom:1px solid #e0e0e0;{% endblock %}
+
+{% block content %}
+<p style="margin:0 0 16px;">Dear {{ student_name }},</p>
+
+<p style="margin:0 0 16px;">{{ reminder_intro|linebreaksbr }}</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#f9f9f9;border:1px solid #e8e8e8;">
+    <tr>
+        <td style="padding:16px 18px;">
+            <p style="margin:0 0 8px;"><strong>Booking reference:</strong> {{ booking_reference }}</p>
+            <p style="margin:0 0 8px;"><strong>Course:</strong> {{ course_title }}</p>
+            <p style="margin:0 0 8px;"><strong>Date:</strong> {{ workshop_date }}{% if workshop_time %} at {{ workshop_time }}{% endif %}</p>
+            <p style="margin:0 0 8px;"><strong>Location:</strong> {{ location_name }}{% if location_city %}, {{ location_city }}{% endif %}</p>
+            {% if location_address %}
+            <p style="margin:0 0 8px;"><strong>Address:</strong> {{ location_address|linebreaksbr }}</p>
+            {% endif %}
+            {% if special_requirements %}
+            <p style="margin:0 0 8px;"><strong>Special requirements noted:</strong> {{ special_requirements }}</p>
+            {% endif %}
+            {% if google_calendar_url or outlook_calendar_url %}
+            <p style="margin:8px 0 0;">
+                <strong>Add to calendar:</strong>
+                {% if google_calendar_url %}<a href="{{ google_calendar_url }}" style="color:#0066cc;margin-right:12px;">Google</a>{% endif %}
+                {% if outlook_calendar_url %}<a href="{{ outlook_calendar_url }}" style="color:#0066cc;margin-right:12px;">Outlook</a>{% endif %}
+                {% if calendar_ics %}<span style="color:#666;">or open <strong>{{ calendar_ics_filename }}</strong></span>{% endif %}
+            </p>
+            {% endif %}
+            {% if workshop_url %}
+            <p style="margin:8px 0 0;"><a href="{{ workshop_url }}" style="color:#0066cc;">View workshop details</a></p>
+            {% endif %}
+        </td>
+    </tr>
+</table>
+
+{% if workshop_notes %}
+{% for title, text in workshop_notes %}
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 16px;background:#fff;border:1px solid #e8e8e8;">
+    <tr>
+        <td style="padding:14px 18px;">
+            <p style="margin:0 0 8px;"><strong>{{ title }}</strong></p>
+            <p style="margin:0;white-space:pre-line;">{{ text|linebreaksbr }}</p>
+        </td>
+    </tr>
+</table>
+{% endfor %}
+{% endif %}
+
+{% if tutor_name %}
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#f9f9f9;border:1px solid #e8e8e8;">
+    <tr>
+        <td style="padding:16px 18px;">
+            <p style="margin:0 0 8px;"><strong>Your tutor</strong></p>
+            <p style="margin:0 0 4px;">{{ tutor_name }}</p>
+            {% if tutor_email %}
+            <p style="margin:0 0 4px;">Email: <a href="mailto:{{ tutor_email }}" style="color:#0066cc;">{{ tutor_email }}</a></p>
+            {% endif %}
+            {% if tutor_telephone %}
+            <p style="margin:0;">Telephone: {{ tutor_telephone }}</p>
+            {% endif %}
+        </td>
+    </tr>
+</table>
+{% endif %}
+
+<p style="margin:0 0 16px;">{{ reminder_closing|linebreaksbr }}{% if not tutor_name %} Contact us at <a href="mailto:{{ contact_email }}" style="color:#0066cc;">{{ contact_email }}</a>.{% endif %}</p>
+{% endblock %}

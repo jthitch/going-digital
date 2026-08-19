@@ -6,6 +6,28 @@ from django.db import connection
 STRIPE_GATEWAY_ID = 10
 VOUCHER_GATEWAY_ID = 4
 CASH_GATEWAY_ID = 6
+CHEQUE_GATEWAY_ID = 5
+BACS_GATEWAY_ID = 7
+OTHER_GATEWAY_ID = 8
+
+# Offline / paid-to-tutor gateways for franchisee report columns.
+# gd_payment_gateway.manual_payment_option means "available when recording a
+# payment in admin", not "counts as manual in reports" — WorldPay and Card Save
+# have that flag set but are customer card payments.
+MANUAL_REPORT_GATEWAY_IDS = frozenset({
+    CHEQUE_GATEWAY_ID,
+    CASH_GATEWAY_ID,
+    BACS_GATEWAY_ID,
+    OTHER_GATEWAY_ID,
+})
+
+
+def is_manual_report_gateway(gateway_id):
+    """True when franchisee report should put the amount in Manual payment."""
+    try:
+        return int(gateway_id) in MANUAL_REPORT_GATEWAY_IDS
+    except (TypeError, ValueError):
+        return False
 
 
 def load_payment_gateway_names():

@@ -73,18 +73,32 @@ def _monthly_report(request):
     region_id = None
     tutor_id = None
     months_back = 12
+    start_date = None
+    end_date = None
 
     if form.is_valid():
         filters_applied = True
         region_id = form.cleaned_region_id()
         tutor_id = form.cleaned_tutor_id()
-        months_back = form.cleaned_months_back()
-        rows = build_monthly_report(
-            request.user,
-            region_id=region_id,
-            tutor_id=tutor_id,
-            months_back=months_back,
-        )
+        custom_range = form.cleaned_custom_date_range()
+        if custom_range:
+            start_date, end_date = custom_range
+            months_back = None
+            rows = build_monthly_report(
+                request.user,
+                region_id=region_id,
+                tutor_id=tutor_id,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        else:
+            months_back = form.cleaned_months_back()
+            rows = build_monthly_report(
+                request.user,
+                region_id=region_id,
+                tutor_id=tutor_id,
+                months_back=months_back,
+            )
         totals = report_totals(rows)
     elif not request.GET:
         form = BookingReportFilterForm(request.user)
@@ -92,7 +106,13 @@ def _monthly_report(request):
         totals = report_totals(rows)
         filters_applied = True
 
-    export_csv_url = _monthly_export_url(region_id, tutor_id, months_back)
+    export_csv_url = _monthly_export_url(
+        region_id,
+        tutor_id,
+        months_back,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
     if request.GET.get('export') == 'csv' and filters_applied:
         return _csv_response(
@@ -110,6 +130,9 @@ def _monthly_report(request):
             'totals': totals,
             'filters_applied': filters_applied,
             'export_csv_url': export_csv_url,
+            'custom_date_range': start_date is not None and end_date is not None,
+            'start_date': start_date,
+            'end_date': end_date,
         },
     )
 
@@ -225,12 +248,19 @@ def _dated_booking_report(
     )
 
 
-def _monthly_export_url(region_id, tutor_id, months_back):
+def _monthly_export_url(region_id, tutor_id, months_back, *, start_date=None, end_date=None):
+    from bookings.forms_reports import MONTHS_CUSTOM
+
     params = {
         'report': REPORT_MONTHLY,
-        'months': months_back,
         'export': 'csv',
     }
+    if start_date is not None and end_date is not None:
+        params['months'] = MONTHS_CUSTOM
+        params['start_date'] = start_date.isoformat()
+        params['end_date'] = end_date.isoformat()
+    else:
+        params['months'] = months_back if months_back is not None else 12
     if region_id:
         params['region'] = region_id
     if tutor_id:

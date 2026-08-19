@@ -303,9 +303,22 @@ class GoogleReviewHighlight(models.Model):
 
 class HeroImage(models.Model):
     """Hero images for homepage slider - managed by platform admins."""
+
+    ORIENTATION_BOTH = 'both'
+    ORIENTATION_LANDSCAPE = 'landscape'
+    ORIENTATION_PORTRAIT = 'portrait'
+    SCREEN_ORIENTATION_CHOICES = [
+        (ORIENTATION_BOTH, 'Both portrait and landscape'),
+        (ORIENTATION_LANDSCAPE, 'Landscape screens only'),
+        (ORIENTATION_PORTRAIT, 'Portrait screens only'),
+    ]
+
     image = models.ImageField(
         upload_to='hero-images/',
-        help_text="Recommended size: 1000x667 pixels (3:2 aspect ratio). Text overlay is fixed on the homepage."
+        help_text=(
+            'Recommended size: 1000×667 px (3:2) for landscape-oriented screens, '
+            'or a tall portrait crop for phones. Text overlay is fixed on the homepage.'
+        ),
     )
     order = models.PositiveIntegerField(
         default=0,
@@ -314,6 +327,17 @@ class HeroImage(models.Model):
     is_active = models.BooleanField(
         default=True,
         help_text="Show this image in the hero slider"
+    )
+    screen_orientation = models.CharField(
+        max_length=16,
+        choices=SCREEN_ORIENTATION_CHOICES,
+        default=ORIENTATION_BOTH,
+        db_column='screen_orientation',
+        verbose_name='Show on',
+        help_text=(
+            'Landscape-only suits wide photos on tablets and desktops; '
+            'portrait-only suits tall photos on phones held upright.'
+        ),
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -472,6 +496,60 @@ class Redirect(models.Model):
 
     def __str__(self):
         return f"{self.old_path} → {self.new_path}"
+
+
+    @classmethod
+    def get_singleton(cls):
+        return cls.objects.first()
+
+
+DEFAULT_REMINDER_EMAIL_INTRO = (
+    'This is a friendly reminder that your photography course is tomorrow.'
+)
+DEFAULT_REMINDER_EMAIL_CLOSING = (
+    'We look forward to seeing you tomorrow. If you have any questions before '
+    'the course, please contact your tutor.'
+)
+
+
+class WorkshopReminderEmailSettings(models.Model):
+    """
+    Singleton copy for the day-before workshop reminder email.
+    Superusers edit the shared intro and closing; per-workshop notes live on each workshop.
+    """
+
+    intro = models.TextField(
+        blank=True,
+        default=DEFAULT_REMINDER_EMAIL_INTRO,
+        help_text='Opening paragraph in every day-before reminder email.',
+    )
+    closing = models.TextField(
+        blank=True,
+        default=DEFAULT_REMINDER_EMAIL_CLOSING,
+        help_text=(
+            'Closing paragraph before the footer. Tutor contact details are inserted '
+            'automatically when a tutor is assigned.'
+        ),
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'workshop_reminder_email_settings'
+        verbose_name = 'Workshop reminder email'
+        verbose_name_plural = 'Workshop reminder email'
+
+    def __str__(self):
+        return 'Workshop reminder email settings'
+
+    @classmethod
+    def get_singleton(cls):
+        return cls.objects.first()
+
+    def intro_text(self):
+        return (self.intro or '').strip() or DEFAULT_REMINDER_EMAIL_INTRO
+
+    def closing_text(self):
+        return (self.closing or '').strip() or DEFAULT_REMINDER_EMAIL_CLOSING
 
 
 class LegalPage(models.Model):

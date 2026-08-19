@@ -21,8 +21,8 @@
 <section class="hero-section">
     <div class="hero-slider">
         {% if hero_images %}
-            {% for image_url in hero_images %}
-            <div class="hero-slide {% if forloop.first %}active{% endif %}" style="background-image: url('{{ image_url }}');">
+            {% for hero in hero_images %}
+            <div class="hero-slide hero-slide--{{ hero.orientation }} {% if forloop.first %}active{% endif %}" style="background-image: url('{{ hero.url }}');">
                 <div class="hero-overlay"></div>
                 <div class="hero-content">
                     <h1 class="hero-title">Start Your Photography Journey</h1>
@@ -49,8 +49,11 @@
     </div>
     {% if hero_images|length > 1 %}
     <div class="hero-indicators">
-        {% for image_url in hero_images %}
-        <button class="hero-indicator {% if forloop.first %}active{% endif %}" data-slide="{{ forloop.counter0 }}"></button>
+        {% for hero in hero_images %}
+        <button type="button"
+                class="hero-indicator hero-indicator--{{ hero.orientation }} {% if forloop.first %}active{% endif %}"
+                data-slide="{{ forloop.counter0 }}"
+                aria-label="Show hero slide {{ forloop.counter }}"></button>
         {% endfor %}
     </div>
     {% endif %}
@@ -343,54 +346,119 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% if hero_images|length > 1 %}
 <script>
-// Simple hero image slider - automatically cycles through images
+// Hero slider — skips slides hidden for the current screen orientation
 document.addEventListener('DOMContentLoaded', function() {
-    const slides = document.querySelectorAll('.hero-slide');
-    const indicators = document.querySelectorAll('.hero-indicator');
-    let currentSlide = 0;
+    const allSlides = Array.from(document.querySelectorAll('.hero-slide'));
+    const allIndicators = Array.from(document.querySelectorAll('.hero-indicator'));
     let slideInterval;
-    
-    function showSlide(index) {
-        slides.forEach((slide, i) => {
-            slide.classList.toggle('active', i === index);
-        });
-        indicators.forEach((indicator, i) => {
-            indicator.classList.toggle('active', i === index);
-        });
-        currentSlide = index;
+
+    function isVisible(el) {
+        return el && window.getComputedStyle(el).display !== 'none';
     }
-    
+
+    function visibleSlides() {
+        return allSlides.filter(isVisible);
+    }
+
+    function visibleIndicators() {
+        return allIndicators.filter(isVisible);
+    }
+
+    function slideIndex(slide) {
+        return allSlides.indexOf(slide);
+    }
+
+    function showSlideByElement(slide) {
+        if (!slide || !isVisible(slide)) {
+            return;
+        }
+        const index = slideIndex(slide);
+        allSlides.forEach(function(s, i) {
+            s.classList.toggle('active', i === index);
+        });
+        allIndicators.forEach(function(ind, i) {
+            ind.classList.toggle('active', i === index);
+        });
+    }
+
+    function currentVisibleSlide() {
+        const active = allSlides.find(function(s) { return s.classList.contains('active') && isVisible(s); });
+        if (active) {
+            return active;
+        }
+        const visible = visibleSlides();
+        return visible.length ? visible[0] : null;
+    }
+
     function nextSlide() {
-        const next = (currentSlide + 1) % slides.length;
-        showSlide(next);
+        const visible = visibleSlides();
+        if (visible.length <= 1) {
+            return;
+        }
+        const current = currentVisibleSlide();
+        const pos = visible.indexOf(current);
+        const next = visible[(pos + 1) % visible.length];
+        showSlideByElement(next);
     }
-    
-    // Auto-advance slides every 3 seconds with fade transition
+
+    function syncOrientation() {
+        const visible = visibleSlides();
+        if (!visible.length) {
+            return;
+        }
+        const current = currentVisibleSlide();
+        if (!current || !visible.includes(current)) {
+            showSlideByElement(visible[0]);
+        }
+        if (visible.length <= 1) {
+            clearInterval(slideInterval);
+        } else if (!slideInterval) {
+            startSlider();
+        }
+    }
+
     function startSlider() {
-        slideInterval = setInterval(nextSlide, 3000);
+        clearInterval(slideInterval);
+        if (visibleSlides().length > 1) {
+            slideInterval = setInterval(nextSlide, 3000);
+        }
     }
-    
+
     function stopSlider() {
         clearInterval(slideInterval);
+        slideInterval = null;
     }
-    
-    // Indicator click handlers
-    indicators.forEach((indicator, index) => {
-        indicator.addEventListener('click', () => {
+
+    visibleIndicators().forEach(function(indicator) {
+        indicator.addEventListener('click', function() {
+            const index = parseInt(indicator.getAttribute('data-slide'), 10);
+            const slide = allSlides[index];
+            if (!slide || !isVisible(slide)) {
+                return;
+            }
             stopSlider();
-            showSlide(index);
+            showSlideByElement(slide);
             startSlider();
         });
     });
-    
-    // Pause on hover
+
     const heroSection = document.querySelector('.hero-section');
     if (heroSection) {
         heroSection.addEventListener('mouseenter', stopSlider);
         heroSection.addEventListener('mouseleave', startSlider);
     }
-    
-    // Start the slider
+
+    if (window.matchMedia) {
+        var orientationQuery = window.matchMedia('(orientation: portrait)');
+        var onOrientationChange = function() { syncOrientation(); };
+        if (orientationQuery.addEventListener) {
+            orientationQuery.addEventListener('change', onOrientationChange);
+        } else if (orientationQuery.addListener) {
+            orientationQuery.addListener(onOrientationChange);
+        }
+    }
+
+    syncOrientation();
     startSlider();
 });
 </script>

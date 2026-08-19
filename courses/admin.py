@@ -103,11 +103,37 @@ class WorkshopTutorFilter(admin.SimpleListFilter):
         return queryset
 
 
+class ImageLiveOnSiteFilter(admin.SimpleListFilter):
+    """Filter gd_image rows by whether they appear on the public site."""
+
+    title = 'Live on site'
+    parameter_name = 'live_on_site'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('1', 'Yes — shown on site'),
+            ('0', 'No — not shown'),
+        ]
+
+    def queryset(self, request, queryset):
+        from courses.image_usage import annotate_images_live_on_site
+
+        value = self.value()
+        if value is None:
+            return queryset
+        annotated = annotate_images_live_on_site(queryset)
+        if value == '1':
+            return annotated.filter(live_on_site=True)
+        if value == '0':
+            return annotated.filter(live_on_site=False)
+        return queryset
+
 
 @admin.register(Image)
 class ImageAdmin(LegacyAuditAdminMixin, PlatformAdminOnlyMixin, admin.ModelAdmin):
     """Edit gd_image records (course images, etc.)."""
     form = ImageAdminForm
+    change_list_template = 'admin/courses/image/change_list.html'
     list_per_page = 50
     list_max_show_all = 100
     show_full_result_count = False
@@ -116,6 +142,8 @@ class ImageAdmin(LegacyAuditAdminMixin, PlatformAdminOnlyMixin, admin.ModelAdmin
         'id',
         'file_name',
         'source_name',
+        'live_on_site_display',
+        'live_usage_display',
         'get_image_type_display',
         'get_image_category_display',
         'get_user_display',
@@ -124,13 +152,14 @@ class ImageAdmin(LegacyAuditAdminMixin, PlatformAdminOnlyMixin, admin.ModelAdmin
         'width',
         'height',
     ]
-    list_filter = ['active', 'image_type_id', 'image_category_id']
+    list_filter = [ImageLiveOnSiteFilter, 'active', 'image_type_id', 'image_category_id']
     search_fields = ['file_name', 'source_name', 'description']
     readonly_fields = [
         'mime_type',
         'file_size',
         'height',
         'width',
+        'live_usage_detail',
         'createdby_id',
         'updatedby_id',
         'created_at',
@@ -151,12 +180,94 @@ class ImageAdmin(LegacyAuditAdminMixin, PlatformAdminOnlyMixin, admin.ModelAdmin
             url,
         )
 
+    def _usage_map(self):
+        cache = getattr(self, '_live_usage_map_cache', None)
+        if cache is None:
+            from courses.image_usage import build_gd_image_usage_map
+
+            cache = build_gd_image_usage_map()
+            self._live_usage_map_cache = cache
+        return cache
+
+    @admin.display(description='Live on site', boolean=True)
+    def live_on_site_display(self, obj):
+        if not obj or not obj.pk:
+            return False
+        annotated = getattr(obj, 'live_on_site', None)
+        if annotated is not None:
+            return bool(annotated)
+        return obj.pk in self._usage_map()
+
+    @admin.display(description='Used where')
+    def live_usage_display(self, obj):
+        if not obj or not obj.pk:
+            return '—'
+        from courses.image_usage import format_usage_lines
+
+        return format_usage_lines(self._usage_map().get(obj.pk, []), max_items=3)
+
+    @admin.display(description='Live on site')
+    def live_usage_detail(self, obj):
+        if not obj or not obj.pk:
+            return 'Save the image first.'
+        from courses.image_usage import build_gd_image_usage_map, format_usage_lines
+
+        usages = build_gd_image_usage_map([obj.pk]).get(obj.pk, [])
+        if not usages:
+            return 'Not currently shown on the public site (active courses or bookable workshops).'
+        return format_usage_lines(usages, max_items=20)
+
+    def get_queryset(self, request):
+        from courses.image_usage import annotate_images_live_on_site
+
+        return annotate_images_live_on_site(super().get_queryset(request))
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                'live-on-site/',
+                self.admin_site.admin_view(self.live_on_site_view),
+                name='courses_image_live_on_site',
+            ),
+        ]
+        return custom + urls
+
+    def live_on_site_view(self, request):
+        from collections import Counter
+
+        from courses.image_usage import collect_live_site_images
+
+        rows = collect_live_site_images()
+        area_counts = sorted(Counter(r.area for r in rows).items())
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Images live on the public site',
+            'rows': rows,
+            'area_counts': area_counts,
+            'opts': self.model._meta,
+        }
+        return TemplateResponse(
+            request,
+            'admin/courses/image/live_on_site.html',
+            context,
+        )
+
     fieldsets = [
         ('File', {
             'fields': ('file_name', 'source_name', 'mime_type', 'file_size', 'height', 'width')
         }),
         ('Classification', {
             'fields': ('image_type', 'image_category', 'link_to', 'active', 'image_user')
+        }),
+        ('Live on site', {
+            'fields': ('live_usage_detail',),
+            'description': (
+                'Where this library image appears on the public site '
+                '(active courses and bookable workshops). '
+                'Heroes, gift vouchers, before/after and venue uploads are separate assets — '
+                'see “Live on site” on the Images list.'
+            ),
         }),
         ('Description', {
             'fields': ('description',)
@@ -399,14 +510,14 @@ class TutorAdmin(PlatformAdminOnlyMixin, SearchFirstChangeListMixin, admin.Model
 
     change_list_template = 'admin/courses/tutor/change_list.html'
     form = TutorAdminForm
-    list_display = ['lastname', 'firstname', 'email', 'active']
+    list_display = ['lastname', 'firstname', 'email', 'telephone', 'active']
     list_display_links = ['lastname', 'firstname']
     list_editable = ['active']
     list_filter = [GdActiveFilter]
-    search_fields = ['firstname', 'lastname', 'email']
-    search_help_text = 'Search by name or email.'
+    search_fields = ['firstname', 'lastname', 'email', 'telephone']
+    search_help_text = 'Search by name, email, or telephone.'
     ordering = ['lastname', 'firstname']
-    fields = ['firstname', 'lastname', 'email', 'active']
+    fields = ['firstname', 'lastname', 'email', 'telephone', 'active']
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         if db_field.name == 'active':
@@ -839,7 +950,6 @@ class WorkshopAdmin(
                 'byline',
                 'blurb',
                 'comments',
-                'reminder_message',
                 'approve',
                 'image_preview',
                 'images',
@@ -863,6 +973,20 @@ class WorkshopAdmin(
 
     def get_fieldsets(self, request, obj=None):
         fieldsets = self._fieldsets_without_bookings(list(super().get_fieldsets(request, obj)))
+        if request.user.is_superuser:
+            reminder_fields = ['reminder_message']
+            if obj and obj.pk:
+                reminder_fields.append('reminder_email_preview')
+            fieldsets.append((
+                'Reminder email',
+                {
+                    'fields': tuple(reminder_fields),
+                    'description': (
+                        'Sent to confirmed students one day before a fixed-date workshop. '
+                        'Edit the shared intro and closing under Website → Workshop reminder email.'
+                    ),
+                },
+            ))
         if obj and obj.pk:
             fieldsets.append((
                 'Customers',
@@ -887,6 +1011,9 @@ class WorkshopAdmin(
 
     def get_readonly_fields(self, request, obj=None):
         readonly = list(super().get_readonly_fields(request, obj))
+        if request.user.is_superuser and obj and obj.pk:
+            if 'reminder_email_preview' not in readonly:
+                readonly.append('reminder_email_preview')
         if obj and obj.pk:
             if 'bookings_display' not in readonly:
                 readonly.append('bookings_display')
@@ -1142,6 +1269,22 @@ class WorkshopAdmin(
     @admin.display(description='Updated by')
     def updatedby_display(self, obj):
         return obj.get_updatedby_display()
+
+    @admin.display(description='Preview')
+    def reminder_email_preview(self, obj):
+        if not obj or not obj.pk:
+            return 'Save the workshop first.'
+        from django.template.loader import render_to_string
+
+        from bookings.email_context import workshop_reminder_preview_context
+
+        context = workshop_reminder_preview_context(obj)
+        html = render_to_string('emails/workshop_reminder.html', context)
+        return format_html(
+            '<div class="gd-reminder-email-preview" style="border:1px solid #ddd;'
+            'border-radius:6px;max-width:720px;overflow:auto;background:#fff;">{}</div>',
+            mark_safe(html),
+        )
 
     @admin.display(description='')
     def bookings_display(self, obj):

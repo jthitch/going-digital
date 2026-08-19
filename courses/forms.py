@@ -900,7 +900,7 @@ class TutorAdminForm(forms.ModelForm):
 
     class Meta:
         model = Tutor
-        fields = ['firstname', 'lastname', 'email', 'active']
+        fields = ['firstname', 'lastname', 'email', 'telephone', 'active']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1006,6 +1006,16 @@ class WorkshopAdminForm(forms.ModelForm):
         widget=WorkshopBylineWidget(config_name='default'),
         label='Byline',
     )
+    reminder_message = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'rows': 5, 'class': 'form-control'}),
+        label='Reminder email notes',
+        help_text=(
+            'Optional notes included in the day-before reminder email as “Course notes”. '
+            'The workshop byline above is also sent as “Workshop details”. '
+            'Superusers can edit the shared intro and closing under Website → Workshop reminder email.'
+        ),
+    )
     region = forms.ModelChoiceField(
         queryset=Region.objects.filter(active=1).order_by('region_name'),
         required=False,
@@ -1077,8 +1087,6 @@ class WorkshopAdminForm(forms.ModelForm):
         self.editor_user_id = editor_user_id
         super().__init__(*args, **kwargs)
         if region_ids is not None:
-            from django.db.models import Q
-
             region_qs = Region.objects.filter(active=1, pk__in=region_ids).order_by('region_name')
             self.fields['region'].queryset = region_qs
             from .region_scope import filter_courses_for_workshop_picker

@@ -1,5 +1,34 @@
 /* Dual-list venue picker with collapsible region groups */
 
+/* Keep the real <select> in the form (for submit) but hide it —
+   region-grouped-venue.js builds the visible dual-list UI beside it.
+   Also defeat Jazzmin Select2 chrome that targets these fields. */
+select.gd-region-grouped-venue,
+select.gd-region-grouped-venue.select2-hidden-accessible,
+.gd-venue-picker select.gd-region-grouped-venue,
+.gd-venue-picker .gd-venue-picker__select {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+    display: none !important;
+}
+
+.select2-container:has(+ select.gd-region-grouped-venue),
+select.gd-region-grouped-venue + .select2-container,
+.gd-venue-picker ~ .select2-container,
+.form-row:has(select.gd-region-grouped-venue) > .select2-container,
+.form-row:has(.gd-venue-picker) > .select2-container,
+.flex-container:has(select.gd-region-grouped-venue) > .select2-container,
+.flex-container:has(.gd-venue-picker) > .select2-container {
+    display: none !important;
+}
+
 .gd-venue-picker {
     display: flex;
     flex-wrap: wrap;
@@ -17,18 +46,6 @@
 .gd-venue-picker__intro + select.gd-region-grouped-venue + .gd-venue-picker,
 select.gd-region-grouped-venue + .gd-venue-picker {
     margin-top: 0;
-}
-
-.gd-venue-picker__select {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    padding: 0 !important;
-    margin: -1px !important;
-    overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important;
-    white-space: nowrap !important;
-    border: 0 !important;
 }
 
 .gd-venue-picker__col {

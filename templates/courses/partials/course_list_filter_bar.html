@@ -34,7 +34,7 @@ Unified course list / map filter bar — compact search trigger (Airbnb-style) +
                         </span>
                         <span class="map-filter-search-trigger__secondary">
                             {% if date_range_display %}{{ date_range_display }}{% else %}Any dates{% endif %}
-                            · {% if near_me_active %}Within {{ near_radius }} miles{% elif not map_view_active %}{% if current_city %}{% for venue in filter_venues %}{% if current_city == venue.id|stringformat:"s" %}{{ venue.venue_name }}{% endif %}{% endfor %}{% else %}All locations{% endif %}{% else %}All locations{% endif %}
+                            · {% if near_me_active %}Within {{ near_radius }} miles{% elif place_search_active %}Near {{ place_search_label }} · {{ near_radius }} miles{% elif not map_view_active %}{% if current_city %}{% for venue in filter_venues %}{% if current_city == venue.id|stringformat:"s" %}{{ venue.venue_name }}{% endif %}{% endfor %}{% else %}All locations{% endif %}{% else %}All locations{% endif %}
                             {% if active_filter_count %} · {{ active_filter_count }} filter{{ active_filter_count|pluralize }}{% endif %}
                         </span>
                     </span>
@@ -86,7 +86,7 @@ Unified course list / map filter bar — compact search trigger (Airbnb-style) +
                        form="course-filter-quick-form"
                        class="map-filter-search search-panel-field__input"
                        value="{{ current_search }}"
-                       placeholder="e.g. portrait, beginner, Lightroom"
+                       placeholder="e.g. portrait, Bath, BS8 1TH"
                        autocomplete="off"
                        enterkeyhint="search">
             </div>
@@ -106,7 +106,7 @@ Unified course list / map filter bar — compact search trigger (Airbnb-style) +
             <input type="hidden" name="date_to" form="course-filter-quick-form" id="filter-date-to" value="{{ current_date_to }}">
         </div>
 
-        {% if not map_view_active and not near_me_active %}
+        {% if not map_view_active and not location_search_active %}
         <div class="search-panel-field search-panel-field--location">
             <label class="search-panel-field__label" for="course-search-location">Location</label>
             <div class="search-panel-field__control search-panel-field__control--select">
@@ -124,12 +124,12 @@ Unified course list / map filter bar — compact search trigger (Airbnb-style) +
                 <svg class="search-panel-field__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
         </div>
-        {% elif current_city and not near_me_active %}
+        {% elif current_city and not location_search_active %}
         <input type="hidden" name="city" form="course-filter-quick-form" value="{{ current_city }}">
         {% endif %}
 
         <div class="search-panel-field search-panel-field--near">
-            <span class="search-panel-field__label">Near me</span>
+            <span class="search-panel-field__label">{% if place_search_active %}Near {{ place_search_label }}{% else %}Near me{% endif %}</span>
             <div class="course-near" id="course-near-controls">
                 <button type="button"
                         class="course-near__button{% if near_me_active %} is-active{% endif %}"
@@ -139,7 +139,7 @@ Unified course list / map filter bar — compact search trigger (Airbnb-style) +
                     <svg class="course-near__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
                     {% if near_me_active %}Using your location{% else %}Use my location{% endif %}
                 </button>
-                {% if near_me_active %}
+                {% if location_search_active %}
                 <div class="course-near__radius" role="group" aria-label="Search radius">
                     <button type="submit"
                             form="course-filter-quick-form"

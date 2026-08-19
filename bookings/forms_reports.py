@@ -4,6 +4,8 @@ from django import forms
 from courses.models import Region, Tutor
 from bookings.reports import report_filter_regions, report_filter_tutors
 
+MONTHS_CUSTOM = 'custom'
+
 
 class BookingReportFilterForm(forms.Form):
     region = forms.ModelChoiceField(
@@ -25,10 +27,21 @@ class BookingReportFilterForm(forms.Form):
             (6, 'Last 6 months'),
             (12, 'Last 12 months'),
             (24, 'Last 24 months'),
+            (MONTHS_CUSTOM, 'Custom date range'),
         ],
         initial=12,
         label='Period',
-        widget=forms.Select(attrs={'class': 'form-control'}),
+        widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_months'}),
+    )
+    start_date = forms.DateField(
+        required=False,
+        label='Start date',
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+    )
+    end_date = forms.DateField(
+        required=False,
+        label='End date',
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
     )
 
     def __init__(self, user, *args, **kwargs):
@@ -55,7 +68,31 @@ class BookingReportFilterForm(forms.Form):
         return tutor.pk if tutor else None
 
     def cleaned_months_back(self):
-        return int(self.cleaned_data.get('months') or 12)
+        months = self.cleaned_data.get('months')
+        if months == MONTHS_CUSTOM:
+            return None
+        return int(months or 12)
+
+    def cleaned_custom_date_range(self):
+        if self.cleaned_data.get('months') != MONTHS_CUSTOM:
+            return None
+        return self.cleaned_data['start_date'], self.cleaned_data['end_date']
+
+    def clean(self):
+        cleaned = super().clean()
+        months = cleaned.get('months')
+        start = cleaned.get('start_date')
+        end = cleaned.get('end_date')
+        if months == MONTHS_CUSTOM:
+            if not start or not end:
+                raise forms.ValidationError(
+                    'Start and end dates are required for a custom period.',
+                )
+            if end < start:
+                raise forms.ValidationError(
+                    'End date must be on or after the start date.',
+                )
+        return cleaned
 
 
 class PaymentGatewayReportFilterForm(forms.Form):

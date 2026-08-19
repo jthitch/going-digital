@@ -7,7 +7,7 @@
         <h5 class="m-0">{% trans 'Filters' %}</h5>
     </div>
     <div class="card-body">
-        <form method="get" class="form-row align-items-end">
+        <form method="get" class="form-row align-items-end" id="monthly-report-filters">
             <input type="hidden" name="report" value="monthly">
             <div class="form-group col-md-3">
                 <label for="{{ form.region.id_for_label }}">{{ form.region.label }}</label>
@@ -21,11 +21,22 @@
                 <label for="{{ form.months.id_for_label }}">{{ form.months.label }}</label>
                 {{ form.months }}
             </div>
+            <div class="form-group col-md-3 col-lg-2 monthly-custom-dates{% if form.data.months != 'custom' and not form.non_field_errors %} d-none{% endif %}" data-monthly-custom-date>
+                <label for="{{ form.start_date.id_for_label }}">{{ form.start_date.label }}</label>
+                {{ form.start_date }}
+            </div>
+            <div class="form-group col-md-3 col-lg-2 monthly-custom-dates{% if form.data.months != 'custom' and not form.non_field_errors %} d-none{% endif %}" data-monthly-custom-date>
+                <label for="{{ form.end_date.id_for_label }}">{{ form.end_date.label }}</label>
+                {{ form.end_date }}
+            </div>
             <div class="form-group col-md-3">
                 <button type="submit" class="btn btn-primary">{% trans 'Apply filters' %}</button>
                 <a href="{% url 'admin:bookings_reports' %}?report=monthly" class="btn btn-secondary">{% trans 'Reset' %}</a>
             </div>
         </form>
+        {% if form.non_field_errors %}
+        <div class="alert alert-warning mt-3 mb-0">{{ form.non_field_errors }}</div>
+        {% endif %}
     </div>
 </div>
 
@@ -34,7 +45,12 @@
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
         <h5 class="m-0">{% trans 'Monthly summary' %}</h5>
         <div class="d-flex align-items-center flex-wrap">
-            <span class="text-muted small mr-3">{% trans 'Bookings and income by booking date; courses by workshop date' %}</span>
+            <span class="text-muted small mr-3">
+                {% if custom_date_range %}
+                {{ start_date|date:"j M Y" }} – {{ end_date|date:"j M Y" }} ·
+                {% endif %}
+                {% trans 'Bookings and income by booking date; courses by workshop date' %}
+            </span>
             <a href="{{ export_csv_url }}" class="btn btn-sm btn-outline-secondary">{% trans 'Export CSV' %}</a>
         </div>
     </div>
@@ -89,4 +105,19 @@
 {% elif request.GET %}
 <div class="alert alert-warning">{% trans 'Please correct the filter errors above.' %}</div>
 {% endif %}
+<script>
+(function () {
+    var period = document.getElementById('id_months');
+    if (!period) return;
+    var customFields = document.querySelectorAll('[data-monthly-custom-date]');
+    function syncCustomDates() {
+        var show = period.value === 'custom';
+        customFields.forEach(function (el) {
+            el.classList.toggle('d-none', !show);
+        });
+    }
+    period.addEventListener('change', syncCustomDates);
+    syncCustomDates();
+})();
+</script>
 {% endblock %}

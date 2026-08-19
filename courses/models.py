@@ -234,6 +234,7 @@ class Tutor(models.Model):
     firstname = models.CharField(max_length=255, default='', db_column='firstname')
     lastname = models.CharField(max_length=255, default='', db_column='lastname')
     email = models.CharField(max_length=255, null=True, blank=True, db_column='email')
+    telephone = models.CharField(max_length=255, null=True, blank=True, db_column='telephone')
 
     class Meta:
         db_table = 'gd_tutor'

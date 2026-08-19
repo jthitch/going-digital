@@ -14,6 +14,7 @@ from .franchisee_contract import (
     franchisee_contract_details,
     franchisee_contract_notice_from_details,
 )
+from .reminder_email_copy import reminder_email_copy
 from .social_media import facebook_groups_context_for_bookings, facebook_share_items_for_bookings
 
 
@@ -190,3 +191,102 @@ def booking_confirmation_subject(bookings):
     if len(titles) == 2:
         return f'Booking confirmed: {titles[0]} and {titles[1]}'
     return f'Booking confirmed: {len(bookings)} courses'
+
+
+def _workshop_notes_for_email(workshop):
+    """Plain-text notes to include in the day-before reminder."""
+    if not workshop:
+        return []
+
+    notes = []
+    reminder = (workshop.reminder_message or '').strip()
+    if reminder:
+        notes.append(('Course notes', reminder))
+
+    byline = (workshop.byline_plain or '').strip()
+    if byline:
+        notes.append(('Workshop details', byline))
+
+    return notes
+
+
+def booking_reminder_context(booking, *, request=None):
+    """Build context for the day-before workshop reminder email."""
+    site_url = site_base_url(request) if request is not None else site_url_for_booking(booking)
+    item = _booking_item_context(booking, site_url=site_url)
+    workshop = booking.workshop
+
+    tutor_telephone = ''
+    if workshop and workshop.tutor_id:
+        tutor = Tutor.objects.filter(pk=workshop.tutor_id).first()
+        if tutor:
+            tutor_telephone = (tutor.telephone or '').strip()
+
+    from bookings.tutor_contact import tutor_contact_for_booking
+
+    tutor_contact = tutor_contact_for_booking(booking)
+
+    copy = reminder_email_copy()
+    return {
+        'booking': booking,
+        'student_name': f'{booking.student_first_name} {booking.student_last_name}'.strip(),
+        'student_email': booking.student_email,
+        'contact_email': getattr(settings, 'CONTACT_EMAIL', settings.DEFAULT_FROM_EMAIL),
+        'site_url': site_url,
+        'logo_url': _logo_url(site_url),
+        'tutor_telephone': tutor_telephone,
+        'tutor_mailto_url': tutor_contact.get('mailto_url', ''),
+        'workshop_notes': _workshop_notes_for_email(workshop),
+        'reminder_intro': copy['intro'],
+        'reminder_closing': copy['closing'],
+        **item,
+    }
+
+
+def workshop_reminder_preview_context(workshop, *, site_url=None):
+    """Build reminder email context for admin preview (sample student if no booking)."""
+    from bookings.models import Booking
+
+    booking = (
+        Booking.objects.filter(workshop=workshop, status='confirmed')
+        .select_related('workshop', 'workshop__course', 'workshop__venue', 'payment')
+        .order_by('id')
+        .first()
+    )
+    if booking and booking.is_confirmed:
+        return booking_reminder_context(booking)
+
+    from types import SimpleNamespace
+    from decimal import Decimal
+
+    if site_url is None:
+        site_url = getattr(settings, 'SITE_URL', 'https://example.com').rstrip('/')
+
+    sample = SimpleNamespace(
+        id=0,
+        workshop=workshop,
+        booking_reference='SAMPLE-REF',
+        student_first_name='Sample',
+        student_last_name='Student',
+        student_email='student@example.com',
+        student_phone='',
+        special_requirements='',
+        price_paid=Decimal('0.00'),
+        list_price=Decimal('0.00'),
+        voucher_code='',
+        voucher_discount=Decimal('0.00'),
+        is_confirmed=True,
+        status='confirmed',
+    )
+    return booking_reminder_context(sample, request=None)
+
+
+def booking_reminder_subject(booking):
+    workshop = booking.workshop
+    course_title = workshop.course.title if workshop and workshop.course else 'Workshop'
+    start = workshop.start_date if workshop else None
+    if start:
+        date_label = start.strftime('%A %d %B')
+        return f'Reminder: {course_title} — {date_label}'
+    return f'Reminder: {course_title} is tomorrow'
+

@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.templatetags.static import static
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 from .forms_newsletter import NewsletterModalSettingsForm
 from .forms_legal import LegalPageAdminForm
@@ -16,6 +17,7 @@ from .models import (
     BeforeAfterImage,
     FAQ,
     Redirect,
+    WorkshopReminderEmailSettings,
 )
 from core.permissions import PlatformAdminMixin, SuperuserOnlyAdminMixin
 
@@ -308,6 +310,68 @@ class NewsletterModalSettingsAdmin(PlatformAdminMixin, admin.ModelAdmin):
         return request.user.is_platform_admin
 
 
+@admin.register(WorkshopReminderEmailSettings)
+class WorkshopReminderEmailSettingsAdmin(SuperuserOnlyAdminMixin, admin.ModelAdmin):
+    """Shared intro and closing copy for day-before workshop reminder emails."""
+
+    list_display = ['id', 'intro_preview', 'updated_at']
+    readonly_fields = ['updated_at', 'sample_preview']
+    fieldsets = [
+        (
+            'Reminder email copy',
+            {
+                'fields': ('intro', 'closing', 'sample_preview'),
+                'description': (
+                    'Sent automatically one day before each fixed-date workshop to confirmed students. '
+                    'Course details, tutor contact, and per-workshop notes are added from each workshop '
+                    '(Workshops → Reminder email).'
+                ),
+            },
+        ),
+        (
+            'Timestamps',
+            {'fields': ('updated_at',), 'classes': ('collapse',)},
+        ),
+    ]
+
+    @admin.display(description='Intro')
+    def intro_preview(self, obj):
+        if not obj:
+            return '—'
+        text = (obj.intro or '').strip()
+        if len(text) > 80:
+            return f'{text[:77]}…'
+        return text or '—'
+
+    @admin.display(description='Sample email')
+    def sample_preview(self, obj):
+        from django.template.loader import render_to_string
+
+        from bookings.email_context import workshop_reminder_preview_context
+        from courses.models import Workshop
+
+        workshop = (
+            Workshop.objects.filter(open_dated=0, active=1)
+            .select_related('course', 'venue')
+            .order_by('-date')
+            .first()
+        )
+        if not workshop:
+            return 'No workshops available to preview.'
+        context = workshop_reminder_preview_context(workshop)
+        html = render_to_string('emails/workshop_reminder.html', context)
+        return format_html(
+            '<div style="border:1px solid #ddd;border-radius:6px;max-width:720px;'
+            'overflow:auto;background:#fff;">{}</div>',
+            mark_safe(html),
+        )
+
+    def has_add_permission(self, request):
+        if WorkshopReminderEmailSettings.objects.exists():
+            return False
+        return request.user.is_active and request.user.is_superuser
+
+
 @admin.register(LegalPage)
 class LegalPageAdmin(SuperuserOnlyAdminMixin, admin.ModelAdmin):
     """Terms and privacy policy — editable by superusers only."""
@@ -416,17 +480,23 @@ class GoogleReviewsSettingsAdmin(PlatformAdminMixin, admin.ModelAdmin):
 @admin.register(HeroImage)
 class HeroImageAdmin(PlatformAdminMixin, admin.ModelAdmin):
     """Hero image admin - only accessible to platform admins."""
-    list_display = ['id', 'image_preview', 'order', 'is_active', 'created_at']
-    list_filter = ['is_active', 'created_at']
+    list_display = ['id', 'image_preview', 'order', 'screen_orientation', 'is_active', 'created_at']
+    list_filter = ['is_active', 'screen_orientation', 'created_at']
     list_editable = ['order', 'is_active']
     fieldsets = [
         ('Image', {
             'fields': ('image',),
-            'description': 'Upload hero image. The text overlay is fixed on the homepage and cannot be changed per image.'
+            'description': (
+                'Upload hero image. The text overlay is fixed on the homepage and cannot be '
+                'changed per image. Use a wide crop for landscape screens and a tall crop for '
+                'portrait screens.'
+            ),
         }),
         ('Display Settings', {
-            'fields': ('order', 'is_active'),
-            'description': 'Control the display order and visibility of this hero image.'
+            'fields': ('order', 'is_active', 'screen_orientation'),
+            'description': (
+                'Control display order, visibility, and which screen orientations show this image.'
+            ),
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),

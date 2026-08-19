@@ -19,13 +19,13 @@ from bookings.legacy_report_queries import (
 )
 from bookings.legacy_monthly_report import monthly_booking_stats
 from bookings.report_payment_data import (
-    CASH_GATEWAY_ID,
     STRIPE_GATEWAY_ID,
     VOUCHER_GATEWAY_ID,
     booking_basket_id as _booking_basket_id,
     booking_transaction_id as _booking_transaction_id,
     gateway_id_for_booking as _gateway_id_for_booking,
     gateway_name as _gateway_name,
+    is_manual_report_gateway,
     load_basket_details as _load_basket_details,
     load_payment_gateway_meta,
     load_payment_gateway_names,
@@ -183,15 +183,42 @@ def _aware_range(start_day, end_day):
 def _iter_months(months_back):
     """Yield (year, month) from oldest to newest, inclusive of current month."""
     today = timezone.localdate()
-    year, month = today.year, today.month
+    return _iter_months_between(
+        _month_start(today.year, today.month),
+        today,
+        months_back=months_back,
+    )
+
+
+def _iter_months_between(start_day, end_day, *, months_back=None):
+    """
+    Yield (year, month) from oldest to newest.
+
+    If months_back is set, walk that many months ending at end_day's month
+    (used for preset periods). Otherwise include every month from start_day
+    through end_day inclusive.
+    """
+    if months_back is not None:
+        year, month = end_day.year, end_day.month
+        months = []
+        for _ in range(months_back):
+            months.append((year, month))
+            month -= 1
+            if month < 1:
+                month = 12
+                year -= 1
+        return reversed(months)
+
+    year, month = start_day.year, start_day.month
+    end_year, end_month = end_day.year, end_day.month
     months = []
-    for _ in range(months_back):
+    while (year, month) <= (end_year, end_month):
         months.append((year, month))
-        month -= 1
-        if month < 1:
-            month = 12
-            year -= 1
-    return reversed(months)
+        month += 1
+        if month > 12:
+            month = 1
+            year += 1
+    return months
 
 
 def _booking_queryset(user, region_id=None, tutor_id=None):
@@ -233,14 +260,27 @@ def report_filter_tutors(user, region_id=None):
     )
 
 
-def build_monthly_report(user, *, region_id=None, tutor_id=None, months_back=12):
+def build_monthly_report(
+    user,
+    *,
+    region_id=None,
+    tutor_id=None,
+    months_back=12,
+    start_date=None,
+    end_date=None,
+):
     """Build monthly rows for bookings, income, courses and % sold (legacy + new site)."""
     from django.utils.formats import date_format
 
     rows = []
     now = timezone.now()
 
-    for year, month in _iter_months(months_back):
+    if start_date is not None and end_date is not None:
+        month_pairs = _iter_months_between(start_date, end_date)
+    else:
+        month_pairs = _iter_months(months_back)
+
+    for year, month in month_pairs:
         month_start = _month_start(year, month)
         month_end = _next_month_start(year, month)
         workshop_start, workshop_end = _aware_range(month_start, month_end)
@@ -420,6 +460,34 @@ def _load_franchisee_names(user_ids):
     }
 
 
+def _franchisee_payment_columns(amount_paid, gateway_id, gateway_meta):
+    """
+    Split amount into customer vs manual columns for the franchisee report.
+
+    Online gateways (WorldPay, Stripe, PayPal, etc.) stay in customer payment
+    even when gd_payment_gateway.manual_payment_option is set.
+    """
+    customer_payment = _quantize_money(amount_paid)
+
+    if is_manual_report_gateway(gateway_id):
+        return {
+            'customer_payment': Decimal('0.00'),
+            'manual_payment': customer_payment,
+            'transaction_fee': Decimal('0.00'),
+        }
+    if gateway_id == VOUCHER_GATEWAY_ID:
+        return {
+            'customer_payment': Decimal('0.00'),
+            'manual_payment': Decimal('0.00'),
+            'transaction_fee': Decimal('0.00'),
+        }
+    return {
+        'customer_payment': customer_payment,
+        'manual_payment': Decimal('0.00'),
+        'transaction_fee': _gateway_transaction_fee(customer_payment, gateway_meta),
+    }
+
+
 def build_franchisee_booking_report(user, start_date, end_date):
     """Line-item franchisee bookings via gd_bookings_workshops (legacy) and synced rows (new site)."""
     gateway_meta = load_payment_gateway_meta()
@@ -445,7 +513,6 @@ def build_franchisee_booking_report(user, start_date, end_date):
         gateway = gateway_meta.get(gateway_id or 0, {})
 
         payment_method = (row.payment_gateway or '').strip() or 'Unknown'
-        customer_payment = _quantize_money(row.amount_paid)
         workshop_cost = _quantize_money(row.workshop_cost)
         gift_voucher_value = _quantize_money(row.amount_paid_by_voucher)
         promotional_discount = _quantize_money(row.amount_paid_by_promotional_voucher)
@@ -453,22 +520,12 @@ def build_franchisee_booking_report(user, start_date, end_date):
         if promotional_vouchers_redeemed in ('', '0', 'NULL'):
             promotional_vouchers_redeemed = ''
 
-        if (
-            gateway.get('manual_payment_option')
-            or row.manual_payment_option
-            or gateway_id == CASH_GATEWAY_ID
-        ):
-            manual_payment = customer_payment
-            customer_payment = Decimal('0.00')
-            transaction_fee = Decimal('0.00')
-        elif gateway_id == VOUCHER_GATEWAY_ID:
-            manual_payment = Decimal('0.00')
-            customer_payment = Decimal('0.00')
+        columns = _franchisee_payment_columns(row.amount_paid, gateway_id, gateway)
+        customer_payment = columns['customer_payment']
+        manual_payment = columns['manual_payment']
+        transaction_fee = columns['transaction_fee']
+        if gateway_id == VOUCHER_GATEWAY_ID:
             gift_voucher_value = gift_voucher_value or workshop_cost
-            transaction_fee = Decimal('0.00')
-        else:
-            manual_payment = Decimal('0.00')
-            transaction_fee = _gateway_transaction_fee(customer_payment, gateway)
 
         gift_voucher_transaction_fee = Decimal('0.00')
         if gift_voucher_value > 0 and gateway_id == VOUCHER_GATEWAY_ID:

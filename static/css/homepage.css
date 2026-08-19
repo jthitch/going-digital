@@ -44,6 +44,21 @@
     pointer-events: none;
 }
 
+/* Show each slide only on matching screen orientation */
+@media (orientation: portrait) {
+    .hero-slide.hero-slide--landscape,
+    .hero-indicator.hero-indicator--landscape {
+        display: none !important;
+    }
+}
+
+@media (orientation: landscape) {
+    .hero-slide.hero-slide--portrait,
+    .hero-indicator.hero-indicator--portrait {
+        display: none !important;
+    }
+}
+
 .hero-overlay {
     position: absolute;
     top: 0;

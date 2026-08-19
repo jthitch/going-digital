@@ -135,7 +135,11 @@ def bookable_workshops_for_request(request, *, apply_location_filter=True):
     All workshop-level filters are applied on one queryset so a course only matches
     when the same workshop satisfies date, venue, and status constraints.
     Open-dated workshops are always included in date-filtered results.
+
+    When `q` is a town, city or postcode (and browser near-me is not set), workshops
+    are limited to venues near that place.
     """
+    from courses.search_location import resolve_search_place
     from courses.venue_list import apply_near_me_to_workshop_queryset, parse_near_me
 
     date_from, date_to, dt_from, dt_to = parse_course_list_date_range(request)
@@ -143,8 +147,16 @@ def bookable_workshops_for_request(request, *, apply_location_filter=True):
     queryset = apply_workshop_list_date_range(queryset, dt_from, dt_to)
     is_map_view = request.GET.get('view') == 'map'
     near_lat, near_lng, near_radius = parse_near_me(request.GET)
+    resolved_place = None
+    if near_lat is None or near_lng is None:
+        search = (request.GET.get('q') or '').strip()
+        if search:
+            resolved_place = resolve_search_place(search)
+            if resolved_place:
+                near_lat = resolved_place.latitude
+                near_lng = resolved_place.longitude
     if near_lat is not None and near_lng is not None:
-        # Near-me applies on list and map; exact venue (?city=) is ignored while active.
+        # Near-me / place search applies on list and map; exact venue (?city=) is ignored.
         queryset = apply_near_me_to_workshop_queryset(
             queryset,
             lat=near_lat,
@@ -155,7 +167,7 @@ def bookable_workshops_for_request(request, *, apply_location_filter=True):
         queryset = apply_venue_filter_to_workshop_qs(
             queryset, request.GET.get('city', ''),
         )
-    return queryset, (date_from, date_to)
+    return queryset, (date_from, date_to), resolved_place
 
 
 def normalize_city_param(raw):
@@ -219,9 +231,16 @@ class HomePageView(TemplateView):
     template_name = 'courses/homepage.html'
     
     def get_hero_images(self):
-        """Get hero images from database (managed by platform admins)."""
-        hero_images = HeroImage.objects.filter(is_active=True).order_by('order', 'created_at')
-        return [hero.image.url for hero in hero_images if hero.image]
+        """Active hero slides for the homepage slider (url + screen orientation)."""
+        heroes = HeroImage.objects.filter(is_active=True).order_by('order', 'created_at')
+        return [
+            {
+                'url': hero.image.url,
+                'orientation': hero.screen_orientation or HeroImage.ORIENTATION_BOTH,
+            }
+            for hero in heroes
+            if hero.image
+        ]
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -413,7 +432,8 @@ class CourseListView(ListView):
         })
     
     def get_queryset(self):
-        workshop_qs, _ = bookable_workshops_for_request(self.request)
+        workshop_qs, _, resolved_place = bookable_workshops_for_request(self.request)
+        self._resolved_search_place = resolved_place
         prefetch_qs = workshop_qs.select_related('venue', 'course').order_by(*bookable_workshop_ordering())
 
         queryset = Course.objects.filter(
@@ -436,8 +456,10 @@ class CourseListView(ListView):
             'course_name',
         )
 
-        search = self.request.GET.get('q', '')
-        if search:
+        search = (self.request.GET.get('q') or '').strip()
+        # Place keywords (town/city/postcode) already filtered workshops by distance;
+        # don't also require the place name to appear in course text.
+        if search and not resolved_place:
             queryset = queryset.filter(
                 Q(course_name__icontains=search) |
                 Q(course_description__icontains=search) |
@@ -564,15 +586,22 @@ class CourseListView(ListView):
 
         near_lat, near_lng, near_radius = parse_near_me(self.request.GET)
         near_me_active = near_lat is not None and near_lng is not None
+        resolved_place = getattr(self, '_resolved_search_place', None)
+        # Browser near-me wins; keyword place search only when lat/lng were not supplied.
+        place_search_active = bool(resolved_place) and not near_me_active
+        location_search_active = near_me_active or place_search_active
 
         context['current_category'] = self.request.GET.get('category', '')
         context['current_level'] = self.request.GET.get('level', '')
-        # Exact venue filter is suppressed while near-me is active.
+        # Exact venue filter is suppressed while near-me / place search is active.
         context['current_city'] = (
-            '' if near_me_active else normalize_city_param(self.request.GET.get('city', ''))
+            '' if location_search_active else normalize_city_param(self.request.GET.get('city', ''))
         )
         context['current_search'] = self.request.GET.get('q', '')
         context['near_me_active'] = near_me_active
+        context['place_search_active'] = place_search_active
+        context['location_search_active'] = location_search_active
+        context['place_search_label'] = resolved_place.label if place_search_active else ''
         context['near_lat'] = near_lat if near_me_active else ''
         context['near_lng'] = near_lng if near_me_active else ''
         context['near_radius'] = near_radius
@@ -603,7 +632,7 @@ class CourseListView(ListView):
             if force_map:
                 params['view'] = 'map'
                 params.pop('city', None)
-            if near_me_active:
+            if location_search_active:
                 params.pop('city', None)
             return params
 
@@ -629,11 +658,18 @@ class CourseListView(ListView):
         filter_venues = list(context['filter_venues'])
         active_filter_chips = []
         if context['current_search']:
-            active_filter_chips.append({
-                'type': 'Search',
-                'label': context['current_search'],
-                'url': _filter_url(exclude=('q',), force_map=is_map_view),
-            })
+            if place_search_active:
+                active_filter_chips.append({
+                    'type': 'Near',
+                    'label': f'{context["place_search_label"]} · within {near_radius} miles',
+                    'url': _filter_url(exclude=('q', 'radius'), force_map=is_map_view),
+                })
+            else:
+                active_filter_chips.append({
+                    'type': 'Search',
+                    'label': context['current_search'],
+                    'url': _filter_url(exclude=('q',), force_map=is_map_view),
+                })
         if near_me_active:
             active_filter_chips.append({
                 'type': 'Near me',
@@ -674,7 +710,7 @@ class CourseListView(ListView):
         
         # Base URL for infinite scroll (preserve filters, JS adds format=json&page=N)
         params = {k: v for k, v in self.request.GET.items() if k != 'page'}
-        if near_me_active:
+        if location_search_active:
             params.pop('city', None)
         base = reverse('courses:course_list')
         context['infinite_scroll_url'] = (base + '?' + urlencode(params)) if params else base
@@ -1222,7 +1258,7 @@ class CourseDetailView(DetailView):
 class CourseSearchAPIView(APIView):
     """API endpoint for React search/filter components."""
     def get(self, request):
-        queryset, _ = bookable_workshops_for_request(request)
+        queryset, *_ = bookable_workshops_for_request(request)
         queryset = queryset.select_related('course', 'venue')
 
         category = request.GET.get('category')

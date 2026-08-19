@@ -127,6 +127,11 @@ class Booking(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
+    reminder_email_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When the day-before workshop reminder email was sent to the student.',
+    )
     
     class Meta:
         db_table = 'bookings'
