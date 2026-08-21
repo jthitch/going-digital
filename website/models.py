@@ -552,6 +552,64 @@ class WorkshopReminderEmailSettings(models.Model):
         return (self.closing or '').strip() or DEFAULT_REMINDER_EMAIL_CLOSING
 
 
+DEFAULT_FOLLOW_UP_EMAIL_INTRO = (
+    'We hope you enjoyed your photography course. We would love to know how it went — '
+    'please tap a star rating below.'
+)
+DEFAULT_FOLLOW_UP_EMAIL_CLOSING = (
+    'Thank you for learning with Going Digital. Your feedback helps us improve.'
+)
+DEFAULT_FOLLOW_UP_FEEDBACK_PROMPT = (
+    'Thanks for your rating. Please tell us what we could improve — your tutor and '
+    'our team will read your comments.'
+)
+
+
+class WorkshopFollowUpEmailSettings(models.Model):
+    """
+    Singleton copy for the day-after workshop follow-up / rating email.
+    Superusers edit shared intro, closing, and feedback-form prompt.
+    """
+
+    intro = models.TextField(
+        blank=True,
+        default=DEFAULT_FOLLOW_UP_EMAIL_INTRO,
+        help_text='Opening paragraph in every day-after follow-up email.',
+    )
+    closing = models.TextField(
+        blank=True,
+        default=DEFAULT_FOLLOW_UP_EMAIL_CLOSING,
+        help_text='Closing paragraph after the star rating buttons.',
+    )
+    feedback_prompt = models.TextField(
+        blank=True,
+        default=DEFAULT_FOLLOW_UP_FEEDBACK_PROMPT,
+        help_text='Shown on the feedback form when the student rates 1-4 stars.',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'workshop_follow_up_email_settings'
+        verbose_name = 'Workshop follow-up email'
+        verbose_name_plural = 'Workshop follow-up email'
+
+    def __str__(self):
+        return 'Workshop follow-up email settings'
+
+    @classmethod
+    def get_singleton(cls):
+        return cls.objects.first()
+
+    def intro_text(self):
+        return (self.intro or '').strip() or DEFAULT_FOLLOW_UP_EMAIL_INTRO
+
+    def closing_text(self):
+        return (self.closing or '').strip() or DEFAULT_FOLLOW_UP_EMAIL_CLOSING
+
+    def feedback_prompt_text(self):
+        return (self.feedback_prompt or '').strip() or DEFAULT_FOLLOW_UP_FEEDBACK_PROMPT
+
+
 class LegalPage(models.Model):
     """
     Editable legal pages (terms and privacy). Two fixed rows — edit in admin as superuser.

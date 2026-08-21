@@ -47,6 +47,12 @@ def parse_device_and_browser(user_agent):
 
 def get_stripe_gateway_id():
     """Get Stripe payment gateway id, inserting if needed (MySQL / MariaDB)."""
+    from bookings.report_payment_data import (
+        STRIPE_TRANSACTION_PERCENTAGE,
+        ensure_stripe_gateway_fee,
+    )
+
+    ensure_stripe_gateway_fee()
     with connection.cursor() as cursor:
         cursor.execute(
             "SELECT id FROM gd_payment_gateway WHERE internal_name = %s",
@@ -61,9 +67,15 @@ def get_stripe_gateway_id():
             INSERT INTO gd_payment_gateway
             (show_enabled, enabled, editable, manual_payment_option, payment_gateway, internal_name,
              transaction_percentage, description, created_at, updated_at)
-            VALUES (1, 1, 0, 0, %s, %s, 0, 'Stripe payment gateway', %s, %s)
+            VALUES (1, 1, 0, 0, %s, %s, %s, 'Stripe payment gateway', %s, %s)
             """,
-            [STRIPE_GATEWAY_NAME, STRIPE_GATEWAY_NAME.lower(), now, now]
+            [
+                STRIPE_GATEWAY_NAME,
+                STRIPE_GATEWAY_NAME.lower(),
+                STRIPE_TRANSACTION_PERCENTAGE,
+                now,
+                now,
+            ],
         )
         return cursor.lastrowid
 

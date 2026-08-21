@@ -17,6 +17,7 @@ from .models import (
     BeforeAfterImage,
     FAQ,
     Redirect,
+    WorkshopFollowUpEmailSettings,
     WorkshopReminderEmailSettings,
 )
 from core.permissions import PlatformAdminMixin, SuperuserOnlyAdminMixin
@@ -324,7 +325,9 @@ class WorkshopReminderEmailSettingsAdmin(SuperuserOnlyAdminMixin, admin.ModelAdm
                 'description': (
                     'Sent automatically one day before each fixed-date workshop to confirmed students. '
                     'Course details, tutor contact, and per-workshop notes are added from each workshop '
-                    '(Workshops → Reminder email).'
+                    '(Workshops → Reminder email). Run daily via '
+                    '`python manage.py send_workshop_reminders` '
+                    '(optional: `--dry-run`, `--on-date YYYY-MM-DD`).'
                 ),
             },
         ),
@@ -368,6 +371,70 @@ class WorkshopReminderEmailSettingsAdmin(SuperuserOnlyAdminMixin, admin.ModelAdm
 
     def has_add_permission(self, request):
         if WorkshopReminderEmailSettings.objects.exists():
+            return False
+        return request.user.is_active and request.user.is_superuser
+
+
+@admin.register(WorkshopFollowUpEmailSettings)
+class WorkshopFollowUpEmailSettingsAdmin(SuperuserOnlyAdminMixin, admin.ModelAdmin):
+    """Shared copy for day-after workshop follow-up / rating emails."""
+
+    list_display = ['id', 'intro_preview', 'updated_at']
+    readonly_fields = ['updated_at', 'sample_preview']
+    fieldsets = [
+        (
+            'Follow-up email copy',
+            {
+                'fields': ('intro', 'closing', 'feedback_prompt', 'sample_preview'),
+                'description': (
+                    'Sent automatically one day after each fixed-date workshop ends to confirmed '
+                    'students. Star links (1–5) are added automatically: 5 stars opens Google '
+                    'reviews; 1–4 stars open the feedback form using the prompt below. Run daily via '
+                    '`python manage.py send_workshop_follow_ups` '
+                    '(optional: `--dry-run`, `--on-date YYYY-MM-DD`).'
+                ),
+            },
+        ),
+        (
+            'Timestamps',
+            {'fields': ('updated_at',), 'classes': ('collapse',)},
+        ),
+    ]
+
+    @admin.display(description='Intro')
+    def intro_preview(self, obj):
+        if not obj:
+            return '—'
+        text = (obj.intro or '').strip()
+        if len(text) > 80:
+            return f'{text[:77]}…'
+        return text or '—'
+
+    @admin.display(description='Sample email')
+    def sample_preview(self, obj):
+        from django.template.loader import render_to_string
+
+        from bookings.email_context import workshop_follow_up_preview_context
+        from courses.models import Workshop
+
+        workshop = (
+            Workshop.objects.filter(open_dated=0, active=1)
+            .select_related('course', 'venue')
+            .order_by('-date')
+            .first()
+        )
+        if not workshop:
+            return 'No workshops available to preview.'
+        context = workshop_follow_up_preview_context(workshop)
+        html = render_to_string('emails/workshop_follow_up.html', context)
+        return format_html(
+            '<div style="border:1px solid #ddd;border-radius:6px;max-width:720px;'
+            'overflow:auto;background:#fff;">{}</div>',
+            mark_safe(html),
+        )
+
+    def has_add_permission(self, request):
+        if WorkshopFollowUpEmailSettings.objects.exists():
             return False
         return request.user.is_active and request.user.is_superuser
 

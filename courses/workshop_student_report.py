@@ -4,7 +4,9 @@ from __future__ import annotations
 import csv
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
+from typing import Optional
 
 from django.db import connection
 from django.http import HttpResponse
@@ -15,6 +17,22 @@ from bookings.scope import filter_bookings_for_user
 
 
 ATTENDING_STATUSES = ('pending', 'confirmed', 'completed')
+
+
+# Legacy gd_booking_status ids used on gd_bookings_workshops_attendees.
+_LEGACY_STATUS_CANCELLED = 3
+_LEGACY_STATUS_REFUNDED = 4
+
+_PAID_BOOKING_SQL = """
+    (
+        bw.payment_complete = 1
+        OR b.payment_confirmed = 1
+        OR IFNULL(bw.amount_paid, 0) > 0
+        OR IFNULL(b.amount_paid, 0) > 0
+        OR IFNULL(bw.amount_paid_by_voucher, 0) > 0
+        OR IFNULL(b.amount_paid_by_voucher, 0) > 0
+    )
+"""
 
 
 @dataclass
@@ -35,6 +53,7 @@ class WorkshopStudentRow:
     camera_model: str = ''
     booking_reference: str = ''
     status: str = ''
+    created_at: Optional[datetime] = None
 
 
 def _customer_field(customer, *attrs):
@@ -69,6 +88,7 @@ def _row_from_new_booking(booking):
             if hasattr(booking, 'get_status_display')
             else (booking.status or '')
         ),
+        created_at=getattr(booking, 'created_at', None),
     )
 
 
@@ -76,7 +96,10 @@ def _text(value):
     return (str(value).strip() if value is not None else '')
 
 
-def _legacy_status(payment_complete, refund_amount):
+def _legacy_status(payment_complete, refund_amount, status_label=None):
+    label = _text(status_label)
+    if label:
+        return label
     refund = Decimal(str(refund_amount or 0))
     if refund > 0:
         return 'Refunded'
@@ -85,13 +108,64 @@ def _legacy_status(payment_complete, refund_amount):
     return 'Pending'
 
 
+def _legacy_booking_reference(unique_code, booking_id, attendee_id=None):
+    ref = _text(unique_code)
+    if ref:
+        return ref
+    if booking_id:
+        return f'LEGACY-{booking_id}'
+    if attendee_id:
+        return f'LEGACY-A{attendee_id}'
+    return 'LEGACY'
+
+
 def load_legacy_workshop_student_rows(workshop_id):
     """
-    Students booked on this workshop via legacy gd_bookings_workshops / gd_booking.
+    Students attending this workshop via legacy gd_bookings_workshops_attendees.
 
-    Excludes fully refunded lines.
+    Attendee name/camera/loan fields come from the attendees table; email/phone
+    and address come from gd_customer on the linked gd_booking. Falls back to
+    gd_bookings_workshops + gd_customer when a paid line has no attendee rows.
     """
-    sql = """
+    attendee_sql = f"""
+        SELECT
+            a.id AS attendee_id,
+            COALESCE(a.booking_id, bw.booking_id) AS booking_id,
+            bw.unique_code,
+            bw.payment_complete,
+            bw.refund_amount,
+            a.comments,
+            bw.message,
+            bw.additional_information,
+            a.firstname,
+            a.lastname,
+            c.email,
+            c.contact_number,
+            c.address1,
+            c.address,
+            c.address2,
+            c.town_city,
+            c.postcode,
+            a.loan_camera_required,
+            a.camera_make,
+            a.camera_model,
+            a.created_at,
+            bs.status AS booking_status
+        FROM gd_bookings_workshops_attendees a
+        LEFT JOIN gd_booking_status bs ON bs.id = a.booking_status_id
+        LEFT JOIN gd_bookings_workshops bw ON bw.id = a.bookings_workshops_id
+        LEFT JOIN gd_booking b ON b.id = COALESCE(a.booking_id, bw.booking_id)
+        LEFT JOIN gd_customer c ON c.id = b.customer_id
+        WHERE a.workshop_id = %s
+          AND IFNULL(a.active, 1) = 1
+          AND IFNULL(a.booking_status_id, 1) NOT IN (
+              {_LEGACY_STATUS_CANCELLED}, {_LEGACY_STATUS_REFUNDED}
+          )
+          AND IFNULL(bw.refund_amount, 0) = 0
+          AND {_PAID_BOOKING_SQL}
+        ORDER BY a.lastname, a.firstname, a.id
+    """
+    fallback_sql = f"""
         SELECT
             b.id AS booking_id,
             bw.unique_code,
@@ -107,25 +181,82 @@ def load_legacy_workshop_student_rows(workshop_id):
             c.address,
             c.address2,
             c.town_city,
-            c.postcode
+            c.postcode,
+            bw.created_at
         FROM gd_bookings_workshops bw
         INNER JOIN gd_booking b ON b.id = bw.booking_id
         LEFT JOIN gd_customer c ON c.id = b.customer_id
         WHERE bw.workshop_id = %s
           AND IFNULL(bw.refund_amount, 0) = 0
-          AND (
-                bw.payment_complete = 1
-                OR b.payment_confirmed = 1
-                OR IFNULL(bw.amount_paid, 0) > 0
-                OR IFNULL(b.amount_paid, 0) > 0
-                OR IFNULL(bw.amount_paid_by_voucher, 0) > 0
-                OR IFNULL(b.amount_paid_by_voucher, 0) > 0
-              )
+          AND {_PAID_BOOKING_SQL}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM gd_bookings_workshops_attendees a
+              WHERE a.bookings_workshops_id = bw.id
+                AND IFNULL(a.active, 1) = 1
+          )
         ORDER BY c.lastname, c.firstname, b.id, bw.id
     """
     rows = []
     with connection.cursor() as cursor:
-        cursor.execute(sql, [workshop_id])
+        cursor.execute(attendee_sql, [workshop_id])
+        for raw in cursor.fetchall():
+            (
+                attendee_id,
+                booking_id,
+                unique_code,
+                payment_complete,
+                refund_amount,
+                comments,
+                message,
+                additional_information,
+                firstname,
+                lastname,
+                email,
+                contact_number,
+                address1,
+                address,
+                address2,
+                town_city,
+                postcode,
+                loan_camera_required,
+                camera_make,
+                camera_model,
+                created_at,
+                booking_status,
+            ) = raw
+            special = (
+                _text(comments)
+                or _text(message)
+                or _text(additional_information)
+            )
+            rows.append(
+                WorkshopStudentRow(
+                    first_name=_text(firstname),
+                    last_name=_text(lastname),
+                    email=_text(email),
+                    phone=_text(contact_number),
+                    address1=_text(address1) or _text(address),
+                    address2=_text(address2),
+                    town_city=_text(town_city),
+                    postcode=_text(postcode),
+                    special_requirements=special,
+                    loan_camera=bool(int(loan_camera_required or 0)),
+                    camera_make=_text(camera_make),
+                    camera_model=_text(camera_model),
+                    booking_reference=_legacy_booking_reference(
+                        unique_code, booking_id, attendee_id=attendee_id
+                    ),
+                    status=_legacy_status(
+                        payment_complete,
+                        refund_amount,
+                        status_label=booking_status,
+                    ),
+                    created_at=created_at,
+                )
+            )
+
+        cursor.execute(fallback_sql, [workshop_id])
         for raw in cursor.fetchall():
             (
                 booking_id,
@@ -143,6 +274,7 @@ def load_legacy_workshop_student_rows(workshop_id):
                 address2,
                 town_city,
                 postcode,
+                created_at,
             ) = raw
             special = _text(message) or _text(additional_information)
             rows.append(
@@ -157,8 +289,11 @@ def load_legacy_workshop_student_rows(workshop_id):
                     postcode=_text(postcode),
                     special_requirements=special,
                     loan_camera=False,
-                    booking_reference=_text(unique_code) or f'LEGACY-{booking_id}',
+                    booking_reference=_legacy_booking_reference(
+                        unique_code, booking_id
+                    ),
                     status=_legacy_status(payment_complete, refund_amount),
+                    created_at=created_at,
                 )
             )
     return rows

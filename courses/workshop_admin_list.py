@@ -5,33 +5,23 @@ from datetime import timedelta
 
 from django.db.models import Case, F, IntegerField, Q, Value, When
 from django.utils import timezone
-from django.utils.dateparse import parse_date
+
+from courses.admin_changelist import (
+    CHANGE_LIST_DATE_RANGE_PARAMS,
+    apply_changelist_date_range,
+    changelist_has_custom_date_range,
+)
 
 # Default changelist: undated/open-dated, future, and roughly the last year (not full history).
 WORKSHOP_CHANGE_LIST_LOOKBACK_DAYS = 365
 
 # Query-string keys used by the workshop changelist UI (not model field lookups).
-WORKSHOP_CHANGE_LIST_EXTRA_PARAMS = ('date_from', 'date_to', 'show_all')
-WORKSHOP_CHANGE_LIST_FORM_FIELD_PARAMS = ('date_from', 'date_to')
-
-
-def _parse_changelist_date(value):
-    if value is None:
-        return None
-    text = str(value).strip()
-    if not text:
-        return None
-    return parse_date(text)
+WORKSHOP_CHANGE_LIST_EXTRA_PARAMS = (*CHANGE_LIST_DATE_RANGE_PARAMS, 'show_all')
+WORKSHOP_CHANGE_LIST_FORM_FIELD_PARAMS = CHANGE_LIST_DATE_RANGE_PARAMS
 
 
 def workshop_changelist_has_custom_date_range(request) -> bool:
-    get = getattr(request, 'GET', None)
-    if not get:
-        return False
-    return bool(
-        _parse_changelist_date(get.get('date_from'))
-        or _parse_changelist_date(get.get('date_to'))
-    )
+    return changelist_has_custom_date_range(request)
 
 
 def apply_workshop_custom_date_range(request, queryset):
@@ -40,23 +30,12 @@ def apply_workshop_custom_date_range(request, queryset):
 
     Includes open-dated workshops plus any row whose start date falls in range.
     """
-    get = getattr(request, 'GET', None)
-    if not get:
-        return queryset
-
-    date_from = _parse_changelist_date(get.get('date_from'))
-    date_to = _parse_changelist_date(get.get('date_to'))
-    if date_from and date_to and date_from > date_to:
-        date_from, date_to = date_to, date_from
-    if not date_from and not date_to:
-        return queryset
-
-    range_query = Q()
-    if date_from:
-        range_query &= Q(date__date__gte=date_from)
-    if date_to:
-        range_query &= Q(date__date__lte=date_to)
-    return queryset.filter(Q(open_dated=1) | range_query)
+    return apply_changelist_date_range(
+        request,
+        queryset,
+        field='date__date',
+        or_q=Q(open_dated=1),
+    )
 
 
 def is_workshop_changelist_request(request) -> bool:

@@ -5,6 +5,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 
+from django.utils.translation import gettext_lazy as _
+
 from courses.admin_changelist import GdActiveFilter, SearchFirstChangeListMixin
 from courses.admin_mixins import PlatformAdminOnlyMixin
 from courses.forms import BooleanToggleWidget
@@ -26,7 +28,15 @@ from .discount_codes import (
 )
 from .forms import DiscountCodeAdminForm, ManualBookingAdminForm
 from .manual_booking import create_manual_booking
-from .models import Booking, BookingTermsAcceptance, CameraMake, CameraModel, DiscountCode, Voucher
+from .models import (
+    Booking,
+    BookingTermsAcceptance,
+    CameraMake,
+    CameraModel,
+    DiscountCode,
+    Voucher,
+    WorkshopFeedback,
+)
 
 
 class CameraModelInline(admin.TabularInline):
@@ -177,7 +187,11 @@ class VoucherAdmin(PlatformAdminOnlyMixin, SearchFirstChangeListMixin, admin.Mod
         'expiry_date',
         'claimed_date',
     ]
-    list_filter = [GdActiveFilter, 'actioned', 'issue_date', 'expiry_date']
+    list_filter = [GdActiveFilter]
+    gd_changelist_show_date_range = True
+    gd_changelist_date_field = 'issue_date'
+    gd_changelist_date_range_id_prefix = 'voucher'
+    gd_changelist_date_range_hint = _('Filter by issue date.')
     search_fields = ['voucher_code', 'email', 'notes']
     search_help_text = 'Search by voucher code, email, or notes.'
     fieldsets = (
@@ -314,17 +328,20 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
         'user__email',
         'workshop__course__course_name',
     ]
+    # Editable on change by superusers and franchisees who can view the booking.
+    student_editable_fields = (
+        'student_first_name',
+        'student_last_name',
+        'student_phone',
+        'special_requirements',
+        'loan_camera',
+    )
     change_readonly_fields = [
         'booking_reference',
         'workshop',
         'user',
         'payment',
-        'student_first_name',
-        'student_last_name',
         'student_email',
-        'student_phone',
-        'special_requirements',
-        'loan_camera',
         'status',
         'list_price',
         'voucher_id',
@@ -500,15 +517,14 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
         if obj is None:
             return list(self.add_readonly_fields)
         readonly = list(self.change_readonly_fields)
-        if not user_has_full_region_access(request.user):
-            return list(
-                dict.fromkeys(
-                    [f.name for f in self.model._meta.fields]
-                    + [f.name for f in self.model._meta.many_to_many]
-                    + readonly
-                )
-            )
-        return readonly
+        if user_has_full_region_access(request.user):
+            return readonly
+        # Franchisees: only student contact/details fields above stay editable.
+        editable = set(self.student_editable_fields)
+        locked = [
+            f.name for f in self.model._meta.fields if f.name not in editable
+        ] + [f.name for f in self.model._meta.many_to_many]
+        return list(dict.fromkeys(locked + readonly))
 
     def get_form(self, request, obj=None, **kwargs):
         if obj is None:
@@ -645,3 +661,110 @@ class BookingTermsAcceptanceAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(WorkshopFeedback)
+class WorkshopFeedbackAdmin(admin.ModelAdmin):
+    """
+    Student ratings and comments from day-after follow-up emails.
+    Superusers see all; franchisees see feedback for workshops they created/own.
+    """
+
+    list_display = [
+        'rated_at',
+        'rating_stars',
+        'workshop_label',
+        'student_name',
+        'comment_preview',
+        'booking_ref',
+    ]
+    list_filter = ['rating', 'rated_at']
+    search_fields = [
+        'comment',
+        'booking__booking_reference',
+        'booking__student_first_name',
+        'booking__student_last_name',
+        'booking__student_email',
+        'workshop__course__title',
+    ]
+    readonly_fields = [
+        'booking',
+        'workshop',
+        'rating',
+        'comment',
+        'rated_at',
+        'comment_submitted_at',
+        'updated_at',
+    ]
+    ordering = ['-rated_at']
+    date_hierarchy = 'rated_at'
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request).select_related(
+            'booking',
+            'workshop',
+            'workshop__course',
+            'workshop__venue',
+        )
+        if user_has_full_region_access(request.user):
+            return qs
+        owned_workshop_ids = filter_workshops_for_user(
+            Workshop.objects.all(),
+            request.user,
+        ).values_list('pk', flat=True)
+        return qs.filter(workshop_id__in=owned_workshop_ids)
+
+    def has_module_permission(self, request):
+        return bool(request.user and request.user.is_active and request.user.is_staff)
+
+    def has_view_permission(self, request, obj=None):
+        if not (request.user and request.user.is_active and request.user.is_staff):
+            return False
+        if obj is None or user_has_full_region_access(request.user):
+            return True
+        return filter_workshops_for_user(
+            Workshop.objects.filter(pk=obj.workshop_id),
+            request.user,
+        ).exists()
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return bool(request.user and request.user.is_superuser)
+
+    @admin.display(description='Rating', ordering='rating')
+    def rating_stars(self, obj):
+        return f'{obj.rating} ★'
+
+    @admin.display(description='Workshop')
+    def workshop_label(self, obj):
+        workshop = obj.workshop
+        if not workshop:
+            return '—'
+        title = workshop.course.title if workshop.course else 'Workshop'
+        date = workshop.start_date.strftime('%d %b %Y') if workshop.start_date else ''
+        return f'{title} ({date})' if date else title
+
+    @admin.display(description='Student')
+    def student_name(self, obj):
+        booking = obj.booking
+        if not booking:
+            return '—'
+        return f'{booking.student_first_name} {booking.student_last_name}'.strip() or booking.student_email
+
+    @admin.display(description='Comment')
+    def comment_preview(self, obj):
+        text = (obj.comment or '').strip()
+        if not text:
+            return '—'
+        if len(text) > 80:
+            return f'{text[:77]}…'
+        return text
+
+    @admin.display(description='Booking')
+    def booking_ref(self, obj):
+        return obj.booking.booking_reference if obj.booking_id else '—'

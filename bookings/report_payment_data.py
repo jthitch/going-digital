@@ -4,6 +4,9 @@ from decimal import Decimal
 from django.db import connection
 
 STRIPE_GATEWAY_ID = 10
+# Used when creating/repairing the Stripe row in gd_payment_gateway. Franchisee
+# report fees are amount × this % (same as other gateways). Override in DB if needed.
+STRIPE_TRANSACTION_PERCENTAGE = Decimal('1.50')
 VOUCHER_GATEWAY_ID = 4
 CASH_GATEWAY_ID = 6
 CHEQUE_GATEWAY_ID = 5
@@ -38,6 +41,7 @@ def load_payment_gateway_names():
 
 
 def load_payment_gateway_meta():
+    ensure_stripe_gateway_fee()
     with connection.cursor() as cursor:
         cursor.execute(
             """
@@ -55,6 +59,23 @@ def load_payment_gateway_meta():
             }
             for row in cursor.fetchall()
         }
+
+
+def ensure_stripe_gateway_fee():
+    """
+    Stripe was created with transaction_percentage=0, so franchisee reports
+    showed £0 fees. Set the default rate when missing or zero.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE gd_payment_gateway
+            SET transaction_percentage = %s
+            WHERE (internal_name = %s OR id = %s)
+              AND (transaction_percentage IS NULL OR transaction_percentage <= 0)
+            """,
+            [STRIPE_TRANSACTION_PERCENTAGE, 'stripe', STRIPE_GATEWAY_ID],
+        )
 
 
 def load_basket_details(basket_ids):

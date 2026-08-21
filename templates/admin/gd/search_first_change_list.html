@@ -78,7 +78,11 @@
                                     {% jazzmin_list_filter cl spec %}
                                 </div>
                                 {% endfor %}
-                                {% block changelist_extra_filters %}{% endblock %}
+                                {% block changelist_extra_filters %}
+                                {% if cl.model_admin.gd_changelist_show_date_range %}
+                                    {% include "admin/gd/includes/changelist_date_range.html" with id_prefix=cl.model_admin.gd_changelist_date_range_id_prefix hint=cl.model_admin.gd_changelist_date_range_hint %}
+                                {% endif %}
+                                {% endblock %}
                             </div>
                             <div class="gd-changelist-filters-card__footer">
                                 <button type="submit" class="btn btn-sm {{ jazzmin_ui.button_classes.primary }}">

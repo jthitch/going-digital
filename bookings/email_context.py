@@ -9,11 +9,16 @@ from website.seo import absolute_url_from_base, site_base_url, site_url_for_book
 
 from courses.models import Tutor
 
+from .attendee_details import (
+    bookings_need_attendee_details,
+    post_booking_attendee_details_url,
+)
 from .calendar import calendar_data_for_booking
 from .franchisee_contract import (
     franchisee_contract_details,
     franchisee_contract_notice_from_details,
 )
+from .follow_up_email_copy import follow_up_email_copy
 from .reminder_email_copy import reminder_email_copy
 from .social_media import facebook_groups_context_for_bookings, facebook_share_items_for_bookings
 
@@ -104,6 +109,14 @@ def bookings_confirmation_context(bookings, *, request=None):
             + f'?ref={setup["booking_reference"]}',
         )
 
+    needs_camera_details = bookings_need_attendee_details(bookings)
+    camera_details_url = ''
+    if needs_camera_details and primary.booking_reference:
+        camera_details_url = absolute_url_from_base(
+            site_url,
+            post_booking_attendee_details_url(ref=primary.booking_reference),
+        )
+
     total_price_paid = sum(
         (Decimal(str(item['price_paid'] or 0)) for item in booking_items),
         Decimal('0.00'),
@@ -125,6 +138,8 @@ def bookings_confirmation_context(bookings, *, request=None):
         'is_multi_booking': len(booking_items) > 1,
         'booking_count': len(booking_items),
         'account_setup_url': account_setup_url,
+        'needs_camera_details': needs_camera_details,
+        'camera_details_url': camera_details_url,
         'booking_reference': first['booking_reference'],
         'student_name': f'{primary.student_first_name} {primary.student_last_name}'.strip(),
         'student_email': primary.student_email,
@@ -289,4 +304,82 @@ def booking_reminder_subject(booking):
         date_label = start.strftime('%A %d %B')
         return f'Reminder: {course_title} — {date_label}'
     return f'Reminder: {course_title} is tomorrow'
+
+
+def booking_follow_up_context(booking, *, request=None):
+    """Build context for the day-after workshop follow-up email."""
+    site_url = site_base_url(request) if request is not None else site_url_for_booking(booking)
+    item = _booking_item_context(booking, site_url=site_url)
+    copy = follow_up_email_copy()
+    token = (getattr(booking, 'follow_up_token', None) or '').strip()
+    star_urls = {}
+    if token:
+        for rating in range(1, 6):
+            star_urls[rating] = absolute_url_from_base(
+                site_url,
+                reverse('bookings:follow_up_rate', kwargs={
+                    'token': token,
+                    'rating': rating,
+                }),
+            )
+
+    return {
+        'booking': booking,
+        'student_name': f'{booking.student_first_name} {booking.student_last_name}'.strip(),
+        'student_email': booking.student_email,
+        'contact_email': getattr(settings, 'CONTACT_EMAIL', settings.DEFAULT_FROM_EMAIL),
+        'site_url': site_url,
+        'logo_url': _logo_url(site_url),
+        'follow_up_intro': copy['intro'],
+        'follow_up_closing': copy['closing'],
+        'star_urls': star_urls,
+        **item,
+    }
+
+
+def booking_follow_up_subject(booking):
+    workshop = booking.workshop
+    course_title = workshop.course.title if workshop and workshop.course else 'Workshop'
+    return f'How was your {course_title} course?'
+
+
+def workshop_follow_up_preview_context(workshop, *, site_url=None):
+    """Build follow-up email context for admin preview (sample student if no booking)."""
+    from bookings.models import Booking
+
+    booking = (
+        Booking.objects.filter(workshop=workshop, status='confirmed')
+        .select_related('workshop', 'workshop__course', 'workshop__venue', 'payment')
+        .order_by('id')
+        .first()
+    )
+    if booking and booking.is_confirmed:
+        if not (booking.follow_up_token or '').strip():
+            booking.follow_up_token = 'preview-sample-token'
+        return booking_follow_up_context(booking)
+
+    from types import SimpleNamespace
+    from decimal import Decimal
+
+    if site_url is None:
+        site_url = getattr(settings, 'SITE_URL', 'https://example.com').rstrip('/')
+
+    sample = SimpleNamespace(
+        id=0,
+        workshop=workshop,
+        booking_reference='SAMPLE-REF',
+        student_first_name='Sample',
+        student_last_name='Student',
+        student_email='student@example.com',
+        student_phone='',
+        special_requirements='',
+        price_paid=Decimal('0.00'),
+        list_price=Decimal('0.00'),
+        voucher_code='',
+        voucher_discount=Decimal('0.00'),
+        is_confirmed=True,
+        status='confirmed',
+        follow_up_token='preview-sample-token',
+    )
+    return booking_follow_up_context(sample, request=None)
 

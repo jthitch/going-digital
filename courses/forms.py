@@ -399,30 +399,10 @@ class ContactForm(forms.Form):
             'id': 'id_message'
         })
     )
-    security_answer = forms.IntegerField(
-        required=True,
-        label='Security question',
-        widget=forms.NumberInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Please answer this simple sum to proceed',
-            'id': 'id_security_answer'
-        })
+    captcha = ReCaptchaField(
+        widget=ReCaptchaV2Checkbox(attrs={'data-theme': 'light'}),
+        label='Please verify you are not a robot'
     )
-
-    def __init__(self, *args, security_question=None, expected_answer=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.security_question = security_question or ''
-        self.expected_answer = expected_answer
-        if security_question:
-            self.fields['security_answer'].label = f"Security question: what is {security_question} ?"
-
-    def clean_security_answer(self):
-        answer = self.cleaned_data.get('security_answer')
-        if self.expected_answer is None:
-            raise forms.ValidationError('Session expired. Please refresh the page and try again.')
-        if answer != self.expected_answer:
-            raise forms.ValidationError('Please answer the security question correctly.')
-        return answer
 
 
 class UserNameModelChoiceField(forms.ModelChoiceField):

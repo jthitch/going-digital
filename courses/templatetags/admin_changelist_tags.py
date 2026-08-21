@@ -20,5 +20,9 @@ def gd_changelist_emit_hidden_param(model_admin, param_name):
     """True when a hidden input should preserve this query param on submit."""
     if param_name == 'q':
         return False
-    form_fields = getattr(model_admin, 'gd_changelist_form_field_params', ()) or ()
+    resolver = getattr(model_admin, 'resolved_gd_changelist_form_field_params', None)
+    if callable(resolver):
+        form_fields = resolver() or ()
+    else:
+        form_fields = getattr(model_admin, 'gd_changelist_form_field_params', ()) or ()
     return param_name not in form_fields

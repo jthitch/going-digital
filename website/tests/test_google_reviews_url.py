@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase
 
-from website.google_reviews import _build_reviews_url
+from website.google_reviews import _build_reviews_url, _build_write_review_url
 
 
 class BuildReviewsUrlTests(SimpleTestCase):
@@ -17,6 +17,17 @@ class BuildReviewsUrlTests(SimpleTestCase):
         self.assertEqual(
             url,
             'https://search.google.com/local/reviews?placeid=ChIJExamplePlaceId',
+        )
+
+    def test_write_review_uses_place_id(self):
+        config = SimpleNamespace(
+            google_place_id='ChIJExamplePlaceId',
+            reviews_url='https://example.com/reviews',
+        )
+        url = _build_write_review_url(config)
+        self.assertEqual(
+            url,
+            'https://search.google.com/local/writereview?placeid=ChIJExamplePlaceId',
         )
 
     def test_falls_back_to_maps_cid(self):

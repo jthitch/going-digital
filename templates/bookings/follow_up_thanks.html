@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Thank you — Going Digital{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/booking.css' %}">
+<style>
+.follow-up-page {
+    max-width: 640px;
+    margin: 2rem auto;
+    padding: 2rem 1.25rem;
+}
+.follow-up-page h1 {
+    font-size: 1.75rem;
+    margin-bottom: 0.75rem;
+}
+.follow-up-page p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="follow-up-page">
+    <h1>Thank you</h1>
+    <p>We have received your feedback. It helps us improve our photography courses.</p>
+    <p><a href="/">Back to Going Digital</a></p>
+</div>
+{% endblock %}

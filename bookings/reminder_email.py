@@ -1,4 +1,9 @@
-"""Day-before workshop reminder emails for confirmed bookings."""
+"""
+Day-before workshop reminder emails for confirmed bookings.
+
+Ops: run daily — `python manage.py send_workshop_reminders`
+(optional `--dry-run`, `--on-date YYYY-MM-DD`).
+"""
 from __future__ import annotations
 
 import logging
@@ -88,13 +93,20 @@ def send_due_workshop_reminders(*, on_date=None, dry_run=False):
     """
     Send reminders for all bookings due on the target workshop date.
 
-    Returns counts: sent, skipped, failed.
+    Returns counts: sent, skipped, failed, and (when dry_run) recipients as
+    (booking_reference, student_email) pairs for bookings that would be emailed.
     """
     sent = skipped = failed = 0
+    recipients = []
     for booking in bookings_due_reminder(on_date=on_date).iterator(chunk_size=100):
         try:
             if send_workshop_reminder_email(booking, dry_run=dry_run):
                 sent += 1
+                if dry_run:
+                    recipients.append((
+                        booking.booking_reference,
+                        (booking.student_email or '').strip(),
+                    ))
             else:
                 skipped += 1
         except Exception:
@@ -108,4 +120,5 @@ def send_due_workshop_reminders(*, on_date=None, dry_run=False):
         'skipped': skipped,
         'failed': failed,
         'target_date': reminder_target_date(on_date=on_date),
+        'recipients': recipients,
     }

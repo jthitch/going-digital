@@ -2,7 +2,6 @@
 Course views - server-rendered for SEO.
 """
 import json
-import random
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -820,19 +819,33 @@ class VenueListView(ListView):
     """
     Venue list page: /venues/
     Shows active venues with a slug, grouped by region.
-    Optional ?q= text search and near-me (?lat=&lng=&radius=) filtering.
+    Optional ?q= text or place search (town/postcode) and near-me (?lat=&lng=&radius=).
+    Place keywords use the same resolve_search_place() behaviour as photography-courses.
     """
     model = Venue
     context_object_name = 'venues'
     template_name = 'courses/venue_list.html'
 
     def get_queryset(self):
+        from .search_location import resolve_search_place
         from .venue_list import filter_venues_by_search, parse_near_me, public_venues_queryset
 
         self.search_query = (self.request.GET.get('q') or '').strip()
         self.near_lat, self.near_lng, self.near_radius = parse_near_me(self.request.GET)
         self.near_me_active = self.near_lat is not None and self.near_lng is not None
-        qs = filter_venues_by_search(public_venues_queryset(), self.search_query)
+        self.resolved_place = None
+
+        if not self.near_me_active and self.search_query:
+            self.resolved_place = resolve_search_place(self.search_query)
+            if self.resolved_place:
+                self.near_lat = self.resolved_place.latitude
+                self.near_lng = self.resolved_place.longitude
+
+        qs = public_venues_queryset()
+        # Place keywords already filter by distance in get_context_data; don't also
+        # require the place name to appear in venue text (same as course list).
+        if self.search_query and not self.resolved_place:
+            qs = filter_venues_by_search(qs, self.search_query)
         return qs.prefetch_related('media').order_by('venue_name')
 
     def get_context_data(self, **kwargs):
@@ -849,19 +862,27 @@ class VenueListView(ListView):
         # One evaluation for both count and template (no separate COUNT query).
         venues = list(context['venues'])
         near_me_active = getattr(self, 'near_me_active', False)
+        resolved_place = getattr(self, 'resolved_place', None)
+        place_search_active = bool(resolved_place) and not near_me_active
+        location_search_active = near_me_active or place_search_active
         near_lat = getattr(self, 'near_lat', None)
         near_lng = getattr(self, 'near_lng', None)
         near_radius = getattr(self, 'near_radius', DEFAULT_NEAR_RADIUS_MILES)
 
-        if near_me_active:
+        if location_search_active and near_lat is not None and near_lng is not None:
             venues = filter_venues_near(
                 venues,
                 lat=near_lat,
                 lng=near_lng,
                 radius_miles=near_radius,
             )
+            if near_me_active:
+                group_name = f'Within {near_radius} miles of you'
+            else:
+                place_label = resolved_place.label if resolved_place else self.search_query
+                group_name = f'Within {near_radius} miles of {place_label}'
             context['venue_groups'] = [{
-                'name': f'Within {near_radius} miles of you',
+                'name': group_name,
                 'venues': venues,
             }] if venues else []
         else:
@@ -871,6 +892,12 @@ class VenueListView(ListView):
         context['venue_count'] = len(venues)
         context['current_search'] = getattr(self, 'search_query', '')
         context['near_me_active'] = near_me_active
+        context['place_search_active'] = place_search_active
+        context['location_search_active'] = location_search_active
+        context['place_search_label'] = (
+            resolved_place.label if place_search_active else ''
+        )
+        # Only expose browser coords when Near me is active (not place search).
         context['near_lat'] = near_lat if near_me_active else ''
         context['near_lng'] = near_lng if near_me_active else ''
         context['near_radius'] = near_radius
@@ -885,7 +912,7 @@ class VenueListView(ListView):
             MAX_NEAR_RADIUS_MILES,
             near_radius + NEAR_RADIUS_STEP_MILES,
         )
-        context['seo_noindex'] = bool(context['current_search'] or near_me_active)
+        context['seo_noindex'] = bool(context['current_search'] or location_search_active)
         return context
 
 
@@ -1285,30 +1312,7 @@ class ContactView(FormView):
     form_class = ContactForm
     extra_context = {'page_title': 'Contact Going Digital'}
 
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        if self.request.method == 'GET':
-            # Generate new security question
-            num1 = random.randint(1, 12)
-            num2 = random.randint(1, 12)
-            self.request.session['contact_security'] = {
-                'question': f'{num1} + {num2}',
-                'answer': num1 + num2
-            }
-            kwargs['security_question'] = f'{num1} + {num2}'
-            kwargs['expected_answer'] = num1 + num2
-        else:
-            # Validate against session
-            security = self.request.session.get('contact_security', {})
-            kwargs['security_question'] = security.get('question', '')
-            kwargs['expected_answer'] = security.get('answer')
-        return kwargs
-
     def form_valid(self, form):
-        # Clear security data
-        if 'contact_security' in self.request.session:
-            del self.request.session['contact_security']
-
         region = form.cleaned_data['region']
         region_label = dict(CONTACT_REGION_CHOICES).get(region, region)
 

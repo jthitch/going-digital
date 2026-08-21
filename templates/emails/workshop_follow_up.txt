@@ -1,0 +1,14 @@
+Dear {{ student_name }},
+
+{{ follow_up_intro }}
+
+Course: {{ course_title }}
+Date: {{ workshop_date }}{% if workshop_time %} at {{ workshop_time }}{% endif %}
+Booking reference: {{ booking_reference }}
+
+How would you rate your experience?
+{% for rating, url in star_urls.items %}{{ rating }} star{% if rating != 1 %}s{% endif %}: {{ url }}
+{% endfor %}
+{{ follow_up_closing }}
+
+Prefer not to use the links? Contact us at {{ contact_email }}

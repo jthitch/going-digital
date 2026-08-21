@@ -24,7 +24,12 @@ Location: {{ item.location_name }}{% if item.location_city %}, {{ item.location_
 {% endfor %}{% if is_multi_booking %}Total amount paid: £{{ total_price_paid }}
 {% endif %}
 You will receive joining instructions from your local tutor before the workshop{% if is_multi_booking %}s{% endif %}.
-{% if account_setup_url %}
+{% if needs_camera_details and camera_details_url %}
+
+Camera details
+Please tell us the make and model of the camera you will bring (unless you are using a loan camera). This helps your tutor prepare for the day.
+Add camera details: {{ camera_details_url }}
+{% endif %}{% if account_setup_url %}
 
 View your bookings online: set a password to complete your account:
 {{ account_setup_url }}

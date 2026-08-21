@@ -405,6 +405,16 @@ def _highlights_from_admin(config):
     return highlights
 
 
+def _place_id_for_config(config, api_key=''):
+    """Resolve a Google place ID from settings, then live lookup if needed."""
+    place_id = _normalize_place_id(config.google_place_id)
+    if not place_id:
+        place_id = _normalize_place_id(getattr(django_settings, 'GOOGLE_PLACE_ID', ''))
+    if not place_id and api_key:
+        place_id = _resolve_place_id(config, api_key)
+    return place_id
+
+
 def _build_reviews_url(config, api_key=''):
     """
     Return a reliable outbound URL for reading Google reviews.
@@ -412,11 +422,7 @@ def _build_reviews_url(config, api_key=''):
     Prefer the dedicated Google reviews page (place ID), then Maps (CID),
     then the admin-configured fallback URL.
     """
-    place_id = _normalize_place_id(config.google_place_id)
-    if not place_id:
-        place_id = _normalize_place_id(getattr(django_settings, 'GOOGLE_PLACE_ID', ''))
-    if not place_id and api_key:
-        place_id = _resolve_place_id(config, api_key)
+    place_id = _place_id_for_config(config, api_key=api_key)
     if place_id:
         return f'https://search.google.com/local/reviews?placeid={place_id}'
 
@@ -426,6 +432,31 @@ def _build_reviews_url(config, api_key=''):
 
     fallback = (config.reviews_url or '').strip()
     return fallback or 'https://www.google.com/maps'
+
+
+def _build_write_review_url(config, api_key=''):
+    """
+    Return a URL that opens Google's leave-a-review flow when possible.
+    Falls back to the read reviews URL if place ID is unavailable.
+    """
+    place_id = _place_id_for_config(config, api_key=api_key)
+    if place_id:
+        return f'https://search.google.com/local/writereview?placeid={place_id}'
+    return _build_reviews_url(config, api_key=api_key)
+
+
+def google_write_review_url():
+    """Public helper: Google write-review URL from active site settings."""
+    from website.models import GoogleReviewsSettings
+
+    config = GoogleReviewsSettings.objects.first()
+    if config is None:
+        place_id = _normalize_place_id(getattr(django_settings, 'GOOGLE_PLACE_ID', ''))
+        if place_id:
+            return f'https://search.google.com/local/writereview?placeid={place_id}'
+        return 'https://www.google.com/maps'
+    api_key = (getattr(django_settings, 'GOOGLE_PLACES_API_KEY', '') or '').strip()
+    return _build_write_review_url(config, api_key=api_key)
 
 
 def invalidate_google_reviews_cache(*, place_id=''):

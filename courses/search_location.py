@@ -200,7 +200,7 @@ def _resolve_from_venues(query: str) -> ResolvedSearchPlace | None:
 
 
 def _nominatim_user_agent() -> str:
-    contact = getattr(settings, 'CONTACT_EMAIL', '') or 'info@goingdigital.co.uk'
+    contact = getattr(settings, 'CONTACT_EMAIL', '') or 'enquiries@goingdigital.co.uk'
     site = getattr(settings, 'SITE_URL', '') or 'https://www.goingdigital.co.uk'
     return f'GoingDigitalCourseSearch/1.0 ({site}; {contact})'
 

@@ -1,8 +1,9 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from django.test import SimpleTestCase
+from django.test import RequestFactory, SimpleTestCase
 
+from courses.search_location import ResolvedSearchPlace
 from courses.venue_list import (
     DEFAULT_NEAR_RADIUS_MILES,
     OTHER_REGION_LABEL,
@@ -15,6 +16,7 @@ from courses.venue_list import (
     nearby_venue_ids,
     parse_near_me,
 )
+from courses.views import VenueListView
 
 
 class VenueListHelpersTests(SimpleTestCase):
@@ -146,3 +148,77 @@ class VenueListHelpersTests(SimpleTestCase):
 
         self.assertIs(result, empty)
         qs.filter.assert_not_called()
+
+
+class VenueListPlaceSearchTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def _queryset_mocks(self):
+        qs = MagicMock(name='public_qs')
+        qs.prefetch_related.return_value = qs
+        qs.order_by.return_value = qs
+        return qs
+
+    @patch('courses.venue_list.filter_venues_by_search')
+    @patch('courses.venue_list.public_venues_queryset')
+    @patch('courses.search_location.resolve_search_place')
+    def test_place_query_skips_text_filter(self, resolve_place, public_qs, text_filter):
+        place = ResolvedSearchPlace(51.38, -2.36, 'Bath', 'venue')
+        resolve_place.return_value = place
+        public_qs.return_value = self._queryset_mocks()
+
+        request = self.factory.get('/venues/', {'q': 'Bath'})
+        view = VenueListView()
+        view.setup(request)
+        view.get_queryset()
+
+        resolve_place.assert_called_once_with('Bath')
+        text_filter.assert_not_called()
+        self.assertEqual(view.near_lat, 51.38)
+        self.assertEqual(view.near_lng, -2.36)
+        self.assertFalse(view.near_me_active)
+        self.assertIs(view.resolved_place, place)
+
+    @patch('courses.venue_list.filter_venues_by_search')
+    @patch('courses.venue_list.public_venues_queryset')
+    @patch('courses.search_location.resolve_search_place', return_value=None)
+    def test_non_place_query_uses_text_filter(self, resolve_place, public_qs, text_filter):
+        base_qs = self._queryset_mocks()
+        public_qs.return_value = base_qs
+        text_filter.return_value = base_qs
+
+        request = self.factory.get('/venues/', {'q': 'studio lighting'})
+        view = VenueListView()
+        view.setup(request)
+        view.get_queryset()
+
+        resolve_place.assert_called_once_with('studio lighting')
+        text_filter.assert_called_once_with(base_qs, 'studio lighting')
+        self.assertIsNone(view.resolved_place)
+
+    @patch('courses.venue_list.filter_venues_by_search')
+    @patch('courses.venue_list.public_venues_queryset')
+    @patch('courses.search_location.resolve_search_place')
+    def test_browser_near_me_wins_over_place_resolve(
+        self, resolve_place, public_qs, text_filter,
+    ):
+        base_qs = self._queryset_mocks()
+        public_qs.return_value = base_qs
+        text_filter.return_value = base_qs
+
+        request = self.factory.get('/venues/', {
+            'q': 'Bath',
+            'lat': '51.5',
+            'lng': '-0.1',
+            'radius': '20',
+        })
+        view = VenueListView()
+        view.setup(request)
+        view.get_queryset()
+
+        resolve_place.assert_not_called()
+        text_filter.assert_called_once_with(base_qs, 'Bath')
+        self.assertTrue(view.near_me_active)
+        self.assertAlmostEqual(view.near_lat, 51.5)
+        self.assertAlmostEqual(view.near_lng, -0.1)

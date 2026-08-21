@@ -1,16 +1,16 @@
-"""Send day-before workshop reminder emails to confirmed students."""
+"""Send day-after workshop follow-up emails with star ratings."""
 from datetime import datetime
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from bookings.reminder_email import reminder_target_date, send_due_workshop_reminders
+from bookings.follow_up_email import follow_up_target_date, send_due_workshop_follow_ups
 
 
 class Command(BaseCommand):
     help = (
-        'Email students a reminder one day before their workshop (course details, '
-        'workshop notes, tutor contact). Safe to re-run — already-sent bookings are skipped.'
+        'Email students a follow-up one day after their workshop ends, with 1–5 star links. '
+        'Safe to re-run — already-sent bookings are skipped.'
     )
 
     def add_arguments(self, parser):
@@ -22,7 +22,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--on-date',
             dest='on_date',
-            help='Pretend today is this date (YYYY-MM-DD) when choosing workshops starting tomorrow.',
+            help='Pretend today is this date (YYYY-MM-DD) when choosing workshops that ended yesterday.',
         )
 
     def handle(self, *args, **options):
@@ -31,21 +31,21 @@ class Command(BaseCommand):
         if raw:
             on_date = datetime.strptime(raw, '%Y-%m-%d').date()
 
-        target = reminder_target_date(on_date=on_date)
+        target = follow_up_target_date(on_date=on_date)
         self.stdout.write(
-            f'Sending reminders for workshops on {target.isoformat()} '
+            f'Sending follow-ups for workshops ending on {target.isoformat()} '
             f'(run date: {(on_date or timezone.localdate()).isoformat()})…'
         )
 
         dry_run = options['dry_run']
-        counts = send_due_workshop_reminders(on_date=on_date, dry_run=dry_run)
+        counts = send_due_workshop_follow_ups(on_date=on_date, dry_run=dry_run)
         if dry_run:
             for ref, email in counts.get('recipients') or []:
                 self.stdout.write(f'  {ref} → {email}')
         prefix = 'Would send' if dry_run else 'Sent'
         self.stdout.write(
             self.style.SUCCESS(
-                f'{prefix} {counts["sent"]} reminder(s); '
+                f'{prefix} {counts["sent"]} follow-up(s); '
                 f'{counts["skipped"]} skipped; {counts["failed"]} failed.'
             )
         )

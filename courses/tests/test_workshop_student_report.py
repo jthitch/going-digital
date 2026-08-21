@@ -8,6 +8,7 @@ from courses.workshop_student_report import (
     CSV_HEADERS,
     WorkshopStudentRow,
     iter_workshop_student_report_rows,
+    load_legacy_workshop_student_rows,
     workshop_student_report_filename,
 )
 
@@ -60,6 +61,8 @@ class WorkshopStudentReportTests(SimpleTestCase):
                 'BA1 1AA',
                 'Vegetarian lunch',
                 'Yes',
+                '',
+                '',
                 'ABC12345',
                 'Confirmed',
             ],
@@ -105,10 +108,67 @@ class WorkshopStudentReportTests(SimpleTestCase):
             student_phone='07000',
             special_requirements='',
             loan_camera=False,
+            camera_make='',
+            camera_model='',
             booking_reference='NEW1',
             status='confirmed',
+            created_at=None,
             customer=customer,
             get_status_display=MagicMock(return_value='Confirmed'),
         )
         rows = list(iter_workshop_student_report_rows(workshop, [booking]))
         self.assertEqual(rows[1][4:7], ['Sam', 'Smith', 'sam@example.com'])
+
+    def test_legacy_attendee_rows_map_camera_loan_and_created_at(self):
+        created = datetime(2025, 12, 9, 7, 27, 34)
+        attendee_row = (
+            71079,  # attendee_id
+            61199,  # booking_id
+            'CODE99',
+            1,  # payment_complete
+            0,  # refund_amount
+            'Needs aisle seat',
+            '',
+            '',
+            'Mark',
+            'Seymour',
+            'mark@example.com',
+            '07528619521',
+            '1 High St',
+            '',
+            '',
+            'Bath',
+            'BA1 1AA',
+            1,  # loan_camera_required
+            'Canon',
+            'R5',
+            created,
+            'Attending',
+        )
+
+        cursor = MagicMock()
+        cursor.fetchall.side_effect = [[attendee_row], []]
+        cursor_cm = MagicMock()
+        cursor_cm.__enter__.return_value = cursor
+        cursor_cm.__exit__.return_value = False
+
+        with patch(
+            'courses.workshop_student_report.connection.cursor',
+            return_value=cursor_cm,
+        ):
+            rows = load_legacy_workshop_student_rows(18049)
+
+        self.assertEqual(len(rows), 1)
+        student = rows[0]
+        self.assertEqual(student.first_name, 'Mark')
+        self.assertEqual(student.last_name, 'Seymour')
+        self.assertEqual(student.email, 'mark@example.com')
+        self.assertTrue(student.loan_camera)
+        self.assertEqual(student.camera_make, 'Canon')
+        self.assertEqual(student.camera_model, 'R5')
+        self.assertEqual(student.booking_reference, 'CODE99')
+        self.assertEqual(student.status, 'Attending')
+        self.assertEqual(student.created_at, created)
+        self.assertEqual(student.special_requirements, 'Needs aisle seat')
+        self.assertEqual(cursor.execute.call_count, 2)
+        self.assertEqual(cursor.execute.call_args_list[0].args[1], [18049])

@@ -57,7 +57,7 @@ going-digital/
 
    EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
    DEFAULT_FROM_EMAIL=noreply@example.com
-   CONTACT_EMAIL=info@goingdigital.co.uk
+   CONTACT_EMAIL=enquiries@goingdigital.co.uk
    GOING_DIGITAL_FACEBOOK_GROUP_URL=https://www.facebook.com/groups/your-going-digital-group
 
    # Optional passcode gate for staging/dev (session cookie).
@@ -215,6 +215,25 @@ Stripe integration includes:
 **Local dev — payment stays `pending`:** Checkout creates a `pending` payment; it moves to `succeeded` when Stripe notifies `/payments/webhook/` or when the customer lands on `/payments/success/` (the success page confirms with Stripe automatically). For webhooks on localhost, use [Stripe CLI](https://stripe.com/docs/stripe-cli): `stripe listen --forward-to http://127.0.0.1:8000/payments/webhook/` and set `STRIPE_WEBHOOK_SECRET` from the CLI output. If Stripe CLI shows **302** responses, the dev passcode gate was blocking the webhook — `/payments/webhook/` is exempt; restart `runserver` after pulling. Ensure `STRIPE_WEBHOOK_SECRET` matches the `whsec_` from the running `stripe listen` session.
 
 **Stripe `Permission denied` / network error on Windows:** If checkout returns a Stripe connection error mentioning `Permission denied`, check whether `SSLKEYLOGFILE` is set (common when using Cursor or TLS-debugging tools). It may point at a path Python cannot write, which breaks all HTTPS. Unset it in your terminal (`Remove-Item Env:SSLKEYLOGFILE` in PowerShell) and restart `runserver`. This project also clears invalid `\\?\Volume{...}` keylog paths at startup in `photocourses/settings.py`.
+
+## Scheduled workshop emails
+
+Run these daily (cron / Task Scheduler). Both commands are idempotent — bookings already emailed are skipped.
+
+```bash
+# Day before: workshop starts tomorrow
+python manage.py send_workshop_reminders
+python manage.py send_workshop_reminders --dry-run
+python manage.py send_workshop_reminders --on-date 2026-08-20
+
+# Day after: workshop ended yesterday (uses end date, or start if no end)
+python manage.py send_workshop_follow_ups
+python manage.py send_workshop_follow_ups --dry-run   # prints booking ref → email for each recipient
+python manage.py send_workshop_follow_ups --on-date 2026-08-20
+```
+
+`--dry-run` lists each booking reference and student email that would be emailed, without sending.
+Editable copy lives in Django admin → **Website** → Workshop reminder email / Workshop follow-up email. Follow-up star links (1–5) record a rating; 5★ redirects to Google reviews, 1–4★ open a feedback form. Feedback is listed under **Bookings** → Workshop feedback (franchisees see only workshops they created/own). On staging with the dev passcode gate, `/bookings/follow-up/` is exempt so students can open star links without logging in.
 
 ## React Integration
 

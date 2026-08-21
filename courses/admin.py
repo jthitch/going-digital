@@ -1,11 +1,13 @@
 from django import forms
 from django.contrib import admin, messages
+from django.db.models import Q
 from django.http import HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_GET
 
 from .admin_changelist import GdActiveFilter, SearchFirstChangeListMixin
@@ -23,9 +25,6 @@ from .region_scope import (
     user_has_full_region_access,
 )
 from .workshop_admin_list import (
-    WORKSHOP_CHANGE_LIST_EXTRA_PARAMS,
-    WORKSHOP_CHANGE_LIST_FORM_FIELD_PARAMS,
-    apply_workshop_custom_date_range,
     is_workshop_changelist_request,
     narrow_workshop_changelist,
     order_workshop_changelist,
@@ -881,8 +880,13 @@ class WorkshopAdmin(
     form = WorkshopAdminForm
     change_form_template = 'admin/courses/workshop/change_form.html'
     change_list_template = 'admin/courses/workshop/change_list.html'
-    gd_changelist_extra_params = WORKSHOP_CHANGE_LIST_EXTRA_PARAMS
-    gd_changelist_form_field_params = WORKSHOP_CHANGE_LIST_FORM_FIELD_PARAMS
+    gd_changelist_extra_params = ('show_all',)
+    gd_changelist_show_date_range = True
+    gd_changelist_date_field = 'date__date'
+    gd_changelist_date_range_id_prefix = 'workshop'
+    gd_changelist_date_range_hint = _(
+        'Start date in range; open-dated workshops always included.'
+    )
     filter_input_length = {
         'course__id__exact': 2,
     }
@@ -1113,11 +1117,13 @@ class WorkshopAdmin(
         self._current_request = request
         return super().change_view(request, object_id, form_url, extra_context)
 
+    def get_changelist_date_range_or_q(self, request):
+        return Q(open_dated=1)
+
     def get_queryset(self, request):
         qs = super().get_queryset(request).select_related(
             'course', 'venue',
         ).prefetch_related('gallery_images__image', 'documents')
-        qs = apply_workshop_custom_date_range(request, qs)
         if is_workshop_changelist_request(request):
             qs = order_workshop_changelist(qs)
             if not workshop_changelist_show_full_history(request):

@@ -58,6 +58,20 @@
 
 <p style="margin:0 0 16px;">You will receive joining instructions from your local tutor before the workshop{% if is_multi_booking %}s{% endif %}.</p>
 
+{% if needs_camera_details and camera_details_url %}
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#f9f9f9;border:1px solid #e8e8e8;">
+    <tr>
+        <td style="padding:16px 18px;">
+            <p style="margin:0 0 8px;"><strong>Camera details</strong></p>
+            <p style="margin:0 0 12px;">Please tell us the make and model of the camera you will bring (unless you are using a loan camera). This helps your tutor prepare for the day.</p>
+            <p style="margin:0;">
+                <a href="{{ camera_details_url }}" style="display:inline-block;padding:10px 16px;background:#0066cc;color:#ffffff;text-decoration:none;border-radius:4px;font-weight:600;">Add camera details</a>
+            </p>
+        </td>
+    </tr>
+</table>
+{% endif %}
+
 {% if account_setup_url %}
 <p style="margin:0 0 16px;">
     <strong>View your bookings online:</strong>

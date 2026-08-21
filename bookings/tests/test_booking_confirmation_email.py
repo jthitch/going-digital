@@ -7,7 +7,7 @@ from django.test import SimpleTestCase
 from bookings.email_context import booking_confirmation_subject, bookings_confirmation_context
 
 
-def _booking(pk, course_title, price='100.00', ref=None):
+def _booking(pk, course_title, price='100.00', ref=None, *, status='confirmed', attendee_details_collected_at=None, loan_camera=False):
     course = SimpleNamespace(title=course_title)
     venue = SimpleNamespace(
         name='Studio',
@@ -35,6 +35,9 @@ def _booking(pk, course_title, price='100.00', ref=None):
         list_price=Decimal(price),
         voucher_code='',
         voucher_discount=Decimal('0.00'),
+        status=status,
+        attendee_details_collected_at=attendee_details_collected_at,
+        loan_camera=loan_camera,
     )
 
 
@@ -94,3 +97,37 @@ class BookingConfirmationEmailContextTests(SimpleTestCase):
         self.assertEqual(context['total_price_paid'], Decimal('200.00'))
         self.assertEqual(context['booking_items'][0]['course_title'], 'Beginner DSLR')
         self.assertEqual(context['booking_items'][1]['course_title'], 'Wildlife')
+        self.assertTrue(context['needs_camera_details'])
+        self.assertEqual(
+            context['camera_details_url'],
+            'https://example.com/account/booking-details/?ref=REF1',
+        )
+
+    @patch('bookings.email_context.facebook_share_items_for_bookings', return_value=[])
+    @patch('bookings.email_context.facebook_groups_context_for_bookings', return_value={
+        'show_facebook_groups_cta': False,
+        'going_digital_facebook_url': '',
+        'local_facebook_groups': [],
+        'local_facebook_group': None,
+    })
+    @patch('bookings.email_context.account_setup_from_bookings', return_value=None)
+    @patch('bookings.email_context.site_url_for_booking', return_value='https://example.com')
+    @patch('bookings.email_context.calendar_data_for_booking', return_value={
+        'google_calendar_url': '',
+        'outlook_calendar_url': '',
+        'calendar_ics': '',
+        'calendar_ics_filename': '',
+    })
+    def test_camera_details_cta_omitted_when_already_collected(self, *_mocks):
+        from datetime import datetime
+
+        bookings = [
+            _booking(
+                1,
+                'Beginner DSLR',
+                attendee_details_collected_at=datetime(2026, 8, 20, 12, 0),
+            ),
+        ]
+        context = bookings_confirmation_context(bookings)
+        self.assertFalse(context['needs_camera_details'])
+        self.assertEqual(context['camera_details_url'], '')

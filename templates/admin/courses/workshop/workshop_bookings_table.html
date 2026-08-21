@@ -39,17 +39,14 @@
                         <th scope="col" class="sortable column-loan_camera">
                             <div class="text">{% trans 'Loan camera' %}</div>
                         </th>
+                        <th scope="col" class="sortable column-camera_make">
+                            <div class="text">{% trans 'Camera make' %}</div>
+                        </th>
+                        <th scope="col" class="sortable column-camera_model">
+                            <div class="text">{% trans 'Camera model' %}</div>
+                        </th>
                         <th scope="col" class="sortable column-status">
                             <div class="text">{% trans 'Status' %}</div>
-                        </th>
-                        <th scope="col" class="sortable column-payment_status">
-                            <div class="text">{% trans 'Payment' %}</div>
-                        </th>
-                        <th scope="col" class="sortable column-voucher_code">
-                            <div class="text">{% trans 'Voucher' %}</div>
-                        </th>
-                        <th scope="col" class="sortable column-price_paid text-right">
-                            <div class="text">{% trans 'Price paid' %}</div>
                         </th>
                         <th scope="col" class="sortable column-created_at">
                             <div class="text">{% trans 'Created at' %}</div>
@@ -83,29 +80,9 @@
                             —
                             {% endif %}
                         </td>
+                        <td class="field-camera_make">{{ booking.camera_make|default:"—" }}</td>
+                        <td class="field-camera_model">{{ booking.camera_model|default:"—" }}</td>
                         <td class="field-status">{{ booking.get_status_display }}</td>
-                        <td class="field-payment_status">
-                            {% if booking.payment %}
-                                {{ booking.payment.get_status_display }}
-                            {% else %}
-                                —
-                            {% endif %}
-                        </td>
-                        <td class="field-voucher_code">
-                            {% if booking.voucher_code %}
-                            {{ booking.voucher_code }}
-                            {% if booking.voucher_discount %}<span class="text-muted">(-£{{ booking.voucher_discount|floatformat:2 }})</span>{% endif %}
-                            {% else %}
-                            —
-                            {% endif %}
-                        </td>
-                        <td class="field-price_paid text-right">
-                            {% if booking.is_legacy %}
-                            —
-                            {% else %}
-                            £{{ booking.price_paid|floatformat:2 }}
-                            {% endif %}
-                        </td>
                         <td class="field-created_at nowrap">
                             {% if booking.created_at %}
                             {{ booking.created_at|date:"j M Y, H:i" }}

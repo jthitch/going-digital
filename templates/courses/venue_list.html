@@ -17,6 +17,8 @@
             {% if near_me_active %}
                 {% if venue_count %}{{ venue_count }} venue{{ venue_count|pluralize }} within {{ near_radius }} mile{{ near_radius|pluralize }}{% else %}No venues within {{ near_radius }} mile{{ near_radius|pluralize }}{% endif %}
                 {% if current_search %} matching “{{ current_search }}”{% endif %}
+            {% elif place_search_active %}
+                {% if venue_count %}{{ venue_count }} venue{{ venue_count|pluralize }} within {{ near_radius }} mile{{ near_radius|pluralize }} of {{ place_search_label }}{% else %}No venues within {{ near_radius }} mile{{ near_radius|pluralize }} of {{ place_search_label }}{% endif %}
             {% elif current_search %}
                 {% if venue_count %}{{ venue_count }} venue{{ venue_count|pluralize }} matching “{{ current_search }}”{% else %}No venues match “{{ current_search }}”{% endif %}
             {% else %}
@@ -57,7 +59,7 @@
                     Near me
                 </button>
 
-                {% if near_me_active %}
+                {% if location_search_active %}
                 <div class="venue-near__radius" role="group" aria-label="Search radius">
                     <button type="submit"
                             class="venue-near__radius-btn"
@@ -73,8 +75,13 @@
                             {% if near_radius >= near_radius_max %}disabled{% endif %}
                             aria-label="Increase radius to {{ near_radius_increase }} miles">+</button>
                 </div>
+                {% if near_me_active %}
                 <a href="{% url 'courses:venue_list' %}{% if current_search %}?q={{ current_search|urlencode }}{% endif %}"
                    class="venue-near__clear">Clear location</a>
+                {% elif place_search_active %}
+                <a href="{% url 'courses:venue_list' %}"
+                   class="venue-near__clear">Clear location</a>
+                {% endif %}
                 {% endif %}
             </div>
 
@@ -105,7 +112,7 @@
                             {% endwith %}
                             <div class="venue-card-content">
                                 <h3 class="venue-card-title">{{ venue.name }}</h3>
-                                {% if near_me_active and venue.distance_miles != None %}
+                                {% if location_search_active and venue.distance_miles != None %}
                                 <p class="venue-card-distance">{{ venue.distance_miles }} mile{{ venue.distance_miles|pluralize }} away</p>
                                 {% endif %}
                                 {% if venue.location %}
@@ -125,13 +132,13 @@
         {% else %}
             <div class="no-results">
                 <h2>No venues found</h2>
-                {% if near_me_active %}
+                {% if location_search_active %}
                 <p>
                     Try increasing the radius
                     {% if near_radius < near_radius_max %}
                     (currently {{ near_radius }} miles)
                     {% endif %}
-                    {% if current_search %} or clearing your text search{% endif %}.
+                    {% if near_me_active and current_search %} or clearing your text search{% elif place_search_active %} or trying a different place{% endif %}.
                 </p>
                 {% elif current_search %}
                 <p>Try a different name, town, postcode, or region — or <a href="{% url 'courses:venue_list' %}">clear your search</a>.</p>

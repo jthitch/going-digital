@@ -20,12 +20,14 @@ def _legacy_booking_display(student):
         student_email=student.email,
         student_phone=student.phone,
         loan_camera=student.loan_camera,
+        camera_make=student.camera_make,
+        camera_model=student.camera_model,
         get_status_display=lambda s=student.status: s or '—',
         payment=None,
         voucher_code='',
         voucher_discount=None,
         price_paid=0,
-        created_at=None,
+        created_at=student.created_at,
         is_legacy=True,
     )
 

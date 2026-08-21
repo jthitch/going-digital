@@ -34,20 +34,17 @@ class RegionScopedBookingAdminMixin:
         return bool(get_user_region_ids(request.user))
 
     def has_change_permission(self, request, obj=None):
-        return user_has_full_region_access(request.user)
+        # Franchisees may edit limited student fields on bookings they can view.
+        if user_has_full_region_access(request.user):
+            return True
+        if obj is None:
+            return bool(get_user_region_ids(request.user))
+        return user_can_view_booking(request.user, obj)
 
     def has_delete_permission(self, request, obj=None):
         return user_has_full_region_access(request.user)
 
     def get_readonly_fields(self, request, obj=None):
-        # BookingAdmin supplies add vs change readonly lists; keep franchisee change locked.
-        readonly = list(super().get_readonly_fields(request, obj))
-        if obj is not None and not user_has_full_region_access(request.user):
-            return list(
-                dict.fromkeys(
-                    [f.name for f in self.model._meta.fields]
-                    + [f.name for f in self.model._meta.many_to_many]
-                    + readonly
-                )
-            )
-        return readonly
+        # BookingAdmin supplies add vs change readonly lists and which student
+        # fields stay editable for franchisees.
+        return list(super().get_readonly_fields(request, obj))

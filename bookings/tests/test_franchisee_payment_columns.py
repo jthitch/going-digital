@@ -66,3 +66,14 @@ class FranchiseePaymentColumnTests(SimpleTestCase):
         columns = _franchisee_payment_columns(Decimal('50.00'), VOUCHER_GATEWAY_ID, gateway)
         self.assertEqual(columns['customer_payment'], Decimal('0.00'))
         self.assertEqual(columns['manual_payment'], Decimal('0.00'))
+
+    def test_stripe_applies_transaction_percentage(self):
+        gateway = {
+            'name': 'Stripe',
+            'transaction_percentage': Decimal('1.50'),
+            'manual_payment_option': 0,
+        }
+        columns = _franchisee_payment_columns(Decimal('100.00'), STRIPE_GATEWAY_ID, gateway)
+        self.assertEqual(columns['customer_payment'], Decimal('100.00'))
+        self.assertEqual(columns['manual_payment'], Decimal('0.00'))
+        self.assertEqual(columns['transaction_fee'], Decimal('1.50'))

@@ -22,9 +22,11 @@ DEV_SITE_SESSION_KEY = 'dev_site_access_granted'
 PHOTOGRAPHY_WORKSHOPS_PREFIX = '/photography-workshops'
 PHOTOGRAPHY_COURSES_PREFIX = '/photography-courses'
 
-# Paths that must not require the dev passcode (no browser session, e.g. Stripe CLI webhooks).
+# Paths that must not require the dev passcode (no browser session, e.g. Stripe CLI
+# webhooks, or email deep-links opened without a prior session).
 DEV_SITE_ACCESS_EXEMPT_PREFIXES = (
     '/payments/webhook/',
+    '/bookings/follow-up/',
     '/robots.txt',
     '/llms.txt',
     '/sitemap.xml',

@@ -2,7 +2,7 @@
 Booking models for course reservations.
 """
 from django.db import models
-from django.core.validators import RegexValidator, MinValueValidator
+from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
 from decimal import Decimal
 from core.models import User, Customer
 from courses.models import Workshop
@@ -132,6 +132,18 @@ class Booking(models.Model):
         blank=True,
         help_text='When the day-before workshop reminder email was sent to the student.',
     )
+    follow_up_email_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When the day-after workshop follow-up / rating email was sent.',
+    )
+    follow_up_token = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        db_index=True,
+        help_text='Secret token used in follow-up email star-rating links.',
+    )
     
     class Meta:
         db_table = 'bookings'
@@ -182,6 +194,39 @@ class Booking(models.Model):
     @property
     def used_voucher(self):
         return bool((self.voucher_id or self.discount_code_id) and self.voucher_code)
+
+
+
+class WorkshopFeedback(models.Model):
+    """Student rating and optional comment from the day-after follow-up email."""
+
+    booking = models.OneToOneField(
+        Booking,
+        on_delete=models.CASCADE,
+        related_name='workshop_feedback',
+    )
+    workshop = models.ForeignKey(
+        Workshop,
+        on_delete=models.PROTECT,
+        related_name='student_feedback',
+    )
+    rating = models.PositiveSmallIntegerField(
+        help_text='1-5 star rating from the follow-up email.',
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    comment = models.TextField(blank=True, default='')
+    rated_at = models.DateTimeField(auto_now_add=True)
+    comment_submitted_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'workshop_feedback'
+        ordering = ['-rated_at']
+        verbose_name = 'Workshop feedback'
+        verbose_name_plural = 'Workshop feedback'
+
+    def __str__(self):
+        return f'{self.rating}* — {self.booking.booking_reference}'
 
 
 class DiscountCode(models.Model):
