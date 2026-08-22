@@ -110,17 +110,19 @@ def gateway_id_for_booking(booking, basket_details):
     if metadata.get('gift_voucher_basket_id'):
         return None
 
+    # Voucher-only checkout must win over basket.payment_gateway_id (often Stripe
+    # from when the basket was created, before a gift voucher covered the total).
+    if payment.intent_type == 'voucher_free':
+        return VOUCHER_GATEWAY_ID
+
     basket_id = metadata.get('workshop_basket_id')
     if basket_id:
         try:
             basket = basket_details.get(int(basket_id))
-            if basket:
+            if basket and basket.get('payment_gateway_id'):
                 return basket['payment_gateway_id']
         except (TypeError, ValueError):
             pass
-
-    if payment.intent_type == 'voucher_free':
-        return VOUCHER_GATEWAY_ID
 
     if payment.intent_type == 'manual_tutor':
         try:

@@ -31,6 +31,8 @@ class BookingAdminStudentEditTests(SimpleTestCase):
         readonly = self.admin.get_readonly_fields(request, obj=self.booking)
         for field in BookingAdmin.student_editable_fields:
             self.assertNotIn(field, readonly)
+        self.assertIn('camera_make', BookingAdmin.student_editable_fields)
+        self.assertIn('camera_model', BookingAdmin.student_editable_fields)
         self.assertIn('student_email', readonly)
         self.assertTrue(self.admin.has_change_permission(request, self.booking))
 

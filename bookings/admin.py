@@ -335,6 +335,8 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
         'student_phone',
         'special_requirements',
         'loan_camera',
+        'camera_make',
+        'camera_model',
     )
     change_readonly_fields = [
         'booking_reference',
@@ -391,6 +393,8 @@ class BookingAdmin(RegionScopedBookingAdminMixin, admin.ModelAdmin):
                 'student_phone',
                 'special_requirements',
                 'loan_camera',
+                'camera_make',
+                'camera_model',
             ),
         }),
         ('Payment & account', {

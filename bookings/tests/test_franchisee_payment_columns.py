@@ -11,7 +11,7 @@ from bookings.report_payment_data import (
     VOUCHER_GATEWAY_ID,
     is_manual_report_gateway,
 )
-from bookings.reports import _franchisee_payment_columns
+from bookings.reports import _franchisee_payment_columns, _gift_voucher_transaction_fee
 
 
 WORLDPAY_GATEWAY_ID = 9
@@ -77,3 +77,34 @@ class FranchiseePaymentColumnTests(SimpleTestCase):
         self.assertEqual(columns['customer_payment'], Decimal('100.00'))
         self.assertEqual(columns['manual_payment'], Decimal('0.00'))
         self.assertEqual(columns['transaction_fee'], Decimal('1.50'))
+
+
+class GiftVoucherTransactionFeeTests(SimpleTestCase):
+    def setUp(self):
+        self.gateway_meta = {
+            VOUCHER_GATEWAY_ID: {
+                'name': 'Going Digital Voucher',
+                'transaction_percentage': Decimal('2.55'),
+                'manual_payment_option': 1,
+            },
+            STRIPE_GATEWAY_ID: {
+                'name': 'Stripe',
+                'transaction_percentage': Decimal('1.50'),
+                'manual_payment_option': 0,
+            },
+        }
+
+    def test_fee_uses_voucher_gateway_rate(self):
+        fee = _gift_voucher_transaction_fee(Decimal('100.00'), self.gateway_meta)
+        self.assertEqual(fee, Decimal('2.55'))
+
+    def test_fee_applies_even_when_card_gateway_paid_the_rest(self):
+        # Mixed Stripe + gift voucher must still fee the voucher portion.
+        fee = _gift_voucher_transaction_fee(Decimal('25.00'), self.gateway_meta)
+        self.assertEqual(fee, Decimal('0.64'))
+
+    def test_zero_voucher_value_no_fee(self):
+        self.assertEqual(
+            _gift_voucher_transaction_fee(Decimal('0.00'), self.gateway_meta),
+            Decimal('0.00'),
+        )

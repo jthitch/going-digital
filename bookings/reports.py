@@ -488,6 +488,20 @@ def _franchisee_payment_columns(amount_paid, gateway_id, gateway_meta):
     }
 
 
+def _gift_voucher_transaction_fee(gift_voucher_value, gateway_meta_by_id):
+    """
+    Fee on gift-voucher value uses the Going Digital Voucher gateway rate.
+
+    Applies whenever a gift voucher amount is present — including mixed
+    Stripe/WorldPay + voucher payments — not only pure voucher gateways.
+    """
+    value = _quantize_money(gift_voucher_value)
+    if value <= 0:
+        return Decimal('0.00')
+    voucher_gateway = gateway_meta_by_id.get(VOUCHER_GATEWAY_ID, {})
+    return _gateway_transaction_fee(value, voucher_gateway)
+
+
 def build_franchisee_booking_report(user, start_date, end_date):
     """Line-item franchisee bookings via gd_bookings_workshops (legacy) and synced rows (new site)."""
     gateway_meta = load_payment_gateway_meta()
@@ -526,13 +540,16 @@ def build_franchisee_booking_report(user, start_date, end_date):
         transaction_fee = columns['transaction_fee']
         if gateway_id == VOUCHER_GATEWAY_ID:
             gift_voucher_value = gift_voucher_value or workshop_cost
+        elif gift_voucher_value > 0 and customer_payment == 0:
+            # Fully voucher-funded rows sometimes synced as Stripe when the basket
+            # still had a card gateway id; show voucher as the payment method.
+            voucher_meta = gateway_meta.get(VOUCHER_GATEWAY_ID, {})
+            payment_method = (voucher_meta.get('name') or '').strip() or payment_method
 
-        gift_voucher_transaction_fee = Decimal('0.00')
-        if gift_voucher_value > 0 and gateway_id == VOUCHER_GATEWAY_ID:
-            gift_voucher_transaction_fee = _gateway_transaction_fee(
-                gift_voucher_value,
-                gateway,
-            )
+        gift_voucher_transaction_fee = _gift_voucher_transaction_fee(
+            gift_voucher_value,
+            gateway_meta,
+        )
 
         customer_payment_plus_voucher = _quantize_money(
             customer_payment + gift_voucher_value,
