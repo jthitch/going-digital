@@ -176,7 +176,7 @@ class BookingBasketRemoveView(View):
 
 
 class BookingBasketCheckoutView(View):
-    """Create pending bookings from session basket and start payment."""
+    """Persist basket and start payment; bookings are created after payment succeeds."""
 
     def post(self, request):
         form = BasketCheckoutForm(request.POST)
@@ -186,7 +186,7 @@ class BookingBasketCheckoutView(View):
             return redirect('bookings:basket')
 
         try:
-            basket_id, booking_ids, customer = prepare_checkout_from_session(request)
+            basket_id, customer = prepare_checkout_from_session(request)
         except ValidationError as exc:
             messages.error(request, exc.messages[0] if exc.messages else str(exc))
             return redirect('bookings:basket')
@@ -195,7 +195,7 @@ class BookingBasketCheckoutView(View):
             request,
             customer=customer,
             basket_id=basket_id,
-            booking_ids=booking_ids,
+            booking_ids=[],
         )
 
         if form.cleaned_data.get('subscribe_newsletter') and customer.email:

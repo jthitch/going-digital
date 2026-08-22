@@ -22,6 +22,26 @@ def store_checkout_success_context(request, bookings):
     request.session.modified = True
 
 
+def store_checkout_success_context_from_basket(request, basket_data):
+    """Remember purchaser details when bookings are created only after payment."""
+    items = basket_data.get('items') or []
+    lead = items[0] if items else {}
+    email = (
+        basket_data.get('purchaser_email')
+        or lead.get('student_email')
+        or ''
+    ).strip().lower()
+    request.session[CHECKOUT_SUCCESS_SESSION_KEY] = {
+        'booking_ids': list(basket_data.get('booking_ids') or []),
+        'email': email,
+        'firstname': lead.get('student_first_name') or '',
+        'lastname': lead.get('student_last_name') or '',
+        'booking_reference': '',
+        'workshop_basket_id': basket_data.get('id'),
+    }
+    request.session.modified = True
+
+
 def get_checkout_success_context(request):
     return request.session.get(CHECKOUT_SUCCESS_SESSION_KEY) or {}
 

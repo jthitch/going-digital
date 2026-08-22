@@ -12,14 +12,13 @@
     <h1>Checkout</h1>
 
     <div class="checkout-lines">
-        {% for booking in bookings %}
+        {% for place in place_lines %}
         <div class="checkout-line card">
-            <h2>{{ booking.workshop.course.title }}</h2>
-            <p><strong>Date:</strong> {{ booking.workshop.start_date|date:"d F Y" }} at {{ booking.workshop.start_date|date:"g:i A" }}</p>
-            <p><strong>Location:</strong> {{ booking.workshop.venue.name }}, {{ booking.workshop.venue.city }}</p>
-            <p><strong>Student:</strong> {{ booking.student_first_name }} {{ booking.student_last_name }}</p>
-            <p><strong>Reference:</strong> {{ booking.booking_reference }}</p>
-            <p><strong>Price:</strong> £{{ booking.price_paid|floatformat:2 }}</p>
+            <h2>{{ place.workshop.course.title }}</h2>
+            <p><strong>Date:</strong> {{ place.workshop.start_date|date:"d F Y" }} at {{ place.workshop.start_date|date:"g:i A" }}</p>
+            <p><strong>Location:</strong> {{ place.workshop.venue.name }}, {{ place.workshop.venue.city }}</p>
+            <p><strong>Student:</strong> {{ place.student_first_name }} {{ place.student_last_name }}</p>
+            <p><strong>Price:</strong> £{{ place.price_paid|floatformat:2 }}</p>
         </div>
         {% endfor %}
     </div>

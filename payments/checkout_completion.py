@@ -158,10 +158,16 @@ def _increment_workshop_places_booked(workshop_id, places=1):
 
 
 def _complete_workshop_basket(metadata, payment):
-    """Confirm all bookings in a workshop basket payment."""
+    """Create (if needed) and confirm bookings for a workshop basket payment."""
     from collections import Counter
 
+    from core.models import Customer
     from payments.tasks import send_booking_confirmation_emails
+    from bookings.workshop_basket import (
+        create_confirmed_bookings_from_basket_data,
+        get_workshop_basket,
+        update_workshop_basket_booking_ids,
+    )
 
     basket_id = int(metadata['workshop_basket_id'])
     booking_ids = metadata.get('booking_ids') or []
@@ -170,11 +176,11 @@ def _complete_workshop_basket(metadata, payment):
     else:
         booking_ids = [int(x) for x in booking_ids]
 
-    if not booking_ids:
-        from bookings.workshop_basket import get_workshop_basket
-        basket = get_workshop_basket(basket_id)
-        if basket:
-            booking_ids = basket['basket_data'].get('booking_ids') or []
+    basket = get_workshop_basket(basket_id)
+    if not booking_ids and basket:
+        booking_ids = [
+            int(x) for x in (basket['basket_data'].get('booking_ids') or []) if str(x).isdigit()
+        ]
 
     should_send_confirmation = False
     places_by_workshop = Counter()
@@ -185,6 +191,34 @@ def _complete_workshop_basket(metadata, payment):
     with transaction.atomic():
         locked_payment = Payment.objects.select_for_update().get(pk=payment_id)
         pay_meta = dict(locked_payment.metadata or {})
+
+        # Prefer ids already recorded on a prior completion (idempotent).
+        meta_booking_ids = pay_meta.get('booking_ids') or []
+        if isinstance(meta_booking_ids, str):
+            meta_booking_ids = [
+                int(x) for x in meta_booking_ids.split(',') if str(x).strip().isdigit()
+            ]
+        else:
+            meta_booking_ids = [int(x) for x in meta_booking_ids if str(x).isdigit()]
+        if meta_booking_ids:
+            booking_ids = meta_booking_ids
+
+        if not booking_ids:
+            if not basket:
+                return
+            customer_id = basket.get('customer_id') or basket['basket_data'].get('customer_id')
+            if not customer_id:
+                return
+            customer = Customer.objects.get(pk=customer_id)
+            booking_ids = create_confirmed_bookings_from_basket_data(
+                basket['basket_data'],
+                customer,
+                payment=locked_payment,
+            )
+            update_workshop_basket_booking_ids(basket_id, booking_ids)
+            pay_meta['booking_ids'] = booking_ids
+            pay_meta['workshop_basket_id'] = basket_id
+
         apply_places = not pay_meta.get('places_booked_applied')
 
         for booking_id in booking_ids:

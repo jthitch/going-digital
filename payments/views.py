@@ -46,6 +46,7 @@ from payments.checkout_session_context import (
     is_booking_checkout_authorized,
     load_bookings_from_checkout_context,
     store_checkout_success_context,
+    store_checkout_success_context_from_basket,
 )
 from .checkout_completion import checkout_session_is_paid, complete_checkout_session, stripe_metadata_dict
 from .forms import VoucherCheckoutForm
@@ -308,13 +309,16 @@ def _get_workshop_basket_context(request, basket_id):
     if not basket:
         return None
     data = basket['basket_data']
-    booking_ids = data.get('booking_ids') or []
-    bookings = list(
-        Booking.objects.filter(id__in=booking_ids, status='pending')
-        .select_related('workshop', 'workshop__course', 'workshop__venue')
-        .order_by('id')
-    )
-    if not bookings:
+    if not data.get('items'):
+        return None
+    from bookings.workshop_basket import build_place_specs_from_basket, session_basket_from_data
+
+    try:
+        place_lines = build_place_specs_from_basket(
+            session_basket_from_data(data),
+            validate_availability=False,
+        )
+    except ValidationError:
         return None
     list_total = Decimal(str(data.get('list_total', '0')))
     discount = Decimal(str(data.get('voucher_discount', '0')))
@@ -322,7 +326,7 @@ def _get_workshop_basket_context(request, basket_id):
     return {
         'gd_basket': basket,
         'basket_data': data,
-        'bookings': bookings,
+        'place_lines': place_lines,
         'list_total': list_total,
         'discount': discount,
         'total': total,
@@ -332,10 +336,9 @@ def _get_workshop_basket_context(request, basket_id):
     }
 
 
-def _workshop_basket_payment_metadata(basket_id, data, booking_ids, request=None):
+def _workshop_basket_payment_metadata(basket_id, data, request=None):
     metadata = {
         'workshop_basket_id': basket_id,
-        'booking_ids': booking_ids,
         'list_total': data.get('list_total'),
         'voucher_code': data.get('voucher_code', ''),
         'voucher_discount': data.get('voucher_discount', '0'),
@@ -349,7 +352,7 @@ def _start_stripe_basket_checkout(request, basket_id, ctx):
     if not STRIPE_AVAILABLE:
         return JsonResponse({'error': 'Stripe is not configured.'}, status=503)
 
-    bookings = ctx['bookings']
+    place_lines = ctx['place_lines']
     total = ctx['total']
     data = ctx['basket_data']
     unit_amount = int(total * 100)
@@ -357,8 +360,8 @@ def _start_stripe_basket_checkout(request, basket_id, ctx):
         return redirect('payments:create_workshop_basket_checkout', basket_id=basket_id)
 
     line_items = []
-    for booking in bookings:
-        workshop = booking.workshop
+    for place in place_lines:
+        workshop = place['workshop']
         line_items.append({
             'price_data': {
                 'currency': 'gbp',
@@ -368,20 +371,18 @@ def _start_stripe_basket_checkout(request, basket_id, ctx):
                         f" - {workshop.venue.name if workshop.venue else 'TBC'}"
                     ),
                     'description': (
-                        f"{booking.student_first_name} {booking.student_last_name} · "
+                        f"{place['student_first_name']} {place['student_last_name']} · "
                         f"{workshop_checkout_date_label(workshop)}"
                     ),
                 },
-                'unit_amount': int(booking.price_paid * 100),
+                'unit_amount': int(place['price_paid'] * 100),
             },
             'quantity': 1,
         })
 
-    purchaser_email = data.get('purchaser_email') or bookings[0].student_email
-    booking_ids = [b.id for b in bookings]
+    purchaser_email = data.get('purchaser_email') or place_lines[0]['student_email']
     metadata = {
         'workshop_basket_id': str(basket_id),
-        'booking_ids': ','.join(str(i) for i in booking_ids),
     }
 
     try:
@@ -397,8 +398,8 @@ def _start_stripe_basket_checkout(request, basket_id, ctx):
             customer_email=purchaser_email,
         )
 
-        payment_metadata = _workshop_basket_payment_metadata(basket_id, data, booking_ids, request)
-        payment = Payment.objects.create(
+        payment_metadata = _workshop_basket_payment_metadata(basket_id, data, request)
+        Payment.objects.create(
             user=None,
             intent_type='checkout_session',
             stripe_id=checkout_session.id,
@@ -407,19 +408,16 @@ def _start_stripe_basket_checkout(request, basket_id, ctx):
             description=f"Workshop basket #{basket_id}",
             metadata=payment_metadata,
         )
-        Booking.objects.filter(id__in=booking_ids).update(payment=payment)
-        store_checkout_success_context(request, bookings)
+        store_checkout_success_context_from_basket(request, data)
         return redirect(checkout_session.url)
     except stripe.error.StripeError as e:
         return JsonResponse({'error': str(e)}, status=400)
 
 
 def _complete_free_workshop_basket_checkout(request, basket_id, ctx):
-    bookings = ctx['bookings']
     data = ctx['basket_data']
-    booking_ids = [b.id for b in bookings]
     stripe_id = f'free-basket-{basket_id}-{uuid.uuid4().hex[:12]}'
-    payment_metadata = _workshop_basket_payment_metadata(basket_id, data, booking_ids, request)
+    payment_metadata = _workshop_basket_payment_metadata(basket_id, data, request)
     payment = Payment.objects.create(
         user=None,
         intent_type='voucher_free',
@@ -429,7 +427,6 @@ def _complete_free_workshop_basket_checkout(request, basket_id, ctx):
         description=f"Workshop basket #{basket_id} (voucher)",
         metadata=payment_metadata,
     )
-    Booking.objects.filter(id__in=booking_ids).update(payment=payment)
     complete_checkout_session(
         {
             'id': stripe_id,
@@ -437,12 +434,17 @@ def _complete_free_workshop_basket_checkout(request, basket_id, ctx):
             'status': 'complete',
             'metadata': {
                 'workshop_basket_id': str(basket_id),
-                'booking_ids': ','.join(str(i) for i in booking_ids),
             },
         },
         source='voucher_free (basket checkout)',
     )
-    store_checkout_success_context(request, bookings)
+    payment.refresh_from_db()
+    booking_ids = _payment_metadata_booking_ids(payment.metadata or {})
+    if booking_ids:
+        bookings = Booking.objects.filter(id__in=booking_ids).order_by('id')
+        store_checkout_success_context(request, bookings)
+    else:
+        store_checkout_success_context_from_basket(request, data)
     return redirect(f'{reverse("payments:success")}?session_id={stripe_id}')
 
 
@@ -642,6 +644,19 @@ def _payment_metadata_booking_ids(metadata):
 def _load_bookings_from_payment_metadata(metadata):
     if 'workshop_basket_id' in metadata:
         booking_ids = _payment_metadata_booking_ids(metadata)
+        if not booking_ids:
+            try:
+                from bookings.workshop_basket import get_workshop_basket
+
+                basket = get_workshop_basket(int(metadata['workshop_basket_id']))
+                if basket:
+                    booking_ids = [
+                        int(x)
+                        for x in (basket['basket_data'].get('booking_ids') or [])
+                        if str(x).isdigit()
+                    ]
+            except (TypeError, ValueError):
+                booking_ids = []
         if booking_ids:
             return Booking.objects.filter(id__in=booking_ids).select_related(
                 'workshop', 'workshop__course', 'workshop__venue', 'user',

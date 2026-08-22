@@ -397,16 +397,32 @@ def _allocate_discounts(booking_amounts, total_discount, eligible_mask=None):
     return allocations
 
 
-def create_pending_bookings_for_basket(basket, customer):
-    """Create one Booking row per place; return booking ids in basket order."""
+def session_basket_from_data(basket_data):
+    """Normalize persisted gd_basket.basket_data into a session-like basket dict."""
+    return {
+        'items': basket_data.get('items') or [],
+        'voucher_id': basket_data.get('voucher_id'),
+        'discount_code_id': basket_data.get('discount_code_id'),
+        'voucher_code': basket_data.get('voucher_code', ''),
+        'voucher_discount': str(basket_data.get('voucher_discount') or '0.00'),
+        'discount_eligible_workshop_ids': basket_data.get('discount_eligible_workshop_ids') or [],
+    }
+
+
+def build_place_specs_from_basket(basket, *, validate_availability=True):
+    """
+    Expand basket lines into one place-spec per student place, with voucher
+    discount allocated. Does not create Booking rows.
+    """
     workshops = load_workshops_for_basket(basket)
     booking_specs = []
-    for item in basket['items']:
+    for item in basket.get('items') or []:
         workshop = workshops.get(item['workshop_id'])
         if not workshop:
             raise ValidationError('A course in your basket is no longer available.')
         qty = int(item['quantity'])
-        _validate_quantity_for_workshop(workshop, qty)
+        if validate_availability:
+            _validate_quantity_for_workshop(workshop, qty)
         loan_cameras = int(item.get('loan_cameras') or 0)
         unit = Decimal(str(workshop.price))
         for place_index in range(qty):
@@ -433,13 +449,48 @@ def create_pending_bookings_for_basket(basket, customer):
         eligible_mask=eligible_mask,
     )
 
-    booking_ids = []
+    place_specs = []
     for spec, discount_share in zip(booking_specs, discount_alloc):
         price_paid = max(Decimal('0.00'), spec['list_price'] - discount_share)
+        voucher_id = None
+        discount_code_id = None
+        voucher_code = ''
+        voucher_discount = Decimal('0.00')
+        apply_code = bool(basket.get('voucher_id') or basket.get('discount_code_id'))
+        if apply_code:
+            # Gift vouchers apply to every place; promo codes only to eligible workshops.
+            if not (basket.get('discount_code_id') and discount_share <= 0):
+                voucher_id = basket.get('voucher_id')
+                discount_code_id = basket.get('discount_code_id')
+                voucher_code = basket.get('voucher_code', '')
+                voucher_discount = discount_share
+        place_specs.append({
+            **spec,
+            'price_paid': price_paid,
+            'voucher_id': voucher_id,
+            'discount_code_id': discount_code_id,
+            'voucher_code': voucher_code,
+            'voucher_discount': voucher_discount,
+        })
+    return place_specs
+
+
+def create_confirmed_bookings_from_basket_data(basket_data, customer, payment=None):
+    """
+    Create confirmed Booking rows from a paid workshop basket.
+    Call only after payment has succeeded (or a fully discounted free checkout).
+    """
+    place_specs = build_place_specs_from_basket(
+        session_basket_from_data(basket_data),
+        validate_availability=True,
+    )
+    booking_ids = []
+    for spec in place_specs:
         booking = Booking(
             workshop=spec['workshop'],
             user=None,
             customer=customer,
+            payment=payment,
             student_first_name=spec['student_first_name'],
             student_last_name=spec['student_last_name'],
             student_email=spec['student_email'],
@@ -447,36 +498,40 @@ def create_pending_bookings_for_basket(basket, customer):
             special_requirements=spec['special_requirements'],
             loan_camera=spec['loan_camera'],
             list_price=spec['list_price'],
-            price_paid=price_paid,
-            status='pending',
+            price_paid=spec['price_paid'],
+            status='confirmed',
+            voucher_id=spec['voucher_id'],
+            discount_code_id=spec['discount_code_id'],
+            voucher_code=spec['voucher_code'],
+            voucher_discount=spec['voucher_discount'],
         )
-        apply_code = bool(basket.get('voucher_id') or basket.get('discount_code_id'))
-        if apply_code:
-            # Gift vouchers apply to every place; promo codes only to eligible workshops.
-            if basket.get('discount_code_id') and discount_share <= 0:
-                pass
-            else:
-                booking.voucher_id = basket.get('voucher_id')
-                booking.discount_code_id = basket.get('discount_code_id')
-                booking.voucher_code = basket.get('voucher_code', '')
-                booking.voucher_discount = discount_share
         booking.save()
         booking_ids.append(booking.id)
-        try:
-            from bookings.legacy_reports import sync_booking_to_legacy_unpaid_report
-
-            sync_booking_to_legacy_unpaid_report(booking)
-        except Exception:
-            import logging
-
-            logging.getLogger(__name__).exception(
-                'Failed to sync pending booking %s to gd_report__unpaid_bookings',
-                booking.id,
-            )
     return booking_ids
 
 
-def persist_workshop_basket(request, basket, booking_ids, customer):
+def update_workshop_basket_booking_ids(basket_id, booking_ids):
+    """Persist booking ids created after successful payment onto gd_basket."""
+    basket = get_workshop_basket(basket_id)
+    if not basket:
+        return
+    data = basket['basket_data']
+    data['booking_ids'] = list(booking_ids)
+    from django.utils import timezone as dj_tz
+
+    now = dj_tz.now().isoformat()
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE gd_basket
+            SET basket_data = %s, updated_at = %s
+            WHERE id = %s
+            """,
+            [json.dumps(data), now, basket_id],
+        )
+
+
+def persist_workshop_basket(request, basket, customer, booking_ids=None):
     """Save basket snapshot to gd_basket for payment webhook completion."""
     workshops = load_workshops_for_basket(basket)
     list_total = basket_list_total(basket, workshops)
@@ -494,7 +549,7 @@ def persist_workshop_basket(request, basket, booking_ids, customer):
         'type': 'workshop_booking',
         'user_id': None,
         'customer_id': customer_id,
-        'booking_ids': booking_ids,
+        'booking_ids': list(booking_ids or []),
         'list_total': str(list_total),
         'voucher_id': basket.get('voucher_id'),
         'discount_code_id': basket.get('discount_code_id'),
@@ -559,56 +614,24 @@ def get_workshop_basket(basket_id):
 
 
 def apply_voucher_to_gd_basket(basket_id, voucher_code):
-    """Apply voucher to a persisted gd_basket and update pending booking prices."""
+    """Apply voucher to a persisted gd_basket (bookings are created after payment)."""
     basket = get_workshop_basket(basket_id)
     if not basket:
         raise ValidationError('Basket not found.')
     data = basket['basket_data']
-    booking_ids = data.get('booking_ids') or []
-    bookings = list(
-        Booking.objects.filter(id__in=booking_ids, status='pending').select_related('workshop')
-    )
-    if not bookings:
-        raise ValidationError('No pending bookings for this basket.')
+    if not data.get('items'):
+        raise ValidationError('Your basket is empty.')
 
-    session_like = {
-        'items': data.get('items', []),
+    session_like = session_basket_from_data({
+        **data,
         'voucher_id': None,
         'discount_code_id': None,
         'voucher_code': '',
         'voucher_discount': '0.00',
         'discount_eligible_workshop_ids': [],
-    }
-    workshops = {b.workshop_id: b.workshop for b in bookings}
+    })
+    workshops = load_workshops_for_basket(session_like)
     apply_voucher_to_session_basket(session_like, voucher_code, workshops)
-
-    list_amounts = [Decimal(str(b.list_price or b.workshop.price)) for b in bookings]
-    eligible_ids = set(session_like.get('discount_eligible_workshop_ids') or [])
-    if session_like.get('discount_code_id') and eligible_ids:
-        eligible_mask = [b.workshop_id in eligible_ids for b in bookings]
-    else:
-        eligible_mask = None
-    discount_alloc = _allocate_discounts(
-        list_amounts,
-        Decimal(str(session_like.get('voucher_discount') or '0')),
-        eligible_mask=eligible_mask,
-    )
-    for booking, list_price, discount_share in zip(bookings, list_amounts, discount_alloc):
-        booking.voucher_id = session_like.get('voucher_id')
-        booking.discount_code_id = session_like.get('discount_code_id')
-        booking.voucher_code = session_like.get('voucher_code', '')
-        booking.voucher_discount = discount_share
-        booking.price_paid = max(Decimal('0.00'), list_price - discount_share)
-        booking.save(
-            update_fields=[
-                'voucher_id',
-                'discount_code',
-                'voucher_code',
-                'voucher_discount',
-                'price_paid',
-                'updated_at',
-            ]
-        )
 
     data['voucher_id'] = session_like.get('voucher_id')
     data['discount_code_id'] = session_like.get('discount_code_id')
@@ -616,7 +639,10 @@ def apply_voucher_to_gd_basket(basket_id, voucher_code):
     data['voucher_discount'] = session_like.get('voucher_discount', '0.00')
     data['discount_eligible_workshop_ids'] = session_like.get('discount_eligible_workshop_ids') or []
     data['total'] = str(
-        max(Decimal('0.00'), Decimal(str(data.get('list_total', '0'))) - Decimal(data['voucher_discount']))
+        max(
+            Decimal('0.00'),
+            Decimal(str(data.get('list_total', '0'))) - Decimal(data['voucher_discount']),
+        )
     )
 
     from django.utils import timezone as dj_tz
@@ -646,23 +672,6 @@ def clear_voucher_from_gd_basket(basket_id):
     if not basket:
         return
     data = basket['basket_data']
-    booking_ids = data.get('booking_ids') or []
-    for booking in Booking.objects.filter(id__in=booking_ids, status='pending'):
-        booking.voucher_id = None
-        booking.discount_code = None
-        booking.voucher_code = ''
-        booking.voucher_discount = Decimal('0.00')
-        booking.price_paid = booking.list_price or booking.workshop.price
-        booking.save(
-            update_fields=[
-                'voucher_id',
-                'discount_code',
-                'voucher_code',
-                'voucher_discount',
-                'price_paid',
-                'updated_at',
-            ]
-        )
     data['voucher_id'] = None
     data['discount_code_id'] = None
     data['voucher_code'] = ''
@@ -684,13 +693,21 @@ def clear_voucher_from_gd_basket(basket_id):
 
 
 def prepare_checkout_from_session(request):
-    """Create pending bookings + gd_basket from session cart. Returns basket_id."""
+    """
+    Persist the session cart to gd_basket and authorize checkout.
+    Bookings are created only after payment succeeds.
+    """
     basket = get_session_basket(request)
     if not basket.get('items'):
         raise ValidationError('Your basket is empty.')
     workshops = load_workshops_for_basket(basket)
     if len(workshops) != len({i['workshop_id'] for i in basket['items']}):
         raise ValidationError('A course in your basket is no longer available.')
+
+    # Re-check availability before charging (no Booking rows yet).
+    for item in basket['items']:
+        workshop = workshops[item['workshop_id']]
+        _validate_quantity_for_workshop(workshop, int(item['quantity']))
 
     lead_item = basket['items'][0]
     purchaser_email = lead_item['student_email'].strip()
@@ -701,10 +718,9 @@ def prepare_checkout_from_session(request):
         lastname=lead_item.get('student_last_name'),
         phone=lead_item.get('student_phone', ''),
     )
-    booking_ids = create_pending_bookings_for_basket(basket, customer)
-    basket_id = persist_workshop_basket(request, basket, booking_ids, customer)
+    basket_id = persist_workshop_basket(request, basket, customer)
     clear_session_basket(request)
     from payments.checkout_session_context import authorize_workshop_checkout
 
-    authorize_workshop_checkout(request, basket_id=basket_id, booking_ids=booking_ids)
-    return basket_id, booking_ids, customer
+    authorize_workshop_checkout(request, basket_id=basket_id)
+    return basket_id, customer
