@@ -24,7 +24,8 @@
         <nav>
             <div class="nav-brand">
                 <a href="/" class="logo-link">
-                    <img src="{% static 'img/logo/logo-dark.png' %}" alt="Going Digital" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                    <img src="{% static 'img/logo/logo.png' %}" alt="Going Digital" class="logo-img logo-img--light" onerror="this.style.display='none'; this.parentElement.querySelector('.logo-text').style.display='inline';">
+                    <img src="{% static 'img/logo/logo-dark-mode.png' %}" alt="" class="logo-img logo-img--dark" aria-hidden="true" onerror="this.style.display='none';">
                     <span class="logo-text" style="display: none;">Going Digital</span>
                 </a>
             </div>

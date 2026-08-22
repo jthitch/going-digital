@@ -160,6 +160,28 @@ body > header nav {
     object-fit: contain;
 }
 
+.logo-img--dark {
+    display: none;
+}
+
+[data-theme="dark"] .logo-img--light {
+    display: none;
+}
+
+[data-theme="dark"] .logo-img--dark {
+    display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .logo-img--light {
+        display: none;
+    }
+
+    :root:not([data-theme="light"]) .logo-img--dark {
+        display: block;
+    }
+}
+
 .logo-text {
     font-size: 1.5rem;
     font-weight: 700;
