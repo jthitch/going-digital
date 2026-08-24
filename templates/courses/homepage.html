@@ -26,7 +26,7 @@
                 <div class="hero-overlay"></div>
                 <div class="hero-content">
                     <h1 class="hero-title">Start Your Photography Journey</h1>
-                    <p class="hero-subtitle">{% if course_count %}{{ course_count }}+ photography courses across the UK{% if location_count %}, at {{ location_count }}+ venues{% endif %}{% else %}Photography courses across the UK{% endif %} — from beginner to aspiring professional</p>
+                    <p class="hero-subtitle">{% if course_count %}{{ course_count }}+ photography courses {% if location_count %}, at over {{ location_count }} venues{% endif %} across the UK{% else %}Photography courses across the UK{% endif %}. Suitable for beginners to aspiring professional</p>
                     <a href="{% url 'courses:course_list' %}" class="btn-hero">Explore Courses</a>
                     <p class="hero-tagline">Inspiring photographers since 2005</p>
                     {% include 'partials/hero_google_rating.html' %}
@@ -67,7 +67,7 @@
         <h2 class="section-title">Your Photography Journey</h2>
         <p class="section-subtitle">Follow your personalized path from first click to mastering your craft</p>
         {% if course_count or location_count %}
-        <p class="section-stats">{% if course_count %}{{ course_count }}+ photography courses across the UK{% if location_count %} at {{ location_count }}+ venues{% endif %}{% endif %} — from beginner to aspiring professional</p>
+        <p class="section-stats">{% if course_count %}Join one of {{ course_count }}+ photography courses at over {{ location_count }} venues across the UK{% if location_count %} {% endif %}{% endif %}. Suitable for beginners to aspiring professional</p>
         {% endif %}
         <div class="journey-levels-grid">
             <!-- Level 1 -->
