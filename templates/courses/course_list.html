@@ -8,7 +8,7 @@
 <!-- Leaflet CSS for map -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=31">
+<link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=34">
 {% if course_list_schema_json %}
 <script type="application/ld+json">{{ course_list_schema_json|safe }}</script>
 {% endif %}
@@ -54,7 +54,7 @@
                     {% for course in category.list %}
             {% with list_video=course.list_card_video %}
             <article class="course-card course-card--overlay{% if list_video %} course-card--has-video{% endif %}"{% if list_video %} data-has-video{% endif %}>
-                <a href="{% url 'courses:course_detail' slug=course.slug %}" class="course-card-link">
+                <a href="{% url 'courses:course_detail' slug=course.slug %}{% if course_detail_query %}?{{ course_detail_query }}{% endif %}" class="course-card-link">
                     {% include 'courses/partials/course_list_card_media.html' with list_video=list_video course=course %}
                     <div class="course-level-badge" data-level="{{ course.level }}">{{ course.get_level_display }}</div>
                     <div class="course-card-content">
@@ -341,6 +341,50 @@ function setupCategoryFilterExpand(moreBtnId, extraId) {
     }
 }
 
+function clearCourseSearchPanelPosition(panel) {
+    if (!panel) return;
+    panel.style.position = '';
+    panel.style.top = '';
+    panel.style.left = '';
+    panel.style.right = '';
+    panel.style.bottom = '';
+    panel.style.width = '';
+    panel.style.maxHeight = '';
+    panel.style.margin = '';
+    panel.style.transform = '';
+    panel.style.zIndex = '';
+}
+
+function positionCourseSearchPanel() {
+    var panel = document.getElementById('course-search-panel');
+    if (!panel || panel.hidden || !document.body.classList.contains('map-filter-search-open')) {
+        return;
+    }
+    // Mobile uses full-screen CSS (top/bottom fixed); clear any desktop inline offsets.
+    if (window.matchMedia('(max-width: 767px)').matches) {
+        clearCourseSearchPanelPosition(panel);
+        return;
+    }
+    var anchor = document.getElementById('course-search-open')
+        || document.getElementById('course-filter-bar');
+    if (!anchor) return;
+    var rect = anchor.getBoundingClientRect();
+    var gap = 10;
+    var top = Math.round(rect.bottom + gap);
+    var bottomGap = 16;
+    var maxHeight = Math.max(180, Math.floor(window.innerHeight - top - bottomGap));
+    panel.style.position = 'fixed';
+    panel.style.top = top + 'px';
+    panel.style.left = '50%';
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    panel.style.transform = 'translateX(-50%)';
+    panel.style.width = 'min(720px, calc(100% - 2rem))';
+    panel.style.maxHeight = maxHeight + 'px';
+    panel.style.margin = '0';
+    panel.style.zIndex = '1102';
+}
+
 function closeCourseSearchPanel() {
     var bar = document.getElementById('course-filter-bar');
     var panel = document.getElementById('course-search-panel');
@@ -348,6 +392,7 @@ function closeCourseSearchPanel() {
     var backdrop = document.getElementById('course-search-backdrop');
     if (!bar || !panel) return;
     panel.hidden = true;
+    clearCourseSearchPanelPosition(panel);
     bar.classList.remove('is-search-open');
     document.body.classList.remove('map-filter-search-open');
     if (backdrop) backdrop.hidden = true;
@@ -370,6 +415,8 @@ function openCourseSearchPanel() {
         backdrop.hidden = false;
     }
     if (openBtn) openBtn.setAttribute('aria-expanded', 'true');
+    positionCourseSearchPanel();
+    requestAnimationFrame(positionCourseSearchPanel);
     var searchInput = panel.querySelector('input[name="q"]');
     if (searchInput) {
         setTimeout(function() { searchInput.focus(); }, 50);
@@ -468,6 +515,10 @@ function setupCourseFilterBar() {
                 closeCourseSearchPanel();
             }
         }
+    });
+    window.addEventListener('resize', positionCourseSearchPanel);
+    window.addEventListener('orientationchange', function() {
+        setTimeout(positionCourseSearchPanel, 100);
     });
 }
 

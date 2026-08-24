@@ -128,6 +128,132 @@ def filter_instances_by_location(instances, raw_filter):
     return [inst for inst in instances if inst.venue_id == parsed]
 
 
+def filter_instances_by_near(instances, lat, lng, radius_miles):
+    """Keep workshops whose venue is within radius_miles of (lat, lng)."""
+    from courses.venue_list import haversine_miles
+
+    result = []
+    for inst in instances:
+        venue = inst.venue
+        if not venue or venue.latitude is None or venue.longitude is None:
+            continue
+        try:
+            distance = haversine_miles(
+                float(lat),
+                float(lng),
+                float(venue.latitude),
+                float(venue.longitude),
+            )
+        except (TypeError, ValueError):
+            continue
+        if distance <= radius_miles:
+            result.append(inst)
+    return result
+
+
+def filter_instances_by_date_range(instances, dt_from=None, dt_to=None):
+    """Match course-list date filters; open-dated workshops always remain."""
+    if not dt_from and not dt_to:
+        return instances
+    result = []
+    for inst in instances:
+        if workshop_is_open_dated(inst):
+            result.append(inst)
+            continue
+        start = getattr(inst, 'start_date', None) or getattr(inst, 'date', None)
+        if not start:
+            continue
+        if dt_from and start < dt_from:
+            continue
+        if dt_to and start > dt_to:
+            continue
+        result.append(inst)
+    return result
+
+
+def _resolved_near_coords_from_request(request):
+    """
+    Near-me coords from ?lat=&lng=, or from place search via ?q= (e.g. London).
+    Returns (lat, lng, radius, place_query_or_empty).
+    """
+    from courses.search_location import resolve_search_place
+    from courses.venue_list import parse_near_me
+
+    near_lat, near_lng, near_radius = parse_near_me(request.GET)
+    place_q = ''
+    if near_lat is None or near_lng is None:
+        search = (request.GET.get('q') or '').strip()
+        if search:
+            resolved = resolve_search_place(search)
+            if resolved:
+                near_lat = resolved.latitude
+                near_lng = resolved.longitude
+                place_q = search
+    elif (request.GET.get('q') or '').strip():
+        # Keep keyword when browser near-me was not the source (optional label).
+        place_q = (request.GET.get('q') or '').strip()
+    return near_lat, near_lng, near_radius, place_q
+
+
+def course_detail_filter_querystring(request):
+    """
+    Query string to carry list filters onto course detail pages.
+    Uses location= for exact venue (list uses city=); lat/lng/radius or q for near/place.
+    """
+    params = {}
+    near_lat, near_lng, near_radius, place_q = _resolved_near_coords_from_request(request)
+    if near_lat is not None and near_lng is not None:
+        params['lat'] = f'{float(near_lat):.6f}'.rstrip('0').rstrip('.')
+        params['lng'] = f'{float(near_lng):.6f}'.rstrip('0').rstrip('.')
+        params['radius'] = str(near_radius)
+        if place_q:
+            params['q'] = place_q
+    else:
+        city = normalize_city_param(
+            request.GET.get('city', '') or request.GET.get('location', ''),
+        )
+        if city:
+            params['location'] = city
+
+    date_from, date_to, _, _ = parse_course_list_date_range(request)
+    if date_from:
+        params['date_from'] = date_from.isoformat()
+    if date_to:
+        params['date_to'] = date_to.isoformat()
+    return urlencode(params)
+
+
+def filter_instances_for_request(instances, request, *, location_slug=''):
+    """
+    Apply carried list filters to course-detail workshops.
+    Path location_slug wins over query filters for venue.
+    Exact ?location= / ?city= wins over near-me / place search.
+    """
+    instances = list(instances)
+    if location_slug:
+        instances = filter_instances_by_location(instances, location_slug)
+    else:
+        location_raw = (
+            (request.GET.get('location') or '').strip()
+            or (request.GET.get('city') or '').strip()
+        )
+        if location_raw:
+            instances = filter_instances_by_location(instances, location_raw)
+        else:
+            near_lat, near_lng, near_radius, _place_q = _resolved_near_coords_from_request(
+                request,
+            )
+            if near_lat is not None and near_lng is not None:
+                instances = filter_instances_by_near(
+                    instances, near_lat, near_lng, near_radius,
+                )
+
+    _, _, dt_from, dt_to = parse_course_list_date_range(request)
+    if dt_from or dt_to:
+        instances = filter_instances_by_date_range(instances, dt_from, dt_to)
+    return instances
+
+
 def bookable_workshops_for_request(request, *, apply_location_filter=True):
     """
     Upcoming bookable workshops for the course list.
@@ -418,9 +544,10 @@ class CourseListView(ListView):
         except (ValueError, TypeError):
             page_num = 1
         page = paginator.get_page(page_num)
-        
+        detail_query = course_detail_filter_querystring(self.request)
+
         courses_data = [
-            serialize_list_card(course)
+            serialize_list_card(course, detail_query=detail_query)
             for course in page.object_list
         ]
         
@@ -713,6 +840,7 @@ class CourseListView(ListView):
             params.pop('city', None)
         base = reverse('courses:course_list')
         context['infinite_scroll_url'] = (base + '?' + urlencode(params)) if params else base
+        context['course_detail_query'] = course_detail_filter_querystring(self.request)
 
         filter_keys = ('q', 'category', 'level', 'city', 'date_from', 'date_to', 'view', 'lat', 'lng')
         has_filters = any((self.request.GET.get(key) or '').strip() for key in filter_keys)
@@ -1025,10 +1153,9 @@ class CourseDetailView(DetailView):
         ).select_related('image', 'content')
     
     def get_object(self, queryset=None):
-        """Get course by slug, optionally filtered by location_slug (venue-specific page)."""
+        """Get course by slug, optionally filtered by location_slug or list carry filters."""
         slug = self.kwargs.get('slug')
         location_slug = self.kwargs.get('location_slug', '')
-        location_query = self.request.GET.get('location', '').strip()
 
         if queryset is None:
             queryset = self.get_queryset()
@@ -1038,29 +1165,29 @@ class CourseDetailView(DetailView):
         all_instances = list(course.workshops.all())
         course._all_instances = all_instances
 
+        filtered = filter_instances_for_request(
+            all_instances,
+            self.request,
+            location_slug=location_slug,
+        )
+        course._filtered_instances = filtered
+
         if location_slug:
             course._filtered_location_slug = location_slug
-            course._filtered_instances = filter_instances_by_location(
-                all_instances, location_slug,
-            )
             course._filtered_location = (
-                course._filtered_instances[0].venue.location
-                if course._filtered_instances and course._filtered_instances[0].venue
+                filtered[0].venue.location
+                if filtered and filtered[0].venue
                 else None
             )
             course._current_location_filter = ''
-        elif location_query:
-            course._filtered_location_slug = None
-            course._filtered_location = None
-            course._filtered_instances = filter_instances_by_location(
-                all_instances, location_query,
-            )
-            course._current_location_filter = normalize_city_param(location_query)
         else:
-            course._filtered_location = None
             course._filtered_location_slug = None
-            course._filtered_instances = all_instances
-            course._current_location_filter = ''
+            course._filtered_location = None
+            location_raw = (
+                (self.request.GET.get('location') or '').strip()
+                or (self.request.GET.get('city') or '').strip()
+            )
+            course._current_location_filter = normalize_city_param(location_raw)
 
         return course
     

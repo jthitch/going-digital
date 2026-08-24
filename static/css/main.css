@@ -8,6 +8,7 @@
 
 :root {
     /* Light mode colors (default) */
+    color-scheme: light;
     --bg-primary: #ffffff;
     --bg-secondary: #f8f9fa;
     --text-primary: #1a1a1a;
@@ -22,6 +23,7 @@
 
 [data-theme="dark"] {
     /* Dark mode colors */
+    color-scheme: dark;
     --bg-primary: #1a1a1a;
     --bg-secondary: #2d2d2d;
     --text-primary: #ffffff;
@@ -39,6 +41,7 @@
 /* Respect system preference by default */
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
+        color-scheme: dark;
         --bg-primary: #1a1a1a;
         --bg-secondary: #2d2d2d;
         --text-primary: #ffffff;

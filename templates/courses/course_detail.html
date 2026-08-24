@@ -479,14 +479,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         function readUrlFilters() {
             var params = new URLSearchParams(window.location.search);
-            if (locationSelect && params.get('location')) {
-                locationSelect.value = resolveLocationValue(params.get('location'));
+            if (locationSelect && (params.get('location') || params.get('city'))) {
+                locationSelect.value = resolveLocationValue(params.get('location') || params.get('city'));
             }
-            if (dateFrom && params.get('from')) {
-                dateFrom.value = params.get('from');
+            if (dateFrom && (params.get('from') || params.get('date_from'))) {
+                dateFrom.value = params.get('from') || params.get('date_from');
             }
-            if (dateTo && params.get('to')) {
-                dateTo.value = params.get('to');
+            if (dateTo && (params.get('to') || params.get('date_to'))) {
+                dateTo.value = params.get('to') || params.get('date_to');
             }
         }
 
@@ -495,22 +495,32 @@ document.addEventListener('DOMContentLoaded', function () {
             if (locationSelect) {
                 if (locationSelect.value) {
                     params.set('location', locationSelect.value);
+                    params.delete('city');
+                    params.delete('lat');
+                    params.delete('lng');
+                    params.delete('radius');
+                    params.delete('q');
                 } else {
                     params.delete('location');
+                    params.delete('city');
                 }
             }
             if (dateFrom) {
                 if (dateFrom.value) {
                     params.set('from', dateFrom.value);
+                    params.set('date_from', dateFrom.value);
                 } else {
                     params.delete('from');
+                    params.delete('date_from');
                 }
             }
             if (dateTo) {
                 if (dateTo.value) {
                     params.set('to', dateTo.value);
+                    params.set('date_to', dateTo.value);
                 } else {
                     params.delete('to');
+                    params.delete('date_to');
                 }
             }
             var query = params.toString();

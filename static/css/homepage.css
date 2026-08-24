@@ -967,17 +967,7 @@
 /* Featured Courses */
 .featured-courses {
     padding: 5rem 0;
-    background: white;
-}
-
-[data-theme="dark"] .featured-courses {
     background: var(--bg-primary);
-}
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) .featured-courses {
-        background: var(--bg-primary);
-    }
 }
 
 .courses-grid {
@@ -988,33 +978,18 @@
 }
 
 .course-card-featured {
-    background: white;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
     border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 15px var(--shadow);
     transition: all 0.3s ease;
     display: flex;
     flex-direction: column;
 }
 
-[data-theme="dark"] .course-card-featured {
-    background: var(--bg-secondary);
-    box-shadow: 0 4px 15px var(--shadow);
-}
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) .course-card-featured {
-        background: var(--bg-secondary);
-        box-shadow: 0 4px 15px var(--shadow);
-    }
-}
-
 .course-card-featured:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-[data-theme="dark"] .course-card-featured:hover {
     box-shadow: 0 8px 25px var(--shadow);
 }
 
@@ -1048,25 +1023,22 @@
     color: var(--primary-color);
 }
 
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .course-level {
+        background: rgba(74, 158, 255, 0.2);
+        color: var(--primary-color);
+    }
+}
+
 .course-content h3 {
     font-size: 1.5rem;
     margin-bottom: 0.75rem;
 }
 
 .course-content h3 a {
-    color: #1a1a1a;
+    color: var(--text-primary);
     text-decoration: none;
     transition: color 0.2s ease;
-}
-
-[data-theme="dark"] .course-content h3 a {
-    color: var(--text-primary);
-}
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) .course-content h3 a {
-        color: var(--text-primary);
-    }
 }
 
 .course-content h3 a:hover {
@@ -1074,20 +1046,10 @@
 }
 
 .course-short {
-    color: #666;
+    color: var(--text-secondary);
     line-height: 1.6;
     margin-bottom: 1.5rem;
     flex: 1;
-}
-
-[data-theme="dark"] .course-short {
-    color: var(--text-secondary);
-}
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) .course-short {
-        color: var(--text-secondary);
-    }
 }
 
 .course-footer {

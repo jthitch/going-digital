@@ -109,10 +109,13 @@ def list_card_video_data(course):
     return None
 
 
-def serialize_list_card(course, *, locations=None):
+def serialize_list_card(course, *, locations=None, detail_query=''):
     """JSON-serializable dict for infinite-scroll course cards."""
     if locations is None:
         locations = list_card_location_names(course)
+    detail_url = reverse('courses:course_detail', kwargs={'slug': course.slug})
+    if detail_query:
+        detail_url = f'{detail_url}?{detail_query}'
     return {
         'id': course.id,
         'title': course.title,
@@ -125,5 +128,5 @@ def serialize_list_card(course, *, locations=None):
         'card_image_style': card_thumbnail_style(course),
         'video': list_card_video_data(course),
         'locations': locations[:5],
-        'detail_url': reverse('courses:course_detail', kwargs={'slug': course.slug}),
+        'detail_url': detail_url,
     }
