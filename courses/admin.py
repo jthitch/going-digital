@@ -1456,7 +1456,7 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
         'get_county_display',
         'active',
     ]
-    list_filter = [VenueApprovalStateFilter, GdActiveFilter, 'region_id']
+    list_filter = [VenueApprovalStateFilter, GdActiveFilter, WorkshopRegionFilter]
     search_fields = ['venue_name', 'venue_address', 'location', 'slug']
     search_help_text = 'Search by name, address, location, or URL slug.'
     inlines = [VenueMediaInline, VenueWorkshopAccessInline]
