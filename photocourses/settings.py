@@ -316,13 +316,13 @@ JAZZMIN_SETTINGS = {
     "site_brand": "Going Digital",
     
     # Logo to use for your site, must be present in static files
-    "site_logo": "img/logo/logo-dark.png",
+    "site_logo": "img/logo/logo.png",
     
     # Logo to use for login form
-    "login_logo": "img/logo/logo-dark.png",
+    "login_logo": "img/logo/logo.png",
     
-    # Logo to use for login form in dark themes
-    "login_logo_dark": "img/logo/logo-dark.png",
+    # Logo to use for login form / admin chrome in dark themes
+    "login_logo_dark": "img/logo/logo-dark-mode.png",
     
     # img-fluid lets wide logos scale properly; img-circle can distort non-square logos
     "site_logo_classes": "img-fluid",

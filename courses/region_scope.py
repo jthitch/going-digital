@@ -180,14 +180,21 @@ def user_can_access_venue(user, venue):
 
 
 def user_can_change_venue(user, venue):
-    """Franchisees may edit only their own venues that are not yet approved."""
+    """Franchisees may edit their own venues (content always; details only until approved)."""
     if user_has_full_region_access(user):
         return True
     if not user_can_access_venue(user, venue):
         return False
-    if venue.approved == 1:
-        return False
     return franchisee_owns_venue(user, venue)
+
+
+def user_can_edit_venue_details(user, venue):
+    """Franchisees may change address/contact details only before the venue is approved."""
+    if user_has_full_region_access(user):
+        return True
+    if not user_can_change_venue(user, venue):
+        return False
+    return venue.approved != 1
 
 
 def user_can_add_venue(user):

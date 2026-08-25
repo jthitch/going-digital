@@ -10,6 +10,95 @@
         $('body').removeClass('sidebar-collapse').addClass('sidebar-open');
     }
 
+    function isAdminDarkMode() {
+        return document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    }
+
+    var CKEDITOR_DARK_CONTENTS_CSS = [
+        'html, body {',
+        '  background-color: #212529 !important;',
+        '  color: #f8f9fa !important;',
+        '}',
+        'body {',
+        '  margin: 8px;',
+        '}',
+        'body, body p, body div, body span, body li, body td, body th, body h1, body h2, body h3, body h4, body h5, body h6 {',
+        '  color: #f8f9fa !important;',
+        '}',
+        'a { color: #6ea8fe !important; }',
+        'hr { border-color: #565e64 !important; }',
+    ].join('\n');
+
+    function applyCkeditorContentsTheme(editor) {
+        if (!editor) {
+            return;
+        }
+        try {
+            var doc = editor.document && editor.document.$;
+            if (!doc) {
+                return;
+            }
+            var styleId = 'gd-cke-dark-mode';
+            var existing = doc.getElementById(styleId);
+            if (isAdminDarkMode()) {
+                if (!existing) {
+                    var style = doc.createElement('style');
+                    style.id = styleId;
+                    style.appendChild(doc.createTextNode(CKEDITOR_DARK_CONTENTS_CSS));
+                    (doc.head || doc.getElementsByTagName('head')[0] || doc.documentElement).appendChild(style);
+                }
+                if (doc.body) {
+                    doc.body.style.backgroundColor = '#212529';
+                    doc.body.style.color = '#f8f9fa';
+                }
+            } else if (existing && existing.parentNode) {
+                existing.parentNode.removeChild(existing);
+                if (doc.body) {
+                    doc.body.style.backgroundColor = '';
+                    doc.body.style.color = '';
+                }
+            }
+        } catch (err) {
+            // Cross-origin / destroyed instance — ignore.
+        }
+    }
+
+    function syncAllCkeditorThemes() {
+        if (typeof CKEDITOR === 'undefined' || !CKEDITOR.instances) {
+            return;
+        }
+        Object.keys(CKEDITOR.instances).forEach(function (name) {
+            applyCkeditorContentsTheme(CKEDITOR.instances[name]);
+        });
+    }
+
+    function initCkeditorDarkMode() {
+        if (typeof CKEDITOR === 'undefined') {
+            return;
+        }
+        if (!window.gdCkeditorDarkModeBound) {
+            window.gdCkeditorDarkModeBound = true;
+            CKEDITOR.on('instanceReady', function (evt) {
+                applyCkeditorContentsTheme(evt.editor);
+                evt.editor.on('mode', function () {
+                    window.setTimeout(function () {
+                        applyCkeditorContentsTheme(evt.editor);
+                    }, 0);
+                });
+                evt.editor.on('contentDom', function () {
+                    applyCkeditorContentsTheme(evt.editor);
+                });
+            });
+            if (window.MutationObserver) {
+                new MutationObserver(syncAllCkeditorThemes).observe(document.documentElement, {
+                    attributes: true,
+                    attributeFilter: ['data-bs-theme'],
+                });
+            }
+        }
+        syncAllCkeditorThemes();
+    }
+
     function initGdChangelistActions() {
         if (!$('body').hasClass('change-list')) {
             return;
@@ -108,5 +197,7 @@
             defaultSidebarOpen();
         }
         window.setTimeout(initGdChangelistActions, 0);
+        window.setTimeout(initCkeditorDarkMode, 0);
+        window.setTimeout(initCkeditorDarkMode, 500);
     });
 })(jQuery);

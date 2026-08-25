@@ -1,4 +1,5 @@
 {% if show %}
+{% if count %}
 <div class="alert alert-warning gd-pending-venue-alert" role="alert">
     <h5 class="alert-heading mb-2">
         {{ count }} venue{{ count|pluralize }} awaiting approval
@@ -22,4 +23,26 @@
     {% endif %}
     <a href="{{ review_url }}" class="btn btn-sm btn-warning">Review pending venues</a>
 </div>
+{% endif %}
+{% if content_count %}
+<div class="alert alert-info gd-pending-venue-alert" role="alert">
+    <h5 class="alert-heading mb-2">
+        {{ content_count }} venue{{ content_count|pluralize }} with content awaiting approval
+    </h5>
+    <p class="mb-2">
+        Franchisees have edited approved venue content. The live pages are unchanged until you approve the changes.
+    </p>
+    {% if content_pending %}
+    <ul class="mb-2 pl-3">
+        {% for venue in content_pending %}
+        <li>
+            <a href="{% url 'admin:courses_venue_change' venue.pk %}">{{ venue.venue_name }}</a>
+            {% if venue.location %}<span class="text-muted"> — {{ venue.location }}</span>{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    <a href="{{ content_review_url }}" class="btn btn-sm btn-info">Review content changes</a>
+</div>
+{% endif %}
 {% endif %}

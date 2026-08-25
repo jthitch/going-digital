@@ -50,15 +50,14 @@
 <div class="login-box">
     <div class="login-logo gd-login-logo">
         <h1>
-            <picture>
-                <source
-                    srcset="{% static jazzmin_settings.login_logo_dark %}"
-                    media="(prefers-color-scheme: dark)">
-                <img
-                    src="{% static jazzmin_settings.login_logo %}"
-                    alt="{{ jazzmin_settings.site_header }}"
-                    class="gd-login-logo__img">
-            </picture>
+            <img
+                src="{% static jazzmin_settings.login_logo %}"
+                alt="{{ jazzmin_settings.site_header }}"
+                class="gd-login-logo__img gd-admin-logo gd-admin-logo--light">
+            <img
+                src="{% static jazzmin_settings.login_logo_dark %}"
+                alt="{{ jazzmin_settings.site_header }}"
+                class="gd-login-logo__img gd-admin-logo gd-admin-logo--dark">
         </h1>
     </div>
 

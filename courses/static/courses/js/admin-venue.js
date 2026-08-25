@@ -627,11 +627,53 @@
         setTimeout(syncVenueCkEditorFields, 500);
     }
 
+    function syncRejectReasonVisibility() {
+        var decision = document.getElementById('id_approval_decision');
+        if (!decision) {
+            return;
+        }
+        var reasonRow =
+            document.querySelector('.field-reject_reason') ||
+            document.querySelector('.form-row.field-reject_reason');
+        if (!reasonRow) {
+            return;
+        }
+        reasonRow.style.display = decision.value === 'rejected' ? '' : 'none';
+    }
+
+    function syncContentChangeRejectVisibility() {
+        var decision = document.getElementById('id_content_change_decision');
+        if (!decision) {
+            return;
+        }
+        var reasonRow =
+            document.querySelector('.field-content_change_reject_reason') ||
+            document.querySelector('.form-row.field-content_change_reject_reason');
+        if (!reasonRow) {
+            return;
+        }
+        reasonRow.style.display = decision.value === 'reject' ? '' : 'none';
+    }
+
+    function initApprovalDecision() {
+        var decision = document.getElementById('id_approval_decision');
+        if (decision) {
+            syncRejectReasonVisibility();
+            decision.addEventListener('change', syncRejectReasonVisibility);
+        }
+        var contentDecision = document.getElementById('id_content_change_decision');
+        if (contentDecision) {
+            syncContentChangeRejectVisibility();
+            contentDecision.addEventListener('change', syncContentChangeRejectVisibility);
+        }
+    }
+
     function initVenueAdmin() {
         patchSelect2();
         destroyVenueSelect2();
         initVenueSlugPrepopulate();
         initVenueContentTabCkEditor();
+        initApprovalDecision();
     }
 
     $(document).ready(function () {

@@ -80,7 +80,8 @@
                 {% else %}
                     <li class="nav-item">
                         <a href="{% url 'admin:index' %}" class="brand-link">
-                            <img src="{% static jazzmin_settings.site_logo %}" alt="{{ jazzmin_settings.site_header }} Logo" class="{{ jazzmin_settings.site_logo_classes }} brand-image" style="opacity: .8; margin: 0 0 0 5px;">
+                            <img src="{% static jazzmin_settings.site_logo %}" alt="{{ jazzmin_settings.site_header }} Logo" class="{{ jazzmin_settings.site_logo_classes }} brand-image gd-admin-logo gd-admin-logo--light" style="opacity: .8; margin: 0 0 0 5px;">
+                            <img src="{% static jazzmin_settings.login_logo_dark %}" alt="{{ jazzmin_settings.site_header }} Logo" class="{{ jazzmin_settings.site_logo_classes }} brand-image gd-admin-logo gd-admin-logo--dark" style="opacity: .8; margin: 0 0 0 5px;">
                         </a>
                     </li>
                 {% endif %}
@@ -236,7 +237,8 @@
             <aside class="app-sidebar bg-body-secondary shadow {{ jazzmin_ui.sidebar_classes }}" id="jazzy-sidebar" data-bs-theme="dark">
                 <div class="sidebar-brand">
                     <a href="{% url 'admin:index' %}" class="brand-link {{ jazzmin_ui.brand_classes }}" id="jazzy-logo">
-                        <img src="{% static jazzmin_settings.site_logo %}" alt="{{ jazzmin_settings.site_header }} Logo" class="{{ jazzmin_settings.site_logo_classes }} brand-image opacity-75 shadow">
+                        <img src="{% static jazzmin_settings.site_logo %}" alt="{{ jazzmin_settings.site_header }} Logo" class="{{ jazzmin_settings.site_logo_classes }} brand-image opacity-75 shadow gd-admin-logo gd-admin-logo--light">
+                        <img src="{% static jazzmin_settings.login_logo_dark %}" alt="{{ jazzmin_settings.site_header }} Logo" class="{{ jazzmin_settings.site_logo_classes }} brand-image opacity-75 shadow gd-admin-logo gd-admin-logo--dark">
                         <span class="brand-text fw-light">{{ jazzmin_settings.site_brand }}</span>
                     </a>
                 </div>

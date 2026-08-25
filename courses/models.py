@@ -645,13 +645,10 @@ class Venue(models.Model):
         return self.approval_requested == 1 and self.approved != 1 and self.rejected != 1
 
     def get_approval_display(self):
-        if self.approved == 1:
-            return 'Approved'
-        if self.rejected == 1:
-            return 'Rejected'
-        if self.approval_requested == 1:
-            return 'Pending approval'
-        return 'Not submitted'
+        from courses.venue_approval import VENUE_APPROVAL_DECISION_CHOICES, venue_approval_state
+
+        state = venue_approval_state(self)
+        return dict(VENUE_APPROVAL_DECISION_CHOICES).get(state, state)
 
     get_approval_display.short_description = 'Approval'
 
@@ -749,6 +746,81 @@ class VenueContent(models.Model):
 
     def __str__(self):
         return f"Content for {self.venue.venue_name}"
+
+
+class VenueContentChangeRequest(models.Model):
+    """
+    Franchisee-proposed venue page content awaiting superuser approval.
+
+    Live public content stays on gd_content (venue.content_id) until Apply.
+    """
+
+    STATUS_PENDING = 'pending'
+    STATUS_REJECTED = 'rejected'
+    STATUS_CHOICES = (
+        (STATUS_PENDING, 'Pending review'),
+        (STATUS_REJECTED, 'Rejected'),
+    )
+
+    id = models.AutoField(primary_key=True)
+    venue = models.OneToOneField(
+        Venue,
+        on_delete=models.CASCADE,
+        related_name='content_change_request',
+    )
+    content_title = models.CharField(max_length=1000, blank=True, default='')
+    strapline = models.TextField(blank=True, default='')
+    main_content = models.TextField(blank=True, default='')
+    sub_content = models.TextField(blank=True, default='')
+    meta_title = models.TextField(blank=True, default='')
+    meta_description = models.TextField(blank=True, default='')
+    meta_keywords = models.TextField(blank=True, default='')
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        db_index=True,
+    )
+    reject_reason = models.TextField(blank=True, default='')
+    requested_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+    requested_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'gd_venue_content_change_request'
+        verbose_name = 'Venue content change request'
+        verbose_name_plural = 'Venue content change requests'
+
+    def __str__(self):
+        return f'Content change for venue #{self.venue_id} ({self.status})'
+
+    @property
+    def is_pending(self):
+        return self.status == self.STATUS_PENDING
+
+    def as_content_dict(self):
+        return {
+            'content_title': self.content_title or '',
+            'strapline': self.strapline or '',
+            'main_content': self.main_content or '',
+            'sub_content': self.sub_content or '',
+            'meta_title': self.meta_title or '',
+            'meta_description': self.meta_description or '',
+            'meta_keywords': self.meta_keywords or '',
+        }
 
 
 class VenueMedia(models.Model):

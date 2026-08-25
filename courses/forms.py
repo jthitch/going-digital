@@ -434,20 +434,23 @@ VENUE_CONTENT_FIELD_NAMES = (
 
 def venue_linked_content_initial(instance):
     """Initial values for gd_content fields on the venue admin form."""
+    from courses.venue_approval import (
+        get_venue_content_change_request,
+        live_venue_content_values,
+    )
+
     if not instance or not getattr(instance, 'pk', None):
         return {}
+    # Franchisee edits on approved venues load pending/rejected proposals first.
+    change = get_venue_content_change_request(instance)
+    if change and instance.approved == 1:
+        return change.as_content_dict()
     if getattr(instance, 'content_id', None):
         try:
             instance = Venue.objects.get(pk=instance.pk)
         except Venue.DoesNotExist:
             return {}
-    content = instance.get_content()
-    if not content:
-        return {}
-    return {
-        name: (getattr(content, name, None) or '')
-        for name in VENUE_CONTENT_FIELD_NAMES
-    }
+    return live_venue_content_values(instance)
 
 
 def unique_venue_slug(source, *, exclude_pk=None):
@@ -471,10 +474,31 @@ def unique_venue_slug(source, *, exclude_pk=None):
 class VenueAdminForm(forms.ModelForm):
     """Venue admin: legacy FKs as dropdowns; gd_content edited in Venue content fieldset."""
 
-    approved = forms.BooleanField(
+    approval_decision = forms.ChoiceField(
+        choices=(),  # set in __init__ from venue_approval helpers
+        required=True,
+        label='Approval',
+        help_text='Approve so franchisees can publish workshops at this venue.',
+        widget=_venue_admin_select_widget(),
+    )
+    reject_reason = forms.CharField(
         required=False,
-        label='Approved',
-        widget=BooleanToggleWidget(),
+        label='Reject reason',
+        help_text='Shown to the franchisee when the venue is rejected.',
+        widget=forms.Textarea(attrs={'rows': 3}),
+    )
+    content_change_decision = forms.ChoiceField(
+        choices=(),
+        required=False,
+        label='Pending content changes',
+        help_text='Approve to publish the franchisee\'s proposed content, or reject with a reason.',
+        widget=_venue_admin_select_widget(),
+    )
+    content_change_reject_reason = forms.CharField(
+        required=False,
+        label='Content reject reason',
+        help_text='Shown to the franchisee when content changes are rejected.',
+        widget=forms.Textarea(attrs={'rows': 2}),
     )
     content_title = forms.CharField(required=False, max_length=1000, label='Content title')
     strapline = forms.CharField(required=False, max_length=1000, label='Strapline')
@@ -491,6 +515,7 @@ class VenueAdminForm(forms.ModelForm):
     active = forms.BooleanField(
         required=False,
         label='Active',
+        help_text='When on, this venue can appear on the public site.',
         widget=BooleanToggleWidget(),
     )
     venue_region = forms.ModelChoiceField(
@@ -498,13 +523,6 @@ class VenueAdminForm(forms.ModelForm):
         required=False,
         empty_label='---------',
         label='Region',
-        widget=_venue_admin_select_widget(),
-    )
-    status = forms.TypedChoiceField(
-        choices=COURSE_STATUS_CHOICES,
-        coerce=int,
-        required=True,
-        label='Status',
         widget=_venue_admin_select_widget(),
     )
     venue_user = UserNameModelChoiceField(
@@ -541,7 +559,6 @@ class VenueAdminForm(forms.ModelForm):
         model = Venue
         fields = [
             'active',
-            'status',
             'venue_region',
             'venue_user',
             'county',
@@ -565,10 +582,23 @@ class VenueAdminForm(forms.ModelForm):
         }
 
     def __init__(self, *args, region_ids=None, franchisee_mode=False, editor_user_id=None, **kwargs):
+        from courses.venue_approval import (
+            CONTENT_CHANGE_DECISION_CHOICES,
+            VENUE_APPROVAL_DECISION_CHOICES,
+            get_venue_content_change_request,
+            venue_approval_state,
+        )
+
         self.region_ids = region_ids
         self.franchisee_mode = franchisee_mode
         self.editor_user_id = editor_user_id
         instance = kwargs.get('instance')
+        self.content_only_mode = bool(
+            franchisee_mode
+            and instance
+            and getattr(instance, 'pk', None)
+            and instance.approved == 1
+        )
         content_initial = venue_linked_content_initial(instance)
         if content_initial:
             initial = dict(kwargs.get('initial') or {})
@@ -577,9 +607,32 @@ class VenueAdminForm(forms.ModelForm):
             kwargs['initial'] = initial
         super().__init__(*args, **kwargs)
         if self.franchisee_mode:
-            for name in ('venue_user', 'status', 'active', 'approved'):
+            for name in (
+                'venue_user',
+                'active',
+                'approval_decision',
+                'content_change_decision',
+                'content_change_reject_reason',
+            ):
                 self.fields.pop(name, None)
-            if region_ids is not None:
+            if self.content_only_mode:
+                for name in (
+                    'venue_region',
+                    'county',
+                    'venue_name',
+                    'slug',
+                    'postcode_lookup',
+                    'venue_address',
+                    'location',
+                    'venue_telephone',
+                    'venue_url',
+                    'latitude',
+                    'longitude',
+                    'show_workshops',
+                    'add_document_to_booking_email',
+                ):
+                    self.fields.pop(name, None)
+            elif region_ids is not None:
                 region_qs = Region.objects.filter(active=1, pk__in=region_ids)
                 if self.instance.pk and self.instance.region_id:
                     region_qs = Region.objects.filter(
@@ -588,11 +641,21 @@ class VenueAdminForm(forms.ModelForm):
                 self.fields['venue_region'].queryset = region_qs.order_by('region_name')
                 if len(region_ids) == 1 and not self.instance.pk:
                     self.fields['venue_region'].initial = self.fields['venue_region'].queryset.first()
-        else:
-            if self.instance.pk:
-                self.fields['approved'].initial = _legacy_01_checked(self.instance.approved)
+        elif 'approval_decision' in self.fields:
+            self.fields['approval_decision'].choices = VENUE_APPROVAL_DECISION_CHOICES
+            if not self.is_bound:
+                self.fields['approval_decision'].initial = venue_approval_state(self.instance)
+            if 'reject_reason' in self.fields and self.instance.pk and not self.is_bound:
+                self.fields['reject_reason'].initial = self.instance.reject_reason or ''
+            change = get_venue_content_change_request(self.instance) if self.instance.pk else None
+            if change and change.is_pending:
+                self.fields['content_change_decision'].choices = CONTENT_CHANGE_DECISION_CHOICES
+                if not self.is_bound:
+                    self.fields['content_change_decision'].initial = ''
+                    self.fields['content_change_reject_reason'].initial = change.reject_reason or ''
             else:
-                self.fields['approved'].initial = False
+                self.fields.pop('content_change_decision', None)
+                self.fields.pop('content_change_reject_reason', None)
         if 'active' in self.fields:
             if self.instance.pk:
                 self.fields['active'].initial = _legacy_01_checked(self.instance.active)
@@ -607,7 +670,7 @@ class VenueAdminForm(forms.ModelForm):
                         Region.objects.filter(pk=region.pk)
                         | self.fields['venue_region'].queryset
                     ).order_by('region_name')
-        if self.instance.pk and self.instance.county_id:
+        if self.instance.pk and self.instance.county_id and 'county' in self.fields:
             county = County.objects.filter(pk=self.instance.county_id).first()
             if county:
                 self.fields['county'].initial = county
@@ -621,28 +684,73 @@ class VenueAdminForm(forms.ModelForm):
             for name, value in content_initial.items():
                 if name in self.fields:
                     self.fields[name].initial = value
-        if 'status' in self.fields and not self.is_bound:
-            status_id = self.instance.status_id if self.instance.pk else 2
-            if status_id in COURSE_STATUS_DISPLAY_NAMES:
-                self.fields['status'].initial = status_id
-            elif status_id is not None:
-                label = f'Status #{status_id}'
-                self.fields['status'].choices = COURSE_STATUS_CHOICES + ((status_id, label),)
-                self.fields['status'].initial = status_id
-        if self.instance.pk and self.instance.document_id:
+        if self.instance.pk and self.instance.document_id and 'add_document_to_booking_email' in self.fields:
             from courses.venue_documents import venue_document_email_enabled
 
             self.fields['add_document_to_booking_email'].initial = venue_document_email_enabled(
                 self.instance.pk,
             )
-        else:
+        elif 'add_document_to_booking_email' in self.fields:
             self.fields.pop('add_document_to_booking_email', None)
+
+    def clean(self):
+        from courses.venue_approval import (
+            CONTENT_CHANGE_REJECT,
+            VENUE_APPROVAL_REJECTED,
+        )
+
+        cleaned = super().clean()
+        if self.franchisee_mode:
+            return cleaned
+
+        if 'approval_decision' in self.fields:
+            decision = cleaned.get('approval_decision')
+            reason = (cleaned.get('reject_reason') or '').strip()
+            if decision == VENUE_APPROVAL_REJECTED and not reason:
+                self.add_error(
+                    'reject_reason',
+                    'Enter a reject reason when setting approval to Rejected.',
+                )
+            elif decision != VENUE_APPROVAL_REJECTED:
+                cleaned['reject_reason'] = ''
+            else:
+                cleaned['reject_reason'] = reason
+
+        if 'content_change_decision' in self.fields:
+            content_decision = cleaned.get('content_change_decision')
+            if content_decision == CONTENT_CHANGE_REJECT:
+                content_reason = (cleaned.get('content_change_reject_reason') or '').strip()
+                if not content_reason:
+                    self.add_error(
+                        'content_change_reject_reason',
+                        'Enter a reason when rejecting content changes.',
+                    )
+                else:
+                    cleaned['content_change_reject_reason'] = content_reason
+        return cleaned
 
     def save(self, commit=True):
         from django.utils import timezone
+        from courses.venue_approval import (
+            apply_venue_approval_decision,
+            upsert_venue_content_change_request,
+        )
 
         venue = super().save(commit=False)
         now = timezone.now()
+
+        if self.content_only_mode:
+            venue.updatedby_id = self.editor_user_id
+            venue.updated_at = now
+            if commit:
+                venue.save(update_fields=['updatedby_id', 'updated_at'])
+                upsert_venue_content_change_request(
+                    venue,
+                    self.cleaned_data,
+                    user_id=self.editor_user_id,
+                )
+            return venue
+
         venue_region = self.cleaned_data.get('venue_region')
         venue.region_id = venue_region.pk if venue_region else None
         county = self.cleaned_data.get('county')
@@ -675,17 +783,17 @@ class VenueAdminForm(forms.ModelForm):
                 venue.reject_reason = None
         else:
             venue.active = 1 if self.cleaned_data.get('active') else 0
-            venue.status_id = self.cleaned_data.get('status', 2)
+            if not self.instance.pk:
+                venue.status_id = 2
             venue_user = self.cleaned_data.get('venue_user')
             venue.user_id = venue_user.pk if venue_user else None
-            was_approved = self.instance.pk and self.instance.approved == 1
-            venue.approved = 1 if self.cleaned_data.get('approved') else 0
-            if venue.approved and not was_approved:
-                venue.approvedby_id = self.editor_user_id
-                venue.approved_at = now
-                venue.rejected = 0
-                venue.reject_reason = None
-                venue.approval_requested = 0
+            apply_venue_approval_decision(
+                venue,
+                self.cleaned_data.get('approval_decision'),
+                editor_user_id=self.editor_user_id,
+                reject_reason=self.cleaned_data.get('reject_reason'),
+                now=now,
+            )
             venue.updatedby_id = self.editor_user_id
             venue.updated_at = now
 

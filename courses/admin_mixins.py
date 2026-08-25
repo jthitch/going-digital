@@ -12,6 +12,7 @@ from courses.region_scope import (
     user_can_access_workshop,
     user_can_add_venue,
     user_can_change_venue,
+    user_can_edit_venue_details,
     user_can_view_course,
     user_has_full_region_access,
     venue_is_approved,
@@ -214,6 +215,14 @@ class RegionScopedVenueAdminMixin:
             return super().get_fieldsets(request, obj)
         if (
             obj
+            and user_can_change_venue(request.user, obj)
+            and not user_can_edit_venue_details(request.user, obj)
+        ):
+            approved_fieldsets = getattr(self, 'franchisee_approved_content_fieldsets', None)
+            if approved_fieldsets is not None:
+                return approved_fieldsets
+        if (
+            obj
             and user_can_access_venue(request.user, obj)
             and not user_can_change_venue(request.user, obj)
         ):
@@ -225,7 +234,9 @@ class RegionScopedVenueAdminMixin:
     def get_readonly_fields(self, request, obj=None):
         readonly = list(super().get_readonly_fields(request, obj))
         if not user_has_full_region_access(request.user):
-            readonly = list(dict.fromkeys(readonly + ['approval_status', 'reject_reason']))
+            readonly = list(dict.fromkeys(
+                readonly + ['approval_status', 'reject_reason', 'content_change_status'],
+            ))
         return readonly
 
     def has_module_permission(self, request):

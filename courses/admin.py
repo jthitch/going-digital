@@ -22,6 +22,7 @@ from .region_scope import (
     filter_regions_for_user,
     filter_workshops_for_user,
     user_can_access_workshop,
+    user_can_edit_venue_details,
     user_has_full_region_access,
 )
 from .workshop_admin_list import (
@@ -1369,6 +1370,14 @@ class VenueMediaInline(admin.TabularInline):
     def _parent_venue_admin(self):
         return self.admin_site._registry[Venue]
 
+    def _can_edit_media(self, request, obj=None):
+        parent = self._parent_venue_admin()
+        if obj is None:
+            return parent.has_add_permission(request)
+        if not parent.has_change_permission(request, obj):
+            return False
+        return user_can_edit_venue_details(request.user, obj)
+
     def has_view_permission(self, request, obj=None):
         parent = self._parent_venue_admin()
         if obj is None:
@@ -1376,20 +1385,13 @@ class VenueMediaInline(admin.TabularInline):
         return parent.has_view_permission(request, obj)
 
     def has_add_permission(self, request, obj=None):
-        parent = self._parent_venue_admin()
-        if obj is None:
-            return parent.has_add_permission(request)
-        return parent.has_change_permission(request, obj)
+        return self._can_edit_media(request, obj)
 
     def has_change_permission(self, request, obj=None):
-        if obj is None:
-            return self._parent_venue_admin().has_add_permission(request)
-        return self._parent_venue_admin().has_change_permission(request, obj)
+        return self._can_edit_media(request, obj)
 
     def has_delete_permission(self, request, obj=None):
-        if obj is None:
-            return self._parent_venue_admin().has_add_permission(request)
-        return self._parent_venue_admin().has_change_permission(request, obj)
+        return self._can_edit_media(request, obj)
 
 
 class VenueApprovalStateFilter(admin.SimpleListFilter):
@@ -1414,6 +1416,25 @@ class VenueApprovalStateFilter(admin.SimpleListFilter):
             return queryset.filter(rejected=1)
         if value == 'not_submitted':
             return queryset.filter(approval_requested=0, approved=0, rejected=0)
+        return queryset
+
+
+class VenueContentChangeFilter(admin.SimpleListFilter):
+    title = 'content changes'
+    parameter_name = 'content_change'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('pending', 'Content awaiting approval'),
+            ('rejected', 'Content rejected'),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == 'pending':
+            return queryset.filter(content_change_request__status='pending')
+        if value == 'rejected':
+            return queryset.filter(content_change_request__status='rejected')
         return queryset
 
 
@@ -1445,7 +1466,43 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
     form = VenueAdminForm
     change_list_template = 'admin/courses/venue/change_list.html'
     prepopulated_fields = {'slug': ('venue_name',)}
-    readonly_fields = ['created_at', 'updated_at', 'venue_document_display']
+    readonly_fields = [
+        'created_at',
+        'updated_at',
+        'venue_document_display',
+        'pending_content_preview',
+        'approval_status',
+        'content_change_status',
+        'display_active',
+        'display_venue_region',
+        'display_county',
+        'display_venue_name',
+        'display_slug',
+        'display_venue_address',
+        'display_location',
+        'display_venue_telephone',
+        'display_venue_url',
+        'display_latitude',
+        'display_longitude',
+        'display_show_workshops',
+        'display_content_title',
+        'display_strapline',
+        'display_main_content',
+        'display_sub_content',
+        'display_meta_title',
+        'display_meta_description',
+        'display_meta_keywords',
+    ]
+
+    def get_prepopulated_fields(self, request, obj=None):
+        # Content-only franchisee forms drop venue_name/slug; prepopulate would KeyError.
+        if (
+            obj
+            and not user_has_full_region_access(request.user)
+            and not user_can_edit_venue_details(request.user, obj)
+        ):
+            return {}
+        return super().get_prepopulated_fields(request, obj)
     list_display = [
         'id',
         'venue_name',
@@ -1454,15 +1511,40 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
         'get_region_display',
         'approval_status',
         'get_county_display',
-        'active',
+        'display_active',
     ]
-    list_filter = [VenueApprovalStateFilter, GdActiveFilter, WorkshopRegionFilter]
+    list_filter = [
+        VenueApprovalStateFilter,
+        VenueContentChangeFilter,
+        GdActiveFilter,
+        WorkshopRegionFilter,
+    ]
     search_fields = ['venue_name', 'venue_address', 'location', 'slug']
     search_help_text = 'Search by name, address, location, or URL slug.'
     inlines = [VenueMediaInline, VenueWorkshopAccessInline]
 
     def get_fieldsets(self, request, obj=None):
         fieldsets = list(super().get_fieldsets(request, obj))
+        if user_has_full_region_access(request.user):
+            from courses.venue_approval import get_venue_content_change_request
+
+            change = get_venue_content_change_request(obj) if obj else None
+            if not (change and change.is_pending):
+                fieldsets = [
+                    (title, {
+                        **opts,
+                        'fields': tuple(
+                            field_name
+                            for field_name in opts.get('fields', ())
+                            if field_name not in (
+                                'content_change_decision',
+                                'content_change_reject_reason',
+                                'pending_content_preview',
+                            )
+                        ),
+                    })
+                    for title, opts in fieldsets
+                ]
         if not obj or not obj.document_id:
             return [
                 (title, {
@@ -1484,6 +1566,7 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
     franchisee_fieldsets = [
         (None, {
             'fields': (
+                'display_active',
                 'venue_region',
                 'county',
                 'venue_name',
@@ -1500,7 +1583,8 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
             'description': (
                 'Complete the venue details, content, and images below before approval. '
                 'You can assign pending venues to workshops, but workshops cannot be '
-                'published until an administrator approves this venue.'
+                'published until an administrator approves this venue. '
+                'Active is set by an administrator when the venue is approved for the public site.'
             ),
         }),
         ('Approval', {
@@ -1533,9 +1617,59 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
         }),
     ]
 
+    franchisee_approved_content_fieldsets = [
+        (None, {
+            'fields': (
+                'display_active',
+                'display_venue_region',
+                'display_county',
+                'display_venue_name',
+                'display_slug',
+                'display_venue_address',
+                'display_location',
+                'display_venue_telephone',
+                'display_venue_url',
+                'display_latitude',
+                'display_longitude',
+                'display_show_workshops',
+            ),
+            'description': (
+                'This venue is approved. Address and contact details are locked. '
+                'You can update the page content below; changes stay off the public '
+                'site until an administrator approves them. '
+                'Active controls whether the venue appears on the public site (set by an administrator).'
+            ),
+        }),
+        ('Approval', {
+            'fields': ('approval_status', 'content_change_status'),
+        }),
+        ('Venue content', {
+            'fields': (
+                'content_title',
+                'strapline',
+                'main_content',
+                'sub_content',
+                'meta_title',
+                'meta_description',
+                'meta_keywords',
+            ),
+            'description': (
+                'Edit content and save to submit changes for administrator approval. '
+                'The live venue page is unchanged until those changes are approved.'
+            ),
+        }),
+        ('Venue documents', {
+            'fields': ('venue_document_display',),
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+        }),
+    ]
+
     franchisee_view_fieldsets = [
         (None, {
             'fields': (
+                'display_active',
                 'display_venue_region',
                 'display_county',
                 'venue_name',
@@ -1549,12 +1683,11 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
                 'show_workshops',
             ),
             'description': (
-                'This venue is approved. You can view the listing below but cannot edit it. '
-                'Contact an administrator if changes are required.'
+                'You can view this venue but cannot edit it.'
             ),
         }),
         ('Approval', {
-            'fields': ('approval_status', 'reject_reason'),
+            'fields': ('approval_status', 'content_change_status'),
         }),
         ('Venue content', {
             'fields': (
@@ -1580,7 +1713,6 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
         (None, {
             'fields': (
                 'active',
-                'status',
                 'venue_region',
                 'venue_user',
                 'county',
@@ -1597,8 +1729,19 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
             ),
         }),
         ('Approval', {
-            'fields': ('approved', 'approval_requested', 'rejected', 'reject_reason'),
-            'description': 'Approve the venue so franchisees can publish workshops at this location.',
+            'fields': (
+                'approval_decision',
+                'reject_reason',
+                'pending_content_preview',
+                'content_change_decision',
+                'content_change_reject_reason',
+            ),
+            'description': (
+                'Set approval to Approved, Rejected, or Pending. '
+                'Reject reason is required when Rejected. '
+                'Active (above) controls whether the venue appears on the public site. '
+                'Pending content changes from franchisees are reviewed separately below.'
+            ),
         }),
         ('Venue content', {
             'fields': (
@@ -1740,6 +1883,94 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
             return format_html('<span class="gd-badge gd-badge-rejected">{}</span>', label)
         return label
 
+    @admin.display(description='Active', boolean=True, ordering='active')
+    def display_active(self, obj):
+        return bool(obj and obj.active == 1)
+
+    @admin.display(description='Content changes')
+    def content_change_status(self, obj):
+        from courses.venue_approval import content_change_status_label, get_venue_content_change_request
+
+        label = content_change_status_label(obj)
+        change = get_venue_content_change_request(obj)
+        if change and change.is_pending:
+            return format_html(
+                '<span class="gd-badge gd-badge-pending">{}</span>',
+                label,
+            )
+        if change and change.status == change.STATUS_REJECTED:
+            return format_html(
+                '<span class="gd-badge gd-badge-rejected">{}</span>',
+                label,
+            )
+        return label
+
+    @admin.display(description='Pending content')
+    def pending_content_preview(self, obj):
+        from courses.venue_approval import get_venue_content_change_request
+
+        change = get_venue_content_change_request(obj)
+        if not change or not change.is_pending:
+            return '—'
+        return format_html(
+            '<div class="gd-pending-content-preview">{}</div>',
+            format_html_join(
+                '',
+                '<div class="mb-2"><strong>{}</strong><div>{}</div></div>',
+                (
+                    (
+                        label,
+                        mark_safe(value) if name in ('main_content', 'sub_content') and value else (value or '—'),
+                    )
+                    for name, label, value in (
+                        ('content_title', 'Content title', change.content_title),
+                        ('strapline', 'Strapline', change.strapline),
+                        ('main_content', 'Main content', change.main_content),
+                        ('sub_content', 'Sub content', change.sub_content),
+                        ('meta_title', 'Meta title', change.meta_title),
+                        ('meta_description', 'Meta description', change.meta_description),
+                        ('meta_keywords', 'Meta keywords', change.meta_keywords),
+                    )
+                ),
+            ),
+        )
+
+    @admin.display(description='Venue name')
+    def display_venue_name(self, obj):
+        return obj.venue_name or '—'
+
+    @admin.display(description='Slug')
+    def display_slug(self, obj):
+        return obj.slug or '—'
+
+    @admin.display(description='Address')
+    def display_venue_address(self, obj):
+        return obj.venue_address or '—'
+
+    @admin.display(description='Location')
+    def display_location(self, obj):
+        return obj.location or '—'
+
+    @admin.display(description='Telephone')
+    def display_venue_telephone(self, obj):
+        return obj.venue_telephone or '—'
+
+    @admin.display(description='URL')
+    def display_venue_url(self, obj):
+        return obj.venue_url or '—'
+
+    @admin.display(description='Latitude')
+    def display_latitude(self, obj):
+        return obj.latitude if obj.latitude is not None else '—'
+
+    @admin.display(description='Longitude')
+    def display_longitude(self, obj):
+        return obj.longitude if obj.longitude is not None else '—'
+
+    @admin.display(description='Show workshops')
+    def display_show_workshops(self, obj):
+        return 'Yes' if obj.show_workshops == 1 else 'No'
+
     def save_model(self, request, obj, form, change):
         from django.utils import timezone
         now = timezone.now()
@@ -1750,8 +1981,53 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
         obj.updated_at = now
         obj.updatedby_id = request.user.id
         super().save_model(request, obj, form, change)
+        if getattr(form, 'content_only_mode', False):
+            from courses.venue_approval import (
+                get_venue_content_change_request,
+                upsert_venue_content_change_request,
+            )
+
+            upsert_venue_content_change_request(
+                obj,
+                form.cleaned_data,
+                user_id=request.user.pk,
+            )
+            pending = get_venue_content_change_request(obj)
+            if pending and pending.is_pending:
+                messages.info(
+                    request,
+                    'Content changes submitted for administrator approval. '
+                    'The live venue page is unchanged until approved.',
+                )
+            else:
+                messages.info(request, 'No content changes to submit (matches live content).')
+            return
         if hasattr(form, '_save_content') and form.cleaned_data:
             form._save_content(obj, request)
+        if form.cleaned_data and not getattr(form, 'franchisee_mode', False):
+            from courses.venue_approval import (
+                CONTENT_CHANGE_APPLY,
+                CONTENT_CHANGE_REJECT,
+                apply_venue_content_change_request,
+                reject_venue_content_change_request,
+            )
+
+            content_decision = form.cleaned_data.get('content_change_decision')
+            if content_decision == CONTENT_CHANGE_APPLY:
+                apply_venue_content_change_request(
+                    obj,
+                    editor_user=request.user,
+                    now=now,
+                )
+                messages.success(request, 'Pending content changes published.')
+            elif content_decision == CONTENT_CHANGE_REJECT:
+                reject_venue_content_change_request(
+                    obj,
+                    reject_reason=form.cleaned_data.get('content_change_reject_reason'),
+                    editor_user=request.user,
+                    now=now,
+                )
+                messages.warning(request, 'Pending content changes rejected.')
 
     def save_formset(self, request, form, formset, change):
         """Stamp granted_by on new VenueWorkshopAccess rows."""

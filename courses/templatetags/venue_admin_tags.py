@@ -1,6 +1,9 @@
 from django import template
 
 from courses.venue_approval import (
+    pending_content_change_count,
+    pending_content_change_venues_queryset,
+    pending_content_changes_changelist_url,
     pending_venue_count,
     pending_venues_changelist_url,
     pending_venues_queryset,
@@ -18,9 +21,15 @@ def pending_venue_alerts(context, limit=8):
         return {'show': False}
 
     pending = list(pending_venues_queryset()[:limit])
+    content_pending = list(pending_content_change_venues_queryset()[:limit])
+    venue_count = pending_venue_count()
+    content_count = pending_content_change_count()
     return {
-        'show': bool(pending),
-        'count': pending_venue_count(),
+        'show': bool(pending or content_pending),
+        'count': venue_count,
         'pending': pending,
         'review_url': pending_venues_changelist_url(),
+        'content_count': content_count,
+        'content_pending': content_pending,
+        'content_review_url': pending_content_changes_changelist_url(),
     }

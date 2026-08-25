@@ -166,6 +166,19 @@ body.jazzmin-login-page .login-logo img {
     background: none !important;
 }
 
+/* Light/dark admin logos follow Jazzmin data-bs-theme (not OS prefers-color-scheme) */
+.gd-admin-logo--dark {
+    display: none !important;
+}
+
+html[data-bs-theme="dark"] .gd-admin-logo--light {
+    display: none !important;
+}
+
+html[data-bs-theme="dark"] .gd-admin-logo--dark {
+    display: inline-block !important;
+}
+
 #jazzy-logo .brand-text {
     display: none;
 }
@@ -1117,4 +1130,87 @@ body.app-core.model-user.add-form .field-email input {
     max-width: 36rem;
     min-width: 22rem;
     box-sizing: border-box;
+}
+
+/* CKEditor 4 — match Jazzmin dark theme (chrome + contents frame shell) */
+html[data-bs-theme="dark"] .cke {
+    border-color: var(--bs-border-color, #565e64) !important;
+}
+
+html[data-bs-theme="dark"] .cke_inner {
+    background: var(--bs-body-bg, #343a40) !important;
+}
+
+html[data-bs-theme="dark"] .cke_top,
+html[data-bs-theme="dark"] .cke_bottom {
+    background: var(--bs-tertiary-bg, #2b3035) !important;
+    border-color: var(--bs-border-color, #565e64) !important;
+    box-shadow: none !important;
+}
+
+html[data-bs-theme="dark"] .cke_contents {
+    background: var(--bs-body-bg, #212529) !important;
+}
+
+html[data-bs-theme="dark"] .cke_wysiwyg_frame,
+html[data-bs-theme="dark"] .cke_wysiwyg_div {
+    background-color: var(--bs-body-bg, #212529) !important;
+}
+
+html[data-bs-theme="dark"] .cke_toolbox,
+html[data-bs-theme="dark"] .cke_toolbar,
+html[data-bs-theme="dark"] .cke_toolgroup {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+html[data-bs-theme="dark"] a.cke_button_off:hover,
+html[data-bs-theme="dark"] a.cke_button_off:focus,
+html[data-bs-theme="dark"] a.cke_button_off:active,
+html[data-bs-theme="dark"] a.cke_button_disabled:hover,
+html[data-bs-theme="dark"] a.cke_button_disabled:focus,
+html[data-bs-theme="dark"] a.cke_button_disabled:active {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: transparent !important;
+}
+
+html[data-bs-theme="dark"] a.cke_button_on {
+    background: rgba(255, 255, 255, 0.14) !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+html[data-bs-theme="dark"] .cke_combo_button,
+html[data-bs-theme="dark"] .cke_combo_off a.cke_combo_button:hover,
+html[data-bs-theme="dark"] .cke_combo_off a.cke_combo_button:focus,
+html[data-bs-theme="dark"] .cke_combo_off a.cke_combo_button:active {
+    background: var(--bs-body-bg, #343a40) !important;
+    border-color: var(--bs-border-color, #565e64) !important;
+    box-shadow: none !important;
+}
+
+html[data-bs-theme="dark"] .cke_combo_text,
+html[data-bs-theme="dark"] .cke_combo_open,
+html[data-bs-theme="dark"] .cke_path_item,
+html[data-bs-theme="dark"] .cke_path_empty,
+html[data-bs-theme="dark"] .cke_resizer {
+    color: var(--bs-body-color, #dee2e6) !important;
+    text-shadow: none !important;
+}
+
+html[data-bs-theme="dark"] .cke_bottom .cke_resizer {
+    border-color: transparent var(--bs-secondary-color, #adb5bd) transparent transparent !important;
+}
+
+html[data-bs-theme="dark"] .cke_panel,
+html[data-bs-theme="dark"] .cke_combopanel {
+    border-color: var(--bs-border-color, #565e64) !important;
+    background: var(--bs-body-bg, #343a40) !important;
+}
+
+html[data-bs-theme="dark"] .cke_source {
+    background: var(--bs-body-bg, #212529) !important;
+    color: var(--bs-body-color, #f8f9fa) !important;
+    border-color: var(--bs-border-color, #565e64) !important;
 }
