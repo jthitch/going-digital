@@ -45,7 +45,7 @@ from website.google_reviews import get_google_reviews_display
 from .serializers import WorkshopSerializer
 from .display_images import attach_gd_images_to_workshops, collect_header_images, primary_image_url
 from .duration import duration_iso8601
-from .list_card import list_card_workshops, serialize_list_card
+from .list_card import serialize_list_card
 
 # Fallback when no admin image: optional legacy file in MEDIA_ROOT, then bundled static SVG.
 _GIFT_VOUCHER_LEGACY_MEDIA_REL = 'gd_images/im-t8-f1-0a11ba8c74817bc2c7008aa89413e39b.jpg'
@@ -559,6 +559,7 @@ class CourseListView(ListView):
     
     def get_queryset(self):
         workshop_qs, _, resolved_place = bookable_workshops_for_request(self.request)
+        self._workshop_qs = workshop_qs
         self._resolved_search_place = resolved_place
         prefetch_qs = workshop_qs.select_related('venue', 'course').order_by(*bookable_workshop_ordering())
 
@@ -605,6 +606,56 @@ class CourseListView(ListView):
             queryset = queryset.filter(course_skill_level_id=LEVEL_NAME_TO_ID[level])
 
         return queryset
+
+    def _map_workshops_queryset(self):
+        """
+        All bookable workshops matching the current list filters.
+
+        Map markers must not be limited to the paginated course page, or venues
+        for courses beyond page 1 (e.g. Dartmoor) disappear until a search
+        shrinks the result set.
+        """
+        workshop_qs = getattr(self, '_workshop_qs', None)
+        resolved_place = getattr(self, '_resolved_search_place', None)
+        if workshop_qs is None:
+            workshop_qs, _, resolved_place = bookable_workshops_for_request(self.request)
+
+        search = (self.request.GET.get('q') or '').strip()
+        if search and not resolved_place:
+            workshop_qs = workshop_qs.filter(
+                Q(course__course_name__icontains=search)
+                | Q(course__course_description__icontains=search)
+                | Q(course__description_for_workshop__icontains=search)
+            )
+
+        category = self.request.GET.get('category', '')
+        if category:
+            try:
+                workshop_qs = workshop_qs.filter(course__course_category_id=int(category))
+            except (ValueError, TypeError):
+                pass
+
+        level = self.request.GET.get('level', '')
+        if level and level in LEVEL_NAME_TO_ID:
+            workshop_qs = workshop_qs.filter(
+                course__course_skill_level_id=LEVEL_NAME_TO_ID[level],
+            )
+
+        return (
+            workshop_qs.filter(course__active=True)
+            .exclude(venue_id__isnull=True)
+            .exclude(venue__latitude__isnull=True)
+            .exclude(venue__longitude__isnull=True)
+            .select_related(
+                'venue',
+                'course',
+                'course__course_category',
+                'course__course_skill_level',
+                'course__image',
+            )
+            .prefetch_related('course__media', 'gallery_images__image')
+            .order_by(*bookable_workshop_ordering())
+        )
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -623,82 +674,79 @@ class CourseListView(ListView):
         ).distinct().count()
         context['filter_venues'] = filter_venues_for_course_list()
         
-        # Prepare instance data for map (convert to JSON-safe format)
-        # Show all bookable instances, not just one per course
+        # Prepare instance data for map from ALL matching workshops (not the
+        # paginated course page — otherwise venues for later courses never appear).
         import json
-        from datetime import datetime
         instances_data = []
-        
-        all_map_workshops = []
-        for course in context['courses']:
-            all_map_workshops.extend(list_card_workshops(course))
-        attach_gd_images_to_workshops(all_map_workshops)
+        map_workshops = list(self._map_workshops_queryset())
+        attach_gd_images_to_workshops(map_workshops)
 
-        # Get all bookable instances from the filtered courses
-        for course in context['courses']:
-            for instance in list_card_workshops(course):
-                is_bookable = (
-                    instance.enrollment_open
-                    and instance.venue
-                    and instance.venue.latitude
-                    and instance.venue.longitude
-                    and (
-                        workshop_is_open_dated(instance)
-                        or (instance.start_date and instance.start_date >= timezone.now())
-                    )
+        for instance in map_workshops:
+            course = instance.course
+            if not course:
+                continue
+            is_bookable = (
+                instance.enrollment_open
+                and instance.venue
+                and instance.venue.latitude is not None
+                and instance.venue.longitude is not None
+                and (
+                    workshop_is_open_dated(instance)
+                    or (instance.start_date and instance.start_date >= timezone.now())
                 )
-                if not is_bookable:
-                    continue
+            )
+            if not is_bookable:
+                continue
 
-                if workshop_is_open_dated(instance):
-                    date_display = OPEN_DATED_LABEL
-                    start_date_str = OPEN_DATED_LABEL
+            if workshop_is_open_dated(instance):
+                date_display = OPEN_DATED_LABEL
+                start_date_str = OPEN_DATED_LABEL
+            else:
+                start_date_str = instance.start_date.strftime('%d %B %Y')
+                if instance.start_date.date() == instance.end_date.date():
+                    date_display = start_date_str
                 else:
-                    start_date_str = instance.start_date.strftime('%d %B %Y')
-                    if instance.start_date.date() == instance.end_date.date():
-                        date_display = start_date_str
-                    else:
-                        end_date_str = instance.end_date.strftime('%d %B %Y')
-                        date_display = f"{start_date_str} - {end_date_str}"
+                    end_date_str = instance.end_date.strftime('%d %B %Y')
+                    date_display = f"{start_date_str} - {end_date_str}"
 
-                instance_url = instance.get_absolute_url()
-                instance_price = instance.price
-                v = instance.venue
-                image_url = primary_image_url(workshop=instance, course=course)
-                card_desc = course.get_card_short_description() or ''
-                if card_desc:
-                    words = card_desc.split()
-                    if len(words) > 20:
-                        card_desc = ' '.join(words[:20]) + '…'
-                byline_text = rich_html_to_plain_text(instance.byline or '')
-                instances_data.append({
-                        'instance_id': instance.id,
-                        'course_title': course.title,
-                        'byline': byline_text,
-                        'course_slug': course.slug,
-                        'course_level': course.level,
-                        'level_display': course.get_level_display(),
-                        'category': course.get_card_category_display(),
-                        'short_description': card_desc,
-                        'duration_hours': course.duration_hours,
-                        'duration_display': course.duration_display,
-                        'image_url': image_url,
-                        'course_url': instance_url,
-                        'location_name': v.name if v else 'TBC',
-                        'city': v.city if v else '',
-                        'address': v.venue_address if v else '',
-                        'latitude': float(v.latitude) if v and v.latitude else 0,
-                        'longitude': float(v.longitude) if v and v.longitude else 0,
-                        'postcode': '',
-                        'start_date': start_date_str,
-                        'date_display': date_display,
-                        'open_dated': workshop_is_open_dated(instance),
-                        'price': float(instance_price),
-                        'spaces_available': instance.spaces_available,
-                        'enrollment_open': instance.enrollment_open,
-                        'is_full': instance.is_full,
-                    })
-        
+            instance_url = instance.get_absolute_url()
+            instance_price = instance.price
+            v = instance.venue
+            image_url = primary_image_url(workshop=instance, course=course)
+            card_desc = course.get_card_short_description() or ''
+            if card_desc:
+                words = card_desc.split()
+                if len(words) > 20:
+                    card_desc = ' '.join(words[:20]) + '…'
+            byline_text = rich_html_to_plain_text(instance.byline or '')
+            instances_data.append({
+                'instance_id': instance.id,
+                'course_title': course.title,
+                'byline': byline_text,
+                'course_slug': course.slug,
+                'course_level': course.level,
+                'level_display': course.get_level_display(),
+                'category': course.get_card_category_display(),
+                'short_description': card_desc,
+                'duration_hours': course.duration_hours,
+                'duration_display': course.duration_display,
+                'image_url': image_url,
+                'course_url': instance_url,
+                'location_name': v.name if v else 'TBC',
+                'city': v.city if v else '',
+                'address': v.venue_address if v else '',
+                'latitude': float(v.latitude) if v and v.latitude is not None else 0,
+                'longitude': float(v.longitude) if v and v.longitude is not None else 0,
+                'postcode': '',
+                'start_date': start_date_str,
+                'date_display': date_display,
+                'open_dated': workshop_is_open_dated(instance),
+                'price': float(instance_price),
+                'spaces_available': instance.spaces_available,
+                'enrollment_open': instance.enrollment_open,
+                'is_full': instance.is_full,
+            })
+
         context['instances_data'] = json.dumps(instances_data)
         context['map_workshop_count'] = len(instances_data)
         
