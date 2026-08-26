@@ -127,6 +127,6 @@ def serialize_list_card(course, *, locations=None, detail_query=''):
         'image_url': list_card_thumbnail_url(course),
         'card_image_style': card_thumbnail_style(course),
         'video': list_card_video_data(course),
-        'locations': locations[:5],
+        'locations': locations,
         'detail_url': detail_url,
     }

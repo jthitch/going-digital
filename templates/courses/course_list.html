@@ -102,6 +102,8 @@
     </section>
 
     {% if pagination_links %}
+    {# Numbered pages only for no-JS; JS users get infinite scroll instead. #}
+    <noscript>
     <nav class="course-list-pagination" aria-label="Course list pages">
         <ul class="course-list-pagination__list">
             {% for link in pagination_links %}
@@ -115,6 +117,7 @@
             {% endfor %}
         </ul>
     </nav>
+    </noscript>
     {% endif %}
     
     <!-- Infinite scroll loading indicator -->
@@ -307,14 +310,83 @@ function showMapView() {
 function toggleLocations(courseId) {
     const listElement = document.getElementById('locations-' + courseId);
     const btnElement = listElement.nextElementSibling;
-    
+
     if (listElement.classList.contains('expanded')) {
         listElement.classList.remove('expanded');
         btnElement.classList.remove('expanded');
+        if (listElement.dataset.collapsedMaxHeight) {
+            listElement.style.setProperty(
+                '--locations-collapsed-max-height',
+                listElement.dataset.collapsedMaxHeight
+            );
+        }
+        btnElement.setAttribute('aria-label', 'Show more locations');
     } else {
         listElement.classList.add('expanded');
         btnElement.classList.add('expanded');
+        btnElement.setAttribute('aria-label', 'Show fewer locations');
     }
+}
+
+function collapsedLocationsHeightForTwoRows(list) {
+    var items = list.querySelectorAll('.location-item');
+    if (!items.length) {
+        return 0;
+    }
+    var rowBottoms = [];
+    var rowTop = items[0].offsetTop;
+    var rowBottom = items[0].offsetTop + items[0].offsetHeight;
+    for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        if (item.offsetTop > rowTop + 1) {
+            rowBottoms.push(rowBottom);
+            if (rowBottoms.length >= 2) {
+                break;
+            }
+            rowTop = item.offsetTop;
+            rowBottom = item.offsetTop + item.offsetHeight;
+        } else {
+            rowBottom = Math.max(rowBottom, item.offsetTop + item.offsetHeight);
+        }
+    }
+    if (rowBottoms.length < 2) {
+        rowBottoms.push(rowBottom);
+    }
+    // Bottom of the second row (or first if only one row), relative to the list.
+    return rowBottoms[Math.min(1, rowBottoms.length - 1)];
+}
+
+function setupCourseLocationMoreButtons(root) {
+    var scope = root || document;
+    var locationLists = scope.querySelectorAll('.course-locations-list');
+    locationLists.forEach(function(list) {
+        if (list.dataset.locationsMoreReady === '1') {
+            return;
+        }
+        var btn = list.nextElementSibling;
+        if (!btn || !btn.classList.contains('locations-more-btn')) {
+            return;
+        }
+
+        list.style.maxHeight = 'none';
+        list.style.removeProperty('--locations-collapsed-max-height');
+        var fullHeight = list.scrollHeight;
+        var twoRowHeight = collapsedLocationsHeightForTwoRows(list);
+
+        list.style.removeProperty('max-height');
+
+        if (twoRowHeight > 0 && fullHeight > twoRowHeight + 2) {
+            var collapsed = twoRowHeight + 'px';
+            list.dataset.collapsedMaxHeight = collapsed;
+            list.style.setProperty('--locations-collapsed-max-height', collapsed);
+            btn.style.display = 'inline-block';
+        } else {
+            delete list.dataset.collapsedMaxHeight;
+            list.style.removeProperty('--locations-collapsed-max-height');
+            btn.style.display = 'none';
+        }
+        list.dataset.locationsMoreReady = '1';
+    });
 }
 
 // Category filters: show first 9 + "..."; expand to show the rest (toggle)
@@ -522,7 +594,7 @@ function setupCourseFilterBar() {
     });
 }
 
-// Check if locations list needs "more" button on page load (compare full content vs CSS max-height, not hardcoded 3em)
+// Check if locations list needs "more" button; clamp collapsed height to exactly two rows
 document.addEventListener('DOMContentLoaded', function() {
     setupCategoryFilterExpand('filter-modal-category-filter-more', 'filter-modal-category-filter-extra');
     setupCourseFilterBar();
@@ -533,23 +605,26 @@ document.addEventListener('DOMContentLoaded', function() {
     {% if map_view_active %}
     showMapView();
     {% endif %}
-    const locationLists = document.querySelectorAll('.course-locations-list');
-    locationLists.forEach(function(list) {
-        list.style.maxHeight = 'none';
-        var fullHeight = list.scrollHeight;
-        list.style.removeProperty('max-height');
-
+    requestAnimationFrame(function() {
         requestAnimationFrame(function() {
-            requestAnimationFrame(function() {
-                var collapsedH = list.clientHeight;
-                if (fullHeight > collapsedH + 2) {
-                    var btn = list.nextElementSibling;
-                    if (btn && btn.classList.contains('locations-more-btn')) {
-                        btn.style.display = 'inline-block';
-                    }
+            setupCourseLocationMoreButtons();
+        });
+    });
+    var locationsMoreResizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(locationsMoreResizeTimer);
+        locationsMoreResizeTimer = setTimeout(function() {
+            document.querySelectorAll('.course-locations-list').forEach(function(list) {
+                delete list.dataset.locationsMoreReady;
+                list.classList.remove('expanded');
+                var btn = list.nextElementSibling;
+                if (btn && btn.classList.contains('locations-more-btn')) {
+                    btn.classList.remove('expanded');
+                    btn.setAttribute('aria-label', 'Show more locations');
                 }
             });
-        });
+            setupCourseLocationMoreButtons();
+        }, 150);
     });
 });
 
@@ -893,11 +968,12 @@ function initializeMap() {
     var sentinel = document.getElementById('infinite-scroll-sentinel');
     var loadingEl = document.getElementById('infinite-scroll-loading');
     if (!grid || !sentinel) return;
-    
+
     var baseUrl = grid.dataset.infiniteUrl || '/photography-courses/';
     var nextPage = parseInt(grid.dataset.nextPage || '0', 10);
     var hasNext = grid.dataset.hasNext === 'true';
     var loading = false;
+    var observer = null;
 
     function escapeHtml(value) {
         return String(value == null ? '' : value)
@@ -975,10 +1051,21 @@ function initializeMap() {
 
     function buildCard(c) {
         var hasVideo = c.video && c.video.src && (c.video.kind === 'file' || c.video.kind === 'embed');
-        var locs = (c.locations || []).slice(0, 5).map(function(l) {
+        var courseId = c.id != null ? String(c.id) : '';
+        var locs = (c.locations || []).map(function(l) {
             return '<span class="location-item">' + escapeHtml(l || 'TBC') + '</span>';
         }).join('');
-        var locsHtml = locs ? '<div class="course-locations"><div class="course-locations-list">' + locs + '</div></div>' : '';
+        var locsHtml = '';
+        if (locs && courseId) {
+            locsHtml = '<div class="course-locations" data-course-id="' + escapeHtml(courseId) + '" onclick="event.stopPropagation();">'
+                + '<div class="course-locations-list" id="locations-' + escapeHtml(courseId) + '">' + locs + '</div>'
+                + '<button type="button" class="locations-more-btn" onclick="event.stopPropagation(); toggleLocations(' + escapeHtml(courseId) + ');" aria-label="Show more locations" style="display: none;">'
+                + '<span class="more-text">more</span>'
+                + '<span class="less-text" style="display: none;">less</span>'
+                + '</button></div>';
+        } else if (locs) {
+            locsHtml = '<div class="course-locations"><div class="course-locations-list">' + locs + '</div></div>';
+        }
         var detailUrl = safePathUrl(c.detail_url, '/photography-courses/' + String(c.slug || '') + '/');
         var level = escapeHtml(c.level || 'beginner');
         return '<article class="course-card course-card--overlay' + (hasVideo ? ' course-card--has-video' : '') + '"'
@@ -993,7 +1080,7 @@ function initializeMap() {
             '<div class="course-price">From £' + escapeHtml(c.min_price || '0') + '</div>' +
             '<span class="btn-view">View course</span></div></div></a></article>';
     }
-    
+
     function getOrCreateCategorySection(categoryName) {
         var sections = grid.querySelectorAll('.category-section');
         for (var i = 0; i < sections.length; i++) {
@@ -1004,21 +1091,34 @@ function initializeMap() {
         }
         var newSection = document.createElement('div');
         newSection.className = 'category-section';
-        newSection.innerHTML = '<h2 class="category-section-title">' + (categoryName || 'General Photography').replace(/</g, '&lt;') + '</h2>' +
+        newSection.innerHTML = '<h2 class="category-section-title">' + escapeHtml(categoryName || 'General Photography') + '</h2>' +
             '<div class="category-courses"></div>';
         grid.insertBefore(newSection, sentinel);
         return newSection.querySelector('.category-courses');
     }
-    
+
+    function stopObserving() {
+        if (observer) {
+            observer.disconnect();
+            observer = null;
+        }
+    }
+
     function loadMore() {
         if (loading || !hasNext || nextPage < 1) return;
         loading = true;
-        loadingEl.classList.remove('hidden');
+        if (loadingEl) loadingEl.classList.remove('hidden');
         var sep = baseUrl.indexOf('?') >= 0 ? '&' : '?';
         var url = baseUrl + sep + 'format=json&page=' + nextPage;
         fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(function(r) { return r.json(); })
+            .then(function(r) {
+                if (!r.ok) {
+                    throw new Error('Failed to load courses');
+                }
+                return r.json();
+            })
             .then(function(data) {
+                var appended = [];
                 if (data.courses && data.courses.length) {
                     data.courses.forEach(function(c) {
                         var container = getOrCreateCategorySection(c.category);
@@ -1027,26 +1127,38 @@ function initializeMap() {
                             div.innerHTML = buildCard(c);
                             var card = div.firstElementChild;
                             container.appendChild(card);
+                            appended.push(card);
                             if (window.initCourseCardVideos) {
                                 window.initCourseCardVideos(card);
                             }
                         }
                     });
                 }
-                hasNext = data.has_next || false;
+                if (appended.length && typeof setupCourseLocationMoreButtons === 'function') {
+                    appended.forEach(function(card) {
+                        setupCourseLocationMoreButtons(card);
+                    });
+                }
+                hasNext = !!data.has_next;
                 nextPage = data.next_page || 0;
+                if (!hasNext || nextPage < 1) {
+                    stopObserving();
+                }
             })
-            .catch(function() { hasNext = false; })
+            .catch(function() {
+                hasNext = false;
+                stopObserving();
+            })
             .finally(function() {
                 loading = false;
-                loadingEl.classList.add('hidden');
+                if (loadingEl) loadingEl.classList.add('hidden');
             });
     }
-    
-    var observer = new IntersectionObserver(function(entries) {
+
+    observer = new IntersectionObserver(function(entries) {
         if (entries[0].isIntersecting && hasNext) loadMore();
-    }, { rootMargin: '200px', threshold: 0 });
-    
+    }, { rootMargin: '400px 0px', threshold: 0 });
+
     observer.observe(sentinel);
 })();
 </script>

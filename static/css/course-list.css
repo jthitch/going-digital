@@ -2836,8 +2836,8 @@ body.map-filter-modal-open {
     color: rgba(255, 255, 255, 0.88);
     line-height: 1.5;
     min-height: 0;
-    /* Enough height for two full rows of chips + gap (flex-wrap; 3em clipped the second row) */
-    max-height: 5.75em;
+    /* Fallback: ~2 chip rows; JS sets an exact px clamp when overflow needs "more" */
+    max-height: var(--locations-collapsed-max-height, 4.35em);
     overflow: hidden;
     position: relative;
     transition: max-height 0.3s ease;
@@ -3182,7 +3182,7 @@ body.map-filter-modal-open {
     .course-list-page .course-card--overlay .course-locations-list {
         font-size: 0.72rem;
         gap: 0.3rem;
-        max-height: 5.5em;
+        max-height: var(--locations-collapsed-max-height, 4.15em);
     }
 
     .course-list-page .course-card--overlay .location-item {
@@ -3212,7 +3212,7 @@ body.map-filter-modal-open {
     }
 }
 
-/* Crawlable pagination (in addition to infinite scroll) */
+/* No-JS fallback pagination (rendered inside <noscript> on the course list) */
 .course-list-pagination {
     margin: 2rem auto 0;
     max-width: var(--content-max-width, 1200px);
