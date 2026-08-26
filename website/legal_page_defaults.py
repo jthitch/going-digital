@@ -145,8 +145,12 @@ PRIVACY_BODY = """
 
 <section id="cookies" class="legal-section">
     <h2>Cookie Policy</h2>
-    <p>We use only Google Analytics to analyse the use of this website. Google Analytics generates statistical and other information about website use by means of cookies, which are stored on users' computers. The information generated relating to our website is used to create reports about the use of the website. Google will store this information. Google's privacy policy is available at: <a href="http://www.google.com/privacypolicy.html" rel="noopener noreferrer">http://www.google.com/privacypolicy.html</a></p>
-    <p>These cookies do not contain any information that personally identifies you.</p>
+    <p>We use cookies and similar technologies as follows:</p>
+    <ul>
+        <li><strong>Essential cookies</strong> — required for the website to work securely, including sign-in, your basket and booking flow (for example session and CSRF cookies). These do not require consent.</li>
+        <li><strong>Analytics cookies</strong> — with your permission, we use Google Tag Manager to load Google Analytics so we can understand how the site is used and improve it. Google may process this information in accordance with <a href="https://policies.google.com/privacy" rel="noopener noreferrer">Google’s privacy policy</a>.</li>
+    </ul>
+    <p>You can accept or refuse analytics cookies via our cookie banner (Klaro), and change your mind later using the “Cookie preferences” link in the website footer. Payment details are handled by Stripe and are not stored by us as card numbers; see <a href="https://stripe.com/gb/privacy" rel="noopener noreferrer">Stripe’s privacy policy</a>.</p>
 </section>
 
 <p class="legal-company">This website is owned and operated by GD Photography Limited.</p>

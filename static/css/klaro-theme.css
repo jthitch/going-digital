@@ -1,0 +1,232 @@
+/* Klaro overrides — clean card UI matching Going Digital chrome */
+
+#klaro {
+    z-index: 10050;
+}
+
+.klaro {
+    --dark1: #ffffff;
+    --dark2: #e8e8e8;
+    --dark3: #666666;
+    --light1: #1a1a1a;
+    --light2: #e0e0e0;
+    --light3: #888888;
+    --green1: var(--primary-color, #4a9eff);
+    --green2: var(--primary-hover, #6bb0ff);
+    --green3: var(--primary-color, #4a9eff);
+    --blue1: var(--primary-color, #4a9eff);
+    --blue2: var(--primary-color, #4a9eff);
+    --white1: #ffffff;
+    --white2: #f5f5f5;
+    --white3: #e8e8e8;
+    --button-text-color: #ffffff;
+    --border-radius: 10px;
+    --border-width: 1px;
+    --border-style: solid;
+    --notice-left: 1.25rem;
+    --notice-right: auto;
+    --notice-bottom: 1.25rem;
+    --notice-max-width: 22.5rem;
+}
+
+.klaro .cookie-notice,
+.klaro .cookie-modal,
+.klaro .cookie-modal .cm-modal.cm-klaro {
+    font-family: inherit;
+    z-index: 10050;
+}
+
+/* Notice card — solid surface, no accent strip behind actions */
+.klaro .cookie-notice:not(.cookie-modal-notice) {
+    background: var(--bg-primary, #ffffff) !important;
+    background-color: var(--bg-primary, #ffffff) !important;
+    color: var(--text-primary, #1a1a1a);
+    border: 1px solid var(--border-color, #e0e0e0);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+    left: 1.25rem;
+    right: auto;
+    overflow: hidden;
+}
+
+.klaro .cookie-notice:not(.cookie-modal-notice) .cn-body {
+    margin: 0;
+    padding: 1.25rem 1.15rem 1.1rem !important;
+    padding-top: 1.25rem !important;
+}
+
+.klaro .cookie-notice:not(.cookie-modal-notice) .cn-body > p {
+    margin: 0 0 0.85rem;
+    color: var(--text-secondary, #555);
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+/* Action row — transparent, not a coloured bar (`.cn-ok` is the wrapper) */
+.klaro .cookie-notice .cn-ok {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: inherit;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem 0.65rem;
+    margin: 0;
+    padding: 0;
+}
+
+.klaro .cookie-notice .cn-ok .cn-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin: 0;
+}
+
+.klaro .cookie-notice .cn-ok .cn-buttons .cm-btn {
+    margin-right: 0 !important;
+}
+
+.klaro .cookie-notice .cn-learn-more,
+.klaro .cookie-notice .cm-link {
+    color: var(--text-secondary, #555) !important;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    font-size: 0.85rem;
+    margin: 0;
+    flex-grow: 0;
+}
+
+.klaro .cookie-notice .cn-learn-more:hover,
+.klaro .cookie-notice .cm-link:hover {
+    color: var(--text-primary, #1a1a1a) !important;
+}
+
+.klaro .cookie-notice a:not(.cm-btn) {
+    color: var(--primary-color, #4a9eff);
+}
+
+.klaro .cm-btn,
+.klaro .cn-buttons button {
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.5rem 0.85rem;
+    margin: 0 !important;
+    border: 1px solid transparent;
+    box-shadow: none;
+    line-height: 1.2;
+}
+
+.klaro .cm-btn.cm-btn-success,
+.klaro .cm-btn.cm-btn-accept-all,
+.klaro button.cm-btn.cn-ok,
+.klaro .cm-btn.cn-ok {
+    background: var(--primary-color, #4a9eff) !important;
+    background-color: var(--primary-color, #4a9eff) !important;
+    color: #fff !important;
+    border-color: var(--primary-color, #4a9eff);
+}
+
+.klaro .cm-btn.cm-btn-success:hover,
+.klaro .cm-btn.cm-btn-accept-all:hover,
+.klaro button.cm-btn.cn-ok:hover,
+.klaro .cm-btn.cn-ok:hover {
+    background: var(--primary-hover, #6bb0ff) !important;
+    border-color: var(--primary-hover, #6bb0ff);
+}
+
+.klaro .cm-btn.cm-btn-danger,
+.klaro .cm-btn.cn-decline,
+.klaro .cn-decline {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: var(--text-primary, #1a1a1a) !important;
+    border: 1px solid var(--border-color, #d0d0d0) !important;
+}
+
+.klaro .cm-btn.cm-btn-danger:hover,
+.klaro .cm-btn.cn-decline:hover,
+.klaro .cn-decline:hover {
+    background: var(--bg-secondary, #f5f5f5) !important;
+}
+
+.klaro .cm-btn.cm-btn-info {
+    background: transparent !important;
+    color: var(--text-primary, #1a1a1a) !important;
+    border: 1px solid var(--border-color, #d0d0d0) !important;
+}
+
+/* Preferences modal */
+.klaro .cookie-modal .cm-modal.cm-klaro {
+    background: var(--bg-primary, #ffffff) !important;
+    color: var(--text-primary, #1a1a1a) !important;
+    border: 1px solid var(--border-color, #e0e0e0);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+}
+
+.klaro .cookie-modal .cm-header,
+.klaro .cookie-modal .cm-footer {
+    border-color: var(--border-color, #e0e0e0) !important;
+}
+
+.klaro .cookie-modal .cm-header h1,
+.klaro .cookie-modal .cm-header h2,
+.klaro .cookie-modal .cm-body,
+.klaro .cookie-modal p,
+.klaro .cookie-modal li,
+.klaro .cookie-modal strong {
+    color: var(--text-primary, #1a1a1a) !important;
+}
+
+.klaro .cookie-modal .cm-list-description,
+.klaro .cookie-modal p.purposes {
+    color: var(--text-secondary, #666) !important;
+}
+
+.klaro .cookie-modal a {
+    color: var(--primary-color, #4a9eff);
+}
+
+.klaro .cookie-modal .cm-list-input:checked + .cm-list-label .slider {
+    background-color: var(--primary-color, #4a9eff) !important;
+}
+
+.klaro .cookie-modal .hide svg {
+    stroke: var(--text-primary, #1a1a1a);
+}
+
+[data-theme="dark"] .klaro,
+:root:not([data-theme="light"]) .klaro {
+    --dark1: #2d2d2d;
+    --dark2: #404040;
+    --dark3: #b0b0b0;
+    --light1: #ffffff;
+    --light2: #404040;
+    --light3: #888888;
+    --white1: #2d2d2d;
+    --white2: #3a3a3a;
+    --white3: #505050;
+}
+
+[data-theme="dark"] .klaro .cookie-notice:not(.cookie-modal-notice),
+[data-theme="dark"] .klaro .cookie-modal .cm-modal.cm-klaro,
+:root:not([data-theme="light"]) .klaro .cookie-notice:not(.cookie-modal-notice),
+:root:not([data-theme="light"]) .klaro .cookie-modal .cm-modal.cm-klaro {
+    background: var(--bg-secondary, #2d2d2d) !important;
+    background-color: var(--bg-secondary, #2d2d2d) !important;
+    color: var(--text-primary, #fff);
+    border-color: var(--border-color, #404040);
+}
+
+[data-theme="dark"] .klaro .cookie-notice:not(.cookie-modal-notice) .cn-body > p,
+:root:not([data-theme="light"]) .klaro .cookie-notice:not(.cookie-modal-notice) .cn-body > p {
+    color: var(--text-secondary, #b0b0b0);
+}
+
+[data-theme="dark"] .klaro .cm-btn.cm-btn-danger,
+[data-theme="dark"] .klaro .cn-decline,
+:root:not([data-theme="light"]) .klaro .cm-btn.cm-btn-danger,
+:root:not([data-theme="light"]) .klaro .cn-decline {
+    color: var(--text-primary, #fff) !important;
+    border-color: var(--border-color, #555) !important;
+}

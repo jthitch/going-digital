@@ -101,6 +101,7 @@ _template_context_processors = [
     'website.context_processors.google_reviews',
     'website.context_processors.newsletter_modal',
     'website.context_processors.seo',
+    'website.context_processors.analytics',
 ]
 if DEBUG:
     _template_context_processors.insert(0, 'django.template.context_processors.debug')
@@ -261,6 +262,12 @@ try:
 except NameError:
     GOOGLE_PLACES_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY', '').strip()
     GOOGLE_PLACE_ID = os.environ.get('GOOGLE_PLACE_ID', '').strip()
+
+# Google Tag Manager (optional — Klaro consent gates analytics until accepted)
+try:
+    GTM_CONTAINER_ID = env('GTM_CONTAINER_ID', default='').strip()
+except NameError:
+    GTM_CONTAINER_ID = os.environ.get('GTM_CONTAINER_ID', '').strip()
 
 # Email Configuration
 try:

@@ -60,6 +60,11 @@ going-digital/
    CONTACT_EMAIL=enquiries@goingdigital.co.uk
    GOING_DIGITAL_FACEBOOK_GROUP_URL=https://www.facebook.com/groups/your-going-digital-group
 
+   # Optional: Google Tag Manager (enables Klaro cookie banner + Consent Mode).
+   # Leave blank locally if you do not need analytics. In GTM, add GA4 and require
+   # analytics_storage consent (and/or trigger on klaro-google-analytics-accepted).
+   # GTM_CONTAINER_ID=GTM-XXXXXXX
+
    # Optional passcode gate for staging/dev (session cookie).
    # Defaults to enabled when DEBUG=True. For staging with DEBUG=False, set:
    # DEV_SITE_ACCESS_ENABLED=True

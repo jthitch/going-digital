@@ -60,3 +60,10 @@ def seo(request):
             django_settings, 'DEV_SITE_ACCESS_ENABLED', django_settings.DEBUG,
         ),
     }
+
+
+def analytics(request):
+    """GTM container ID for Klaro + Consent Mode (empty disables tags)."""
+    return {
+        'gtm_container_id': getattr(django_settings, 'GTM_CONTAINER_ID', '') or '',
+    }

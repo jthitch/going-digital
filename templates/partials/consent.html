@@ -1,0 +1,129 @@
+{% load static %}
+{% comment %}
+  Klaro CMP + Google Consent Mode v2 + GTM.
+  Set GTM_CONTAINER_ID in the environment. In GTM:
+  - Add a GA4 Configuration tag
+  - Require consent for analytics_storage (Consent Overview), and/or
+  - Trigger on custom event "klaro-google-analytics-accepted"
+  No Facebook Pixel.
+{% endcomment %}
+{% if gtm_container_id %}
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('consent', 'default', {
+    ad_storage: 'denied',
+    ad_user_data: 'denied',
+    ad_personalization: 'denied',
+    analytics_storage: 'denied',
+    functionality_storage: 'granted',
+    personalization_storage: 'denied',
+    security_storage: 'granted',
+    wait_for_update: 500
+});
+window.__GD_GTM_ID = "{{ gtm_container_id|escapejs }}";
+</script>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','{{ gtm_container_id|escapejs }}');</script>
+<!-- End Google Tag Manager -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/klaro@0.7.22/dist/klaro.min.css" crossorigin="anonymous">
+<link rel="stylesheet" href="{% static 'css/klaro-theme.css' %}?v=4">
+<script>
+window.klaroConfig = {
+    version: 1,
+    elementID: 'klaro',
+    styling: {
+        theme: ['light', 'bottom', 'left']
+    },
+    noAutoLoad: false,
+    htmlTexts: true,
+    embedded: false,
+    groupByPurpose: true,
+    storageMethod: 'cookie',
+    cookieName: 'klaro',
+    cookieExpiresAfterDays: 180,
+    default: false,
+    mustConsent: false,
+    acceptAll: true,
+    hideDeclineAll: false,
+    hideLearnMore: false,
+    noticeAsModal: false,
+    disablePoweredBy: true,
+    privacyPolicy: '{% url "courses:privacy_policy" %}#cookies',
+    translations: {
+        zz: {
+            privacyPolicyName: 'privacy policy'
+        },
+        en: {
+            consentModal: {
+                title: 'Cookie preferences',
+                description:
+                    'We use essential cookies to run the site (for example sign-in and booking). ' +
+                    'Optional analytics cookies help us improve Going Digital via Google Analytics. ' +
+                    'You can change your choice at any time.'
+            },
+            consentNotice: {
+                description:
+                    'We use essential cookies to run bookings and your account. ' +
+                    'With your permission we also use Google Analytics (via Google Tag Manager) to understand how the site is used. ' +
+                    '<a href="{% url "courses:privacy_policy" %}#cookies" target="_blank" rel="noopener noreferrer">Privacy &amp; cookies</a>.',
+                learnMore: 'Preferences'
+            },
+            ok: 'Accept analytics',
+            acceptAll: 'Accept analytics',
+            acceptSelected: 'Save choices',
+            decline: 'Essential only',
+            purposes: {
+                necessary: {
+                    title: 'Essential',
+                    description: 'Required for security, sign-in, basket and booking. Always on.'
+                },
+                analytics: {
+                    title: 'Analytics',
+                    description: 'Helps us measure traffic and improve the website.'
+                }
+            },
+            necessary: {
+                description: 'Session, CSRF and similar cookies needed for the site to work.'
+            },
+            'google-analytics': {
+                description:
+                    'Google Analytics 4 loaded through Google Tag Manager. ' +
+                    'Used only if you allow analytics cookies. See also ' +
+                    '<a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google\'s privacy policy</a>.'
+            }
+        }
+    },
+    services: [
+        {
+            name: 'necessary',
+            title: 'Essential cookies',
+            purposes: ['necessary'],
+            required: true,
+            default: true
+        },
+        {
+            name: 'google-analytics',
+            title: 'Google Analytics',
+            purposes: ['analytics'],
+            cookies: [/^_ga(_.*)?/, '_gid', /^_gat/, /^_ga_/],
+            default: false,
+            required: false,
+            optOut: false,
+            onlyOnce: false,
+            callback: function (consent) {
+                if (typeof window.__gdApplyKlaroConsent === 'function') {
+                    window.__gdApplyKlaroConsent({ 'google-analytics': !!consent });
+                }
+            }
+        }
+    ]
+};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/klaro@0.7.22/dist/klaro.js" crossorigin="anonymous"></script>
+<script defer src="{% static 'js/klaro-consent.js' %}?v=1"></script>
+{% endif %}
