@@ -48,6 +48,26 @@
     overflow: hidden;
 }
 
+/* Mobile: sit above the fixed newsletter FAB (bottom-right) */
+@media (max-width: 1023px) {
+    .klaro .cookie-notice:not(.cookie-modal-notice) {
+        left: 0.75rem !important;
+        right: 0.75rem !important;
+        bottom: 5.5rem !important;
+        width: auto !important;
+        max-width: none !important;
+        border-radius: 10px !important;
+        border-style: solid !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .klaro .cookie-notice:not(.cookie-modal-notice) {
+        /* Icon-only FAB is shorter; keep a clear gap above it */
+        bottom: 5rem !important;
+    }
+}
+
 .klaro .cookie-notice:not(.cookie-modal-notice) .cn-body {
     margin: 0;
     padding: 1.25rem 1.15rem 1.1rem !important;
