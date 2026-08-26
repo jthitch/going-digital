@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ meta_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block extra_head %}
+{% if location_schema_json %}
+<script type="application/ld+json">{{ location_schema_json|safe }}</script>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<main class="location-landing-page">
+    <header class="location-landing-header">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+            <a href="{% url 'courses:course_list' %}">Photography courses</a>
+            <span aria-hidden="true"> / </span>
+            <span>Locations</span>
+        </nav>
+        <h1>Photography courses by location</h1>
+        <p class="location-landing-subtitle">
+            Browse Going Digital photography courses by UK region or city. Each page lists local venues and upcoming workshops.
+        </p>
+    </header>
+
+    {% if regions %}
+    <section class="location-hub-section" aria-labelledby="regions-heading">
+        <h2 id="regions-heading">Regions</h2>
+        <ul class="location-hub-list">
+            {% for region in regions %}
+            <li>
+                <a href="{% url 'courses:region_landing' slug=region.slug %}">
+                    Photography courses in {{ region.region_name }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
+    {% if cities %}
+    <section class="location-hub-section" aria-labelledby="cities-heading">
+        <h2 id="cities-heading">Cities &amp; towns</h2>
+        <ul class="location-hub-list location-hub-list--columns">
+            {% for city in cities %}
+            <li>
+                <a href="{% url 'courses:city_landing' slug=city.slug %}">
+                    Photography courses in {{ city.name }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
+    {% if not regions and not cities %}
+    <p>Location pages will appear here once venues with upcoming courses are available.</p>
+    {% endif %}
+
+    <p class="location-landing-footer-links">
+        <a href="{% url 'courses:venue_list' %}">Browse all venues</a>
+        ·
+        <a href="{% url 'courses:course_list' %}">Browse all courses</a>
+    </p>
+</main>
+{% endblock %}

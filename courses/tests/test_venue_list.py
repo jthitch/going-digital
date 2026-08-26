@@ -49,8 +49,8 @@ class VenueListHelpersTests(SimpleTestCase):
             SimpleNamespace(region_id=99, venue_name='Missing Region'),
         ]
         region_rows = [
-            SimpleNamespace(id=1, region_name='South West'),
-            SimpleNamespace(id=2, region_name='London'),
+            SimpleNamespace(id=1, region_name='South West', slug='south-west'),
+            SimpleNamespace(id=2, region_name='London', slug='london'),
         ]
         with patch('courses.venue_list.Region.objects') as region_objects:
             region_objects.filter.return_value = region_rows
@@ -60,6 +60,9 @@ class VenueListHelpersTests(SimpleTestCase):
             [g['name'] for g in groups],
             ['London', 'South West', OTHER_REGION_LABEL],
         )
+        self.assertEqual(groups[0]['slug'], 'london')
+        self.assertEqual(groups[1]['slug'], 'south-west')
+        self.assertIsNone(groups[2]['slug'])
         self.assertEqual(
             [v.venue_name for v in groups[1]['venues']],
             ['Alpha Hall', 'Beta Hall'],

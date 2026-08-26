@@ -14,7 +14,7 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{% static 'img/favicon/favicon.png' %}">
     
-    <link rel="stylesheet" href="{% static 'css/main.css' %}?v=2">
+    <link rel="stylesheet" href="{% static 'css/main.css' %}?v=4">
     <link rel="stylesheet" href="{% static 'css/newsletter.css' %}?v=4">
     
     {% block extra_head %}{% endblock %}
@@ -90,6 +90,7 @@
                 <ul class="site-footer-links">
                     <li><a href="{% url 'courses:homepage' %}">Home</a></li>
                     <li><a href="{% url 'courses:course_list' %}">Photography courses</a></li>
+                    <li><a href="{% url 'courses:location_landing_index' %}">Locations</a></li>
                     <li><a href="{% url 'courses:venue_list' %}">Venues</a></li>
                     <li><a href="{% url 'courses:gift_vouchers' %}">Gift vouchers</a></li>
                     <li><a href="{% url 'courses:faq' %}">FAQ</a></li>

@@ -10,7 +10,14 @@ from django.conf.urls.static import static
 from django.views.generic import RedirectView
 from django.contrib.staticfiles.storage import staticfiles_storage
 
-from courses.sitemaps import StaticViewSitemap, CourseOverviewSitemap, WorkshopSitemap, VenueSitemap
+from courses.sitemaps import (
+    StaticViewSitemap,
+    CourseOverviewSitemap,
+    WorkshopSitemap,
+    VenueSitemap,
+    RegionLandingSitemap,
+    CityLandingSitemap,
+)
 from courses.views import RobotsTxtView, LlmsTxtView
 from core.forms import GdUserPasswordResetForm
 from core.views_newsletter import NewsletterSubscribeView
@@ -26,6 +33,8 @@ sitemaps = {
     'courses': CourseOverviewSitemap,
     'instances': WorkshopSitemap,
     'venues': VenueSitemap,
+    'regions': RegionLandingSitemap,
+    'cities': CityLandingSitemap,
 }
 
 urlpatterns = [

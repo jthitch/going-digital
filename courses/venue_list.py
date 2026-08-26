@@ -157,29 +157,37 @@ def apply_near_me_to_workshop_queryset(queryset, *, lat: float, lng: float, radi
 
 def group_venues_by_region(venues):
     """
-    Return [{'name': region_name, 'venues': [...]}, ...] sorted by region name.
+    Return [{'name', 'slug', 'venues'}, ...] sorted by region name.
     Venues without a region (or unknown region id) go under OTHER_REGION_LABEL last.
+    slug is set when the region has a public landing slug (for SEO links).
     """
     venues = list(venues)
     region_ids = {v.region_id for v in venues if v.region_id}
-    names = {
-        r.id: (r.region_name or '').strip() or f'Region #{r.id}'
+    meta = {
+        r.id: {
+            'name': (r.region_name or '').strip() or f'Region #{r.id}',
+            'slug': (r.slug or '').strip() or None,
+        }
         for r in Region.objects.filter(pk__in=region_ids)
     }
 
-    grouped: dict[str, list] = {}
+    grouped: dict[str, dict] = {}
     for venue in venues:
-        if venue.region_id and venue.region_id in names:
-            label = names[venue.region_id]
+        if venue.region_id and venue.region_id in meta:
+            info = meta[venue.region_id]
+            label = info['name']
+            slug = info['slug']
         else:
             label = OTHER_REGION_LABEL
-        grouped.setdefault(label, []).append(venue)
+            slug = None
+        bucket = grouped.setdefault(label, {'name': label, 'slug': slug, 'venues': []})
+        bucket['venues'].append(venue)
 
-    for label in grouped:
-        grouped[label].sort(key=lambda v: (v.venue_name or '').lower())
+    for bucket in grouped.values():
+        bucket['venues'].sort(key=lambda v: (v.venue_name or '').lower())
 
     return [
-        {'name': name, 'venues': grouped[name]}
+        grouped[name]
         for name in sorted(
             grouped.keys(),
             key=lambda n: (n == OTHER_REGION_LABEL, n.lower()),

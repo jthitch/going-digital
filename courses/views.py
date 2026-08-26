@@ -21,8 +21,9 @@ from courses.html_text import rich_html_to_plain_text
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Course, Workshop, Venue, CourseCategory, LEVEL_NAME_TO_ID, LEVEL_DISPLAY_NAMES
-from .forms import ContactForm, GiftVoucherRequestForm, CONTACT_REGION_CHOICES, VOUCHER_AMOUNT_CHOICES
+from .forms import ContactForm, GiftVoucherRequestForm, VOUCHER_AMOUNT_CHOICES
 from .utils import get_promoted_occasions, workshop_calendar_date
+from .venue_schema import venue_place_schema
 from .workshop_querysets import (
     OPEN_DATED_LABEL,
     apply_workshop_list_date_range,
@@ -1063,6 +1064,12 @@ class VenueListView(ListView):
             }] if venues else []
         else:
             context['venue_groups'] = group_venues_by_region(venues)
+            # Only link region headings to SEO landings that have bookable workshops.
+            from .location_landings import indexable_regions
+            indexable_slugs = set(indexable_regions().values_list('slug', flat=True))
+            for group in context['venue_groups']:
+                if group.get('slug') and group['slug'] not in indexable_slugs:
+                    group['slug'] = None
 
         context['venues'] = venues
         context['venue_count'] = len(venues)
@@ -1145,24 +1152,11 @@ class VenueDetailView(DetailView):
         if context['venue_images']:
             context['og_image'] = self.request.build_absolute_uri(context['venue_images'][0].image.url)
 
-        place_schema = {
-            '@type': 'Place',
-            'name': venue.venue_name,
-            'description': context['meta_description'],
-            'url': venue_url,
-            'address': {
-                '@type': 'PostalAddress',
-                'streetAddress': venue.venue_address or '',
-                'addressLocality': venue.location or '',
-                'addressCountry': 'GB',
-            },
-        }
-        if venue.latitude and venue.longitude:
-            place_schema['geo'] = {
-                '@type': 'GeoCoordinates',
-                'latitude': float(venue.latitude),
-                'longitude': float(venue.longitude),
-            }
+        place_schema = venue_place_schema(
+            venue,
+            description=context['meta_description'],
+            url=venue_url,
+        )
         graph = [
             place_schema,
             breadcrumb_schema([
@@ -1175,6 +1169,236 @@ class VenueDetailView(DetailView):
             {'@context': 'https://schema.org', '@graph': graph},
             ensure_ascii=False,
         )
+        return context
+
+
+def _location_landing_context(
+    request,
+    *,
+    place_name,
+    place_kind,
+    venues,
+    workshops,
+    page_url,
+    breadcrumb_tail,
+):
+    """Shared SEO + list context for city/region landings."""
+    venue_count = len(venues)
+    course_titles = []
+    seen_courses = set()
+    for workshop in workshops:
+        course = workshop.course
+        if not course or course.pk in seen_courses:
+            continue
+        seen_courses.add(course.pk)
+        course_titles.append(course.title)
+
+    meta_title = f'Photography Courses in {place_name} | Going Digital'
+    if place_kind == 'region':
+        meta_description = (
+            f'Browse photography courses and workshops across {place_name}. '
+            f'{venue_count} venue{"s" if venue_count != 1 else ""} with hands-on training from Going Digital.'
+        )
+        intro = (
+            f'Find hands-on photography courses across {place_name}. '
+            f'Choose a venue below or book an upcoming workshop with Going Digital.'
+        )
+    else:
+        meta_description = (
+            f'Photography courses in {place_name}. '
+            f'Book workshops at {venue_count} local venue{"s" if venue_count != 1 else ""} with Going Digital.'
+        )
+        intro = (
+            f'Looking for photography courses in {place_name}? '
+            f'Browse venues and upcoming workshops below, then book online.'
+        )
+
+    item_list = []
+    for position, venue in enumerate(venues, start=1):
+        item_list.append({
+            '@type': 'ListItem',
+            'position': position,
+            'name': venue.venue_name,
+            'url': absolute_url(
+                request,
+                'courses:venue_detail',
+                kwargs={'location_slug': venue.slug},
+            ),
+        })
+
+    graph = [
+        {
+            '@type': 'CollectionPage',
+            '@id': f'{page_url}#webpage',
+            'url': page_url,
+            'name': meta_title,
+            'description': meta_description,
+            'isPartOf': {'@type': 'WebSite', 'name': ORGANIZATION_NAME},
+            'about': {
+                '@type': 'Place',
+                'name': place_name,
+                'address': {'@type': 'PostalAddress', 'addressCountry': 'GB'},
+            },
+        },
+        {
+            '@type': 'ItemList',
+            '@id': f'{page_url}#venues',
+            'name': f'Photography course venues in {place_name}',
+            'numberOfItems': len(item_list),
+            'itemListElement': item_list,
+        },
+        breadcrumb_schema([
+            ('Photography courses', absolute_url(request, 'courses:course_list')),
+            ('Locations', absolute_url(request, 'courses:location_landing_index')),
+            breadcrumb_tail,
+        ]),
+    ]
+
+    return {
+        'place_name': place_name,
+        'place_kind': place_kind,
+        'venues': venues,
+        'venue_count': venue_count,
+        'instances': workshops,
+        'course_count': len(course_titles),
+        'intro': intro,
+        'meta_title': meta_title,
+        'meta_description': meta_description[:160],
+        'canonical_url': page_url,
+        'og_title': meta_title,
+        'og_description': meta_description[:160],
+        'og_url': page_url,
+        'location_schema_json': json.dumps(
+            {'@context': 'https://schema.org', '@graph': graph},
+            ensure_ascii=False,
+        ),
+    }
+
+
+class LocationLandingIndexView(TemplateView):
+    """Hub listing indexable region and city landings."""
+    template_name = 'courses/location_landing_index.html'
+
+    def get_context_data(self, **kwargs):
+        from .location_landings import indexable_cities, indexable_regions
+
+        context = super().get_context_data(**kwargs)
+        regions = list(indexable_regions())
+        cities = indexable_cities()
+        page_url = absolute_url(self.request, 'courses:location_landing_index')
+        meta_description = (
+            'Browse Going Digital photography courses by UK region or city. '
+            'Find venues and upcoming workshops near you.'
+        )
+        context.update({
+            'regions': regions,
+            'cities': cities,
+            'meta_title': 'Photography Courses by Location | Going Digital',
+            'meta_description': meta_description,
+            'canonical_url': page_url,
+            'og_title': 'Photography Courses by Location | Going Digital',
+            'og_description': meta_description,
+            'og_url': page_url,
+            'location_schema_json': json.dumps(
+                {
+                    '@context': 'https://schema.org',
+                    '@graph': [
+                        {
+                            '@type': 'CollectionPage',
+                            'url': page_url,
+                            'name': 'Photography Courses by Location',
+                            'description': meta_description,
+                        },
+                        breadcrumb_schema([
+                            ('Photography courses', absolute_url(self.request, 'courses:course_list')),
+                            ('Locations', None),
+                        ]),
+                    ],
+                },
+                ensure_ascii=False,
+            ),
+        })
+        return context
+
+
+class RegionLandingView(TemplateView):
+    """Indexable region hub: /photography-courses/regions/<slug>/"""
+    template_name = 'courses/location_landing.html'
+
+    def get_context_data(self, **kwargs):
+        from django.http import Http404
+        from .location_landings import (
+            get_indexable_region,
+            landing_workshops_for_venues,
+            region_landing_venues,
+        )
+
+        context = super().get_context_data(**kwargs)
+        region = get_indexable_region(self.kwargs.get('slug', ''))
+        if region is None:
+            raise Http404('No photography courses found for this region.')
+
+        venues = list(region_landing_venues(region))
+        if not venues:
+            raise Http404('No photography courses found for this region.')
+
+        workshops = landing_workshops_for_venues([v.pk for v in venues])
+        page_url = absolute_url(
+            self.request,
+            'courses:region_landing',
+            kwargs={'slug': region.slug},
+        )
+        place_name = (region.region_name or '').strip() or region.slug
+        context.update(_location_landing_context(
+            self.request,
+            place_name=place_name,
+            place_kind='region',
+            venues=venues,
+            workshops=workshops,
+            page_url=page_url,
+            breadcrumb_tail=(place_name, None),
+        ))
+        context['region'] = region
+        return context
+
+
+class CityLandingView(TemplateView):
+    """Indexable city hub: /photography-courses/in/<slug>/"""
+    template_name = 'courses/location_landing.html'
+
+    def get_context_data(self, **kwargs):
+        from django.http import Http404
+        from .location_landings import (
+            city_landing_venues,
+            get_indexable_city,
+            landing_workshops_for_venues,
+        )
+
+        context = super().get_context_data(**kwargs)
+        city = get_indexable_city(self.kwargs.get('slug', ''))
+        if city is None:
+            raise Http404('No photography courses found for this location.')
+
+        venues = list(city_landing_venues(city))
+        if not venues:
+            raise Http404('No photography courses found for this location.')
+
+        workshops = landing_workshops_for_venues([v.pk for v in venues])
+        page_url = absolute_url(
+            self.request,
+            'courses:city_landing',
+            kwargs={'slug': city.slug},
+        )
+        context.update(_location_landing_context(
+            self.request,
+            place_name=city.name,
+            place_kind='city',
+            venues=venues,
+            workshops=workshops,
+            page_url=page_url,
+            breadcrumb_tail=(city.name, None),
+        ))
+        context['city'] = city
         return context
 
 
@@ -1372,18 +1596,14 @@ class CourseDetailView(DetailView):
             instance_schema = {
                 "@type": "CourseInstance",
                 "courseMode": "onsite",
-                "location": {
+                "location": venue_place_schema(loc) if loc else {
                     "@type": "Place",
-                    "name": loc.venue_name if loc else "TBC",
+                    "name": "TBC",
                     "address": {
                         "@type": "PostalAddress",
-                        "streetAddress": loc.venue_address if loc else "",
-                        "addressLocality": loc.location if loc else "",
-                        "addressRegion": "",
-                        "postalCode": "",
-                        "addressCountry": "GB"
-                    }
-                }
+                        "addressCountry": "GB",
+                    },
+                },
             }
             workload = instance.duration_display and duration_iso8601(
                 instance.start_date,
@@ -1488,15 +1708,15 @@ class ContactView(FormView):
     extra_context = {'page_title': 'Contact Going Digital'}
 
     def form_valid(self, form):
-        region = form.cleaned_data['region']
-        region_label = dict(CONTACT_REGION_CHOICES).get(region, region)
+        phone = (form.cleaned_data.get('phone') or '').strip() or '—'
+        order_number = (form.cleaned_data.get('order_number') or '').strip() or '—'
 
         email_body = f"""New contact form submission from Going Digital website
 
-Region/Contact: {region_label}
 Name: {form.cleaned_data['name']}
 Email: {form.cleaned_data['email']}
-Phone: {form.cleaned_data['phone']}
+Phone: {phone}
+Order number: {order_number}
 
 Message:
 {form.cleaned_data['message']}
@@ -1506,7 +1726,7 @@ This enquiry was sent via the contact form. Information is not stored in the dat
 """
         contact_email = getattr(settings, 'CONTACT_EMAIL', settings.DEFAULT_FROM_EMAIL)
         send_filtered_mail(
-            subject=f'Going Digital Contact: {region_label} - {form.cleaned_data["name"]}',
+            subject=f'Going Digital Contact: {form.cleaned_data["name"]}',
             message=email_body,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[contact_email],
@@ -1520,8 +1740,13 @@ This enquiry was sent via the contact form. Information is not stored in the dat
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['meta_description'] = 'Contact Going Digital for photography course bookings, workshop enquiries, gift voucher or payment queries. Get in touch with your regional team.'
-        context['meta_keywords'] = 'contact Going Digital, photography course enquiry, workshop booking, gift voucher'
+        context['meta_description'] = (
+            'Contact Going Digital for photography course bookings, workshop enquiries, '
+            'gift voucher or payment queries.'
+        )
+        context['meta_keywords'] = (
+            'contact Going Digital, photography course enquiry, workshop booking, gift voucher'
+        )
         return context
 
 
@@ -1623,6 +1848,7 @@ class SiteMapPageView(TemplateView):
         entries = [
             ('Home', 'courses:homepage'),
             ('Photography courses', 'courses:course_list'),
+            ('Courses by location', 'courses:location_landing_index'),
             ('Venues', 'courses:venue_list'),
             ('Gift vouchers', 'courses:gift_vouchers'),
             ('FAQ', 'courses:faq'),
@@ -1713,6 +1939,7 @@ class LlmsTxtView(TemplateView):
         context['contact_url'] = absolute_url(self.request, 'courses:contact')
         context['gift_vouchers_url'] = absolute_url(self.request, 'courses:gift_vouchers')
         context['site_map_url'] = absolute_url(self.request, 'courses:site_map')
+        context['locations_url'] = absolute_url(self.request, 'courses:location_landing_index')
         context['xml_sitemap_url'] = self.request.build_absolute_uri(reverse('sitemap'))
         return context
 

@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block title %}Contact Going Digital - Photography Courses{% endblock %}
-{% block meta_description %}{{ meta_description|default:"Contact Going Digital for photography course bookings, workshop enquiries, gift voucher or payment queries. Get in touch with your regional team." }}{% endblock %}
+{% block meta_description %}{{ meta_description|default:"Contact Going Digital for photography course bookings, workshop enquiries, gift voucher or payment queries." }}{% endblock %}
 {% block meta_keywords %}{{ meta_keywords|default:"contact Going Digital, photography course enquiry, workshop booking, gift voucher" }}{% endblock %}
 
 {% block extra_head %}
@@ -35,15 +35,6 @@
     border-radius: 6px;
     border-left: 4px solid var(--primary-color, #4a9eff);
 }
-.form-group select {
-    padding: 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    font-size: 1rem;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    width: 100%;
-}
 </style>
 {% endblock %}
 
@@ -52,8 +43,7 @@
     <h1>Contact by Phone or Send a Message</h1>
 
     <div class="contact-intro">
-        <p>For booking and workshop enquiries please select your Region from the list below.</p>
-        <p>For gift voucher or payment queries please select Customer Services.</p>
+        <p>Send us a message about bookings, workshops, gift vouchers, or payments and we will get back to you as soon as we can.</p>
     </div>
 
     {% if messages %}
@@ -66,15 +56,6 @@
 
     <form method="post" class="booking-form">
         {% csrf_token %}
-
-        <div class="form-group">
-            <label for="{{ form.region.id_for_label }}">{{ form.region.label }} *</label>
-            {{ form.region }}
-            {% if form.region.errors %}
-            <span class="error">{{ form.region.errors }}</span>
-            {% endif %}
-            <small>Select who you would like to contact so we can direct your enquiry to the right person</small>
-        </div>
 
         <div class="form-group">
             <label for="{{ form.name.id_for_label }}">Name *</label>
@@ -93,10 +74,18 @@
         </div>
 
         <div class="form-group">
-            <label for="{{ form.phone.id_for_label }}">Phone *</label>
+            <label for="{{ form.phone.id_for_label }}">Phone</label>
             {{ form.phone }}
             {% if form.phone.errors %}
             <span class="error">{{ form.phone.errors }}</span>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.order_number.id_for_label }}">Order number</label>
+            {{ form.order_number }}
+            {% if form.order_number.errors %}
+            <span class="error">{{ form.order_number.errors }}</span>
             {% endif %}
         </div>
 
@@ -116,7 +105,7 @@
         </div>
 
         <div class="contact-note">
-            Please note: Information entered on this form is not stored in our database. This information is emailed directly to your Going Digital contact for the purpose of this enquiry only.
+            Please note: Information entered on this form is not stored in our database. This information is emailed to Going Digital for the purpose of this enquiry only.
         </div>
 
         <div class="form-actions" style="margin-top: 1.5rem;">

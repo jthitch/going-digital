@@ -94,7 +94,13 @@
             {% for group in venue_groups %}
             <section class="venue-region-group" aria-labelledby="venue-region-{{ forloop.counter }}">
                 <div class="venue-region-header">
+                    {% if group.slug and not location_search_active and not current_search %}
+                    <h2 class="venue-region-heading" id="venue-region-{{ forloop.counter }}">
+                        <a href="{% url 'courses:region_landing' slug=group.slug %}" class="venue-region-link">{{ group.name }}</a>
+                    </h2>
+                    {% else %}
                     <h2 class="venue-region-heading" id="venue-region-{{ forloop.counter }}">{{ group.name }}</h2>
+                    {% endif %}
                     <span class="venue-region-count">{{ group.venues|length }} venue{{ group.venues|length|pluralize }}</span>
                 </div>
                 <div class="venue-grid-inner">

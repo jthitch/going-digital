@@ -919,6 +919,19 @@ address.instance-address-inline {
     text-decoration: none;
 }
 
+/* CKEditor often embeds light-mode inline colors (e.g. rgb(51,51,51)); reset in dark mode */
+[data-theme="dark"] .course-main-content [style*="color"]:not(a),
+[data-theme="dark"] .course-main-content font[color] {
+    color: inherit !important;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .course-main-content [style*="color"]:not(a),
+    :root:not([data-theme="light"]) .course-main-content font[color] {
+        color: inherit !important;
+    }
+}
+
 .course-media-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -2406,6 +2419,91 @@ footer,
 
 .status-badge.full { color: #dc2626; }
 .status-badge.closed { color: var(--text-secondary); }
+
+/* Location landings (city / region hubs) */
+.location-landing-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+}
+
+.location-landing-header {
+    margin-bottom: 2rem;
+}
+
+.location-landing-header h1 {
+    margin: 0.5rem 0 0.75rem;
+    font-size: clamp(1.75rem, 4vw, 2.25rem);
+    letter-spacing: -0.02em;
+}
+
+.location-landing-subtitle {
+    margin: 0 0 0.5rem;
+    color: var(--text-secondary);
+    max-width: 42rem;
+    line-height: 1.55;
+}
+
+.location-landing-stats {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+
+.location-landing-venues,
+.location-landing-courses {
+    margin-top: 2.5rem;
+}
+
+.location-landing-venues h2,
+.location-landing-courses h2,
+.location-hub-section h2 {
+    margin: 0 0 1rem;
+    font-size: 1.35rem;
+}
+
+.location-landing-footer-links {
+    margin-top: 2.5rem;
+    color: var(--text-secondary);
+}
+
+.location-hub-section {
+    margin-bottom: 2.5rem;
+}
+
+.location-hub-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.location-hub-list--columns {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.35rem 1.25rem;
+}
+
+.location-hub-list a {
+    color: var(--text-primary);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+}
+
+.location-hub-list a:hover {
+    border-bottom-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.venue-region-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.venue-region-link:hover {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
 
 /* Desktop */
 @media (min-width: 1024px) {

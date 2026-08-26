@@ -269,7 +269,11 @@
             </div>
             {% endfor %}
         </dl>
-        <p class="homepage-faq-more"><a href="{% url 'courses:faq' %}">Read all frequently asked questions</a></p>
+        <p class="homepage-faq-more">
+            <a href="{% url 'courses:location_landing_index' %}">Browse courses by location</a>
+            ·
+            <a href="{% url 'courses:faq' %}">Read all frequently asked questions</a>
+        </p>
     </div>
 </section>
 

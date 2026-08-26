@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ meta_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block extra_head %}
+{% if location_schema_json %}
+<script type="application/ld+json">{{ location_schema_json|safe }}</script>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<main class="location-landing-page">
+    <header class="location-landing-header">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+            <a href="{% url 'courses:course_list' %}">Photography courses</a>
+            <span aria-hidden="true"> / </span>
+            <a href="{% url 'courses:location_landing_index' %}">Locations</a>
+            <span aria-hidden="true"> / </span>
+            <span>{{ place_name }}</span>
+        </nav>
+        <h1>Photography courses in {{ place_name }}</h1>
+        <p class="location-landing-subtitle">{{ intro }}</p>
+        <p class="location-landing-stats">
+            {{ venue_count }} venue{{ venue_count|pluralize }}
+            {% if course_count %} · {{ course_count }} course{{ course_count|pluralize }}{% endif %}
+            {% if instances %} · {{ instances|length }} upcoming date{{ instances|length|pluralize }}{% endif %}
+        </p>
+    </header>
+
+    <section class="location-landing-venues" aria-labelledby="location-venues-heading">
+        <h2 id="location-venues-heading">Venues in {{ place_name }}</h2>
+        <div class="venue-grid-inner">
+            {% for venue in venues %}
+            <article class="venue-card">
+                <a href="{% url 'courses:venue_detail' location_slug=venue.slug %}" class="venue-card-link">
+                    {% with first_media=venue.media.first %}
+                    {% if first_media and first_media.image %}
+                    <div class="venue-card-image">
+                        <img src="{{ first_media.image.url }}" alt="{{ venue.name }}" loading="lazy">
+                    </div>
+                    {% else %}
+                    <div class="venue-card-placeholder" aria-hidden="true"></div>
+                    {% endif %}
+                    {% endwith %}
+                    <div class="venue-card-content">
+                        <h3 class="venue-card-title">{{ venue.name }}</h3>
+                        {% if venue.location %}
+                        <p class="venue-card-location">{{ venue.location }}</p>
+                        {% endif %}
+                    </div>
+                </a>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="location-landing-courses venue-courses" aria-labelledby="location-courses-heading">
+        <h2 id="location-courses-heading">Upcoming courses in {{ place_name }}</h2>
+        {% if instances %}
+        <ul class="venue-instance-list">
+            {% for instance in instances %}
+            <li class="venue-instance-item">
+                <a href="{{ instance.get_absolute_url }}" class="venue-instance-link">
+                    <strong>{{ instance.course.title }}</strong>
+                    <span>
+                        {% if instance.venue %}{{ instance.venue.name }} · {% endif %}
+                        {% if instance.is_open_dated %}
+                        Date by arrangement
+                        {% else %}
+                        {{ instance.start_date|date:"d F Y" }}
+                        {% endif %}
+                    </span>
+                    <span class="instance-price">£{{ instance.price }}</span>
+                </a>
+                <div class="instance-actions">
+                    {% if instance.is_full %}
+                        <span class="status-badge full">Fully booked</span>
+                    {% elif instance.enrollment_open %}
+                        <a href="{% url 'bookings:create' instance_id=instance.id %}" class="btn-book btn-primary">Book now – £{{ instance.price }}</a>
+                    {% else %}
+                        <span class="status-badge closed">Enrollment closed</span>
+                    {% endif %}
+                    <a href="{{ instance.get_absolute_url }}" class="btn-view-details">View details</a>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No upcoming dates right now. <a href="{% url 'courses:course_list' %}">Browse all photography courses</a>.</p>
+        {% endif %}
+    </section>
+
+    <p class="location-landing-footer-links">
+        <a href="{% url 'courses:location_landing_index' %}">All locations</a>
+        ·
+        <a href="{% url 'courses:venue_list' %}">All venues</a>
+        ·
+        <a href="{% url 'courses:course_list' %}">All courses</a>
+    </p>
+</main>
+{% endblock %}

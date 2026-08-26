@@ -39,6 +39,22 @@ urlpatterns = [
     
     # Course listing and overview (canonical URLs)
     path('photography-courses/', views.CourseListView.as_view(), name='course_list'),
+    # Indexable location hubs (must stay before course slug routes)
+    path(
+        'photography-courses/locations/',
+        views.LocationLandingIndexView.as_view(),
+        name='location_landing_index',
+    ),
+    path(
+        'photography-courses/regions/<slug:slug>/',
+        views.RegionLandingView.as_view(),
+        name='region_landing',
+    ),
+    path(
+        'photography-courses/in/<slug:slug>/',
+        views.CityLandingView.as_view(),
+        name='city_landing',
+    ),
     # Venue pages: /venues (list), /photography-courses/venues/<location_slug>/ (detail)
     path('venues/', views.VenueListView.as_view(), name='venue_list'),
     path('photography-courses/venues/<slug:location_slug>/', views.VenueDetailView.as_view(), name='venue_detail'),

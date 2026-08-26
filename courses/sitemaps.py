@@ -19,6 +19,7 @@ class StaticViewSitemap(Sitemap):
         return [
             'courses:homepage',
             'courses:course_list',
+            'courses:location_landing_index',
             'courses:venue_list',
             'courses:contact',
             'courses:gift_vouchers',
@@ -85,3 +86,29 @@ class VenueSitemap(Sitemap):
 
     def lastmod(self, obj):
         return obj.updated_at
+
+
+class RegionLandingSitemap(Sitemap):
+    """Region hubs: /photography-courses/regions/<slug>/"""
+    changefreq = 'weekly'
+    priority = 0.75
+
+    def items(self):
+        from .location_landings import indexable_regions
+        return list(indexable_regions())
+
+    def location(self, obj):
+        return reverse('courses:region_landing', kwargs={'slug': obj.slug})
+
+
+class CityLandingSitemap(Sitemap):
+    """City hubs: /photography-courses/in/<slug>/"""
+    changefreq = 'weekly'
+    priority = 0.75
+
+    def items(self):
+        from .location_landings import indexable_cities
+        return indexable_cities()
+
+    def location(self, obj):
+        return reverse('courses:city_landing', kwargs={'slug': obj.slug})

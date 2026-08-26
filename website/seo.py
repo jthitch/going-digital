@@ -11,7 +11,7 @@ HOMEPAGE_FAQ_ITEMS = (
     (
         'What photography courses are available near me?',
         'Going Digital offers photography courses and workshops across the UK for all skill levels. '
-        'Browse by level, category, or location on our course list and map to find training near you.',
+        'Browse courses by city or region on our locations pages, or use the course list and map to find training near you.',
     ),
     (
         'Are photography courses suitable for complete beginners?',

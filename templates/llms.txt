@@ -9,6 +9,7 @@
 
 - Home: {{ site_base_url }}/
 - Browse courses: {{ course_list_url }}
+- Courses by location: {{ locations_url }}
 - FAQ: {{ faq_url }}
 - Venues: {{ site_base_url }}/venues/
 - Gift vouchers: {{ gift_vouchers_url }}
@@ -29,6 +30,7 @@
 - Course levels include beginner, intermediate, advanced, masterclass, and various.
 - Categories include landscape, portrait, wildlife, editing, and more.
 - Workshop pages include venue, pricing, availability, and instructor information where set.
+- Location hub pages list venues and upcoming workshops by UK region (`/photography-courses/regions/…`) and city (`/photography-courses/in/…`).
 
 ## Policies
 

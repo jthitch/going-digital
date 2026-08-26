@@ -132,30 +132,6 @@ class WorkshopImagesModelMultipleChoiceField(forms.ModelMultipleChoiceField):
         return _workshop_image_option_label(obj)
 
 
-CONTACT_REGION_CHOICES = [
-    ('', 'Please select'),
-    ('cotswolds', 'Cotswolds'),
-    ('devon-cornwall', 'Devon & Cornwall'),
-    ('east-anglia', 'East Anglia'),
-    ('east-midlands', 'East Midlands'),
-    ('east-of-england', 'East of England'),
-    ('lake-district', 'Lake District'),
-    ('lancashire', 'Lancashire'),
-    ('london', 'London'),
-    ('north-mid-wales', 'North and Mid Wales'),
-    ('north-east', 'North East'),
-    ('north-west', 'North West & North West Midlands'),
-    ('scottish-highlands', 'Scottish Highlands & Islands'),
-    ('south-coast', 'South & South Coast'),
-    ('south-east', 'South East'),
-    ('south-east-scotland', 'South East Scotland'),
-    ('south-midlands', 'South Midlands'),
-    ('south-west-scotland', 'South West Scotland'),
-    ('west-england-south-wales', 'West of England & South Wales'),
-    ('yorkshire', 'Yorkshire'),
-    ('customer-services', 'Customer Services'),
-]
-
 def _legacy_01_checked(value):
     """Whether a legacy 0/1 (or boolean) value should show the toggle as on."""
     if value in (0, '0', False):
@@ -358,12 +334,6 @@ class GiftVoucherRequestForm(forms.Form):
 
 class ContactForm(forms.Form):
     """Contact form for booking and workshop enquiries."""
-    region = forms.ChoiceField(
-        choices=CONTACT_REGION_CHOICES,
-        required=True,
-        label='Who would you like to contact?',
-        widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_region'})
-    )
     name = forms.CharField(
         max_length=100,
         required=True,
@@ -383,11 +353,23 @@ class ContactForm(forms.Form):
     )
     phone = forms.CharField(
         max_length=20,
-        required=True,
+        required=False,
+        label='Phone',
         widget=forms.TextInput(attrs={
             'class': 'form-input',
-            'placeholder': 'Please enter your phone number',
+            'placeholder': 'Optional phone number',
             'id': 'id_phone'
+        })
+    )
+    order_number = forms.CharField(
+        max_length=64,
+        required=False,
+        label='Order number',
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Optional order or booking reference',
+            'id': 'id_order_number',
+            'autocomplete': 'off',
         })
     )
     message = forms.CharField(
