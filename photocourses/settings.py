@@ -357,6 +357,8 @@ JAZZMIN_SETTINGS = {
         
         # External url that opens in a new window (Permissions can be added)
         {"name": "View Site", "url": "/", "new_window": True},
+
+        {"name": "Training", "url": "admin:admin_training_index"},
         
         # model admin to link to (Permissions checked against model)
         {"model": "core.User"},
@@ -416,6 +418,11 @@ JAZZMIN_SETTINGS = {
     
     "custom_links": {
         "courses": [
+            {
+                "name": "Training guides",
+                "url": "admin:admin_training_index",
+                "icon": "fas fa-graduation-cap",
+            },
             {
                 "name": "Region map",
                 "url": "admin:courses_region_map",

@@ -80,6 +80,8 @@ class CameraMakeAdmin(admin.ModelAdmin):
 @admin.register(DiscountCode)
 class DiscountCodeAdmin(admin.ModelAdmin):
     form = DiscountCodeAdminForm
+    change_list_template = 'admin/bookings/discountcode/change_list.html'
+    change_form_template = 'admin/bookings/discountcode/change_form.html'
     list_display = [
         'code',
         'discount_label_display',
@@ -674,6 +676,8 @@ class WorkshopFeedbackAdmin(admin.ModelAdmin):
     Superusers see all; franchisees see feedback for workshops they created/own.
     """
 
+    change_list_template = 'admin/bookings/workshopfeedback/change_list.html'
+    change_form_template = 'admin/bookings/workshopfeedback/change_form.html'
     list_display = [
         'rated_at',
         'rating_stars',

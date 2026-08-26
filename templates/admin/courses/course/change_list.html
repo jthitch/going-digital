@@ -1,0 +1,7 @@
+{% extends "admin/gd/search_first_change_list.html" %}
+{% load admin_training_tags %}
+
+{% block content %}
+{% training_help 'course' %}
+{{ block.super }}
+{% endblock %}

@@ -13,7 +13,6 @@ from bookings.legacy_franchisee_report import franchisee_report_source_rows
 from bookings.legacy_payment_gateway_report import payment_gateway_report_source_rows
 from bookings.legacy_report_queries import (
     gateway_id_from_name,
-    legacy_display_booking_id,
     legacy_row_payment_date,
     legacy_row_workshop_date,
 )
@@ -63,7 +62,7 @@ class MonthlyReportRow:
 class PaymentGatewayBookingRow:
     payment_date: date | None
     basket_id: int | None
-    booking_ref: int
+    booking_ref: str
     customer_name: str
     customer_email: str
     workshop_date: date | None
@@ -88,7 +87,7 @@ class FranchiseeBookingRow:
     customer_phone: str
     customer_location: str
     customer_postcode: str
-    booking_ref: int
+    booking_ref: str
     workshop_date: date | None
     workshop_id: int | None
     course_name: str
@@ -412,7 +411,7 @@ def build_payment_gateway_report(user, start_date, end_date):
             PaymentGatewayBookingRow(
                 payment_date=legacy_row_payment_date(row.payment_date),
                 basket_id=row.basket_id,
-                booking_ref=legacy_display_booking_id(row.booking_id),
+                booking_ref=(row.booking_reference or '').strip(),
                 customer_name=customer_name,
                 customer_email=(row.customer_email or '').strip(),
                 workshop_date=legacy_row_workshop_date(row.workshop_date),
@@ -576,7 +575,7 @@ def build_franchisee_booking_report(user, start_date, end_date):
                 customer_phone=(row.customer_phone or '').strip(),
                 customer_location='',
                 customer_postcode='',
-                booking_ref=legacy_display_booking_id(row.booking_id),
+                booking_ref=(row.booking_reference or '').strip(),
                 workshop_date=legacy_row_workshop_date(row.workshop_date),
                 workshop_id=row.workshop_id,
                 course_name=(row.course_name or '').strip(),

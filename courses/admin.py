@@ -572,6 +572,7 @@ class CourseAdmin(
     """Course admin - maps to legacy gd_course table. Content editable inline."""
     form = CourseAdminForm
     change_form_template = 'admin/courses/course/change_form.html'
+    change_list_template = 'admin/courses/course/change_list.html'
     inlines = [CourseMediaInline]
     list_display = ['course_name', 'course_skill_level', 'course_category', 'active', 'created_at']
     list_filter = [GdActiveFilter, 'course_skill_level', 'course_category', 'created_at']
@@ -1465,6 +1466,7 @@ class VenueWorkshopAccessInline(admin.TabularInline):
 class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.ModelAdmin):
     form = VenueAdminForm
     change_list_template = 'admin/courses/venue/change_list.html'
+    change_form_template = 'admin/courses/venue/change_form.html'
     prepopulated_fields = {'slug': ('venue_name',)}
     readonly_fields = [
         'created_at',

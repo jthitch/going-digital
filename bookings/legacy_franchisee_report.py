@@ -6,7 +6,10 @@ from decimal import Decimal
 from django.db import connection
 from django.utils import timezone
 
-from bookings.legacy_payment_gateway_report import _gd_booking_scope_clause
+from bookings.legacy_payment_gateway_report import (
+    _gd_booking_scope_clause,
+    _new_site_booking_references,
+)
 from bookings.legacy_report_constants import LEGACY_REPORT_BOOKING_ID_OFFSET
 from bookings.legacy_report_queries import (
     filter_payment_gateway_queryset,
@@ -19,6 +22,7 @@ from bookings.report_payment_data import load_payment_gateway_meta
 @dataclass
 class FranchiseeSourceRow:
     booking_id: int
+    booking_reference: str
     payment_date: datetime | None
     payment_gateway_id: int | None
     payment_gateway: str
@@ -57,6 +61,7 @@ def load_gd_booking_franchisee_rows(user, start_day, end_day, region_id=None, tu
     sql = f"""
         SELECT
             b.id,
+            COALESCE(NULLIF(bw.unique_code, ''), CONCAT('LEGACY-', b.id)) AS booking_reference,
             b.created_at,
             b.payment_gateway_id,
             b.gateway_transaction_code,
@@ -114,6 +119,7 @@ def load_gd_booking_franchisee_rows(user, start_day, end_day, region_id=None, tu
         for raw in cursor.fetchall():
             (
                 booking_id,
+                booking_reference,
                 created_at,
                 payment_gateway_id,
                 gateway_transaction_code,
@@ -143,6 +149,7 @@ def load_gd_booking_franchisee_rows(user, start_day, end_day, region_id=None, tu
             rows.append(
                 FranchiseeSourceRow(
                     booking_id=int(booking_id),
+                    booking_reference=(booking_reference or '').strip() or f'LEGACY-{booking_id}',
                     payment_date=created_at,
                     payment_gateway_id=int(payment_gateway_id) if payment_gateway_id else None,
                     payment_gateway=(payment_gateway_name or '').strip() or 'Unknown',
@@ -185,6 +192,7 @@ def load_new_site_franchisee_rows(user, start_dt, end_dt):
         row.booking_id: row
         for row in ReportBookingSummary.objects.filter(booking_id__in=booking_ids)
     }
+    references = _new_site_booking_references(booking_ids)
 
     gateway_meta = load_payment_gateway_meta()
     gateway_names = {
@@ -204,6 +212,7 @@ def load_new_site_franchisee_rows(user, start_dt, end_dt):
         rows.append(
             FranchiseeSourceRow(
                 booking_id=pg_row.booking_id,
+                booking_reference=references.get(pg_row.booking_id, ''),
                 payment_date=pg_row.booking_date,
                 payment_gateway_id=gateway_id,
                 payment_gateway=(pg_row.payment_gateway or '').strip() or 'Unknown',

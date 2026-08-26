@@ -1,0 +1,7 @@
+{% extends "admin/change_form.html" %}
+{% load admin_training_tags %}
+
+{% block content %}
+{% training_help 'venue' %}
+{{ block.super }}
+{% endblock %}

@@ -1,7 +1,8 @@
 {% extends "admin/gd/search_first_change_list.html" %}
-{% load venue_admin_tags %}
+{% load venue_admin_tags admin_training_tags %}
 
 {% block content %}
+    {% training_help 'venue' %}
     {% pending_venue_alerts %}
     {{ block.super }}
 {% endblock %}

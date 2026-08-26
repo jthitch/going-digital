@@ -1,0 +1,39 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/admin-training.css' %}">
+{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item active">{% trans 'Training' %}</li>
+</ol>
+{% endblock %}
+
+{% block content_title %}{% trans 'Training guides' %}{% endblock %}
+
+{% block content %}
+<div class="gd-training-hub">
+    <p class="lead text-muted">
+        Step-by-step guides for common admin tasks. Each guide links to the real admin screens and the public site.
+    </p>
+    <div class="row">
+        {% for guide in guides %}
+        <div class="col-md-6 col-xl-4 mb-3">
+            <div class="gd-training-card h-100">
+                <h2 class="h5 mb-2">
+                    <a href="{% url 'admin:admin_training_guide' guide.slug %}">{{ guide.title }}</a>
+                </h2>
+                <p class="mb-3 text-muted">{{ guide.summary }}</p>
+                <a class="btn btn-sm btn-primary" href="{% url 'admin:admin_training_guide' guide.slug %}">
+                    Open guide
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

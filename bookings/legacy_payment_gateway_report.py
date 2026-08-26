@@ -18,6 +18,7 @@ from courses.region_scope import user_has_full_region_access
 @dataclass
 class PaymentGatewaySourceRow:
     booking_id: int
+    booking_reference: str
     payment_date: datetime | None
     basket_id: int | None
     customer_firstname: str
@@ -37,6 +38,31 @@ class PaymentGatewaySourceRow:
 
 def _quantize(value):
     return Decimal(value or 0).quantize(Decimal('0.01'))
+
+
+def _new_site_booking_references(booking_ids):
+    """Map offset report booking_id → Booking.booking_reference."""
+    from bookings.models import Booking
+
+    pk_by_report_id = {}
+    for booking_id in booking_ids:
+        if booking_id is None:
+            continue
+        booking_id = int(booking_id)
+        if booking_id >= LEGACY_REPORT_BOOKING_ID_OFFSET:
+            pk_by_report_id[booking_id] = booking_id - LEGACY_REPORT_BOOKING_ID_OFFSET
+    if not pk_by_report_id:
+        return {}
+    refs_by_pk = dict(
+        Booking.objects.filter(pk__in=pk_by_report_id.values()).values_list(
+            'pk',
+            'booking_reference',
+        ),
+    )
+    return {
+        report_id: (refs_by_pk.get(pk) or '').strip() or f'LEGACY-{pk}'
+        for report_id, pk in pk_by_report_id.items()
+    }
 
 
 def _gd_booking_scope_clause(user, region_id=None, tutor_id=None):
@@ -77,6 +103,7 @@ def load_gd_booking_payment_gateway_rows(user, start_day, end_day, region_id=Non
     sql = f"""
         SELECT
             b.id,
+            COALESCE(NULLIF(bw.unique_code, ''), CONCAT('LEGACY-', b.id)) AS booking_reference,
             b.basket_id,
             b.created_at,
             COALESCE(bw.amount_paid, b.amount_paid) AS amount_paid,
@@ -121,6 +148,7 @@ def load_gd_booking_payment_gateway_rows(user, start_day, end_day, region_id=Non
         for raw in cursor.fetchall():
             (
                 booking_id,
+                booking_reference,
                 basket_id,
                 created_at,
                 amount_paid,
@@ -140,6 +168,7 @@ def load_gd_booking_payment_gateway_rows(user, start_day, end_day, region_id=Non
             rows.append(
                 PaymentGatewaySourceRow(
                     booking_id=int(booking_id),
+                    booking_reference=(booking_reference or '').strip() or f'LEGACY-{booking_id}',
                     payment_date=created_at,
                     basket_id=int(basket_id) if basket_id else None,
                     customer_firstname=(firstname or '').strip(),
@@ -168,12 +197,15 @@ def load_new_site_payment_gateway_rows(user, start_dt, end_dt):
         booking_id__gte=LEGACY_REPORT_BOOKING_ID_OFFSET,
     ).order_by('-booking_date', '-booking_id')
     qs = filter_payment_gateway_queryset(qs, user)
+    pg_rows = list(qs)
+    references = _new_site_booking_references([row.booking_id for row in pg_rows])
 
     rows = []
-    for row in qs:
+    for row in pg_rows:
         rows.append(
             PaymentGatewaySourceRow(
                 booking_id=row.booking_id,
+                booking_reference=references.get(row.booking_id, ''),
                 payment_date=row.booking_date,
                 basket_id=row.basket_id or None,
                 customer_firstname=(row.customer_firstname or '').strip(),

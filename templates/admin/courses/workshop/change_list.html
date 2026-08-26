@@ -1,5 +1,10 @@
 {% extends "admin/gd/search_first_change_list.html" %}
-{% load i18n %}
+{% load i18n admin_training_tags %}
+
+{% block content %}
+{% training_help 'workshop' %}
+{{ block.super }}
+{% endblock %}
 
 {% block object-tools-items %}
 <a href="{% url 'admin:courses_workshop_calendar' %}" class="btn btn-outline-primary">

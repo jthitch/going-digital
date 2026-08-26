@@ -1,0 +1,105 @@
+/* Admin training hub + guide pages */
+
+.gd-training-hub .lead {
+    max-width: 42rem;
+}
+
+.gd-training-card {
+    border: 1px solid var(--gd-dashboard-card-border, rgba(0, 0, 0, 0.08));
+    border-radius: 0.35rem;
+    padding: 1.25rem;
+    background: var(--body-bg, #fff);
+}
+
+.gd-training-layout {
+    display: grid;
+    grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr);
+    gap: 1.5rem 2rem;
+    align-items: start;
+}
+
+.gd-training-nav a {
+    display: block;
+    padding: 0.35rem 0;
+    color: inherit;
+}
+
+.gd-training-nav a.active {
+    font-weight: 600;
+    color: var(--primary, #007bff);
+}
+
+.gd-training-body {
+    max-width: 48rem;
+    line-height: 1.55;
+}
+
+.gd-training-body h1 {
+    display: none; /* title already in content_title */
+}
+
+.gd-training-body h2 {
+    font-size: 1.25rem;
+    margin-top: 1.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.gd-training-body h3 {
+    font-size: 1.05rem;
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.gd-training-body table {
+    width: 100%;
+    margin: 1rem 0;
+    border-collapse: collapse;
+}
+
+.gd-training-body th,
+.gd-training-body td {
+    border: 1px solid var(--border-color, #ced4da);
+    padding: 0.5rem 0.65rem;
+    vertical-align: top;
+}
+
+.gd-training-body th {
+    background: rgba(0, 0, 0, 0.03);
+    text-align: left;
+}
+
+.gd-training-body ul,
+.gd-training-body ol {
+    padding-left: 1.25rem;
+}
+
+.gd-training-body code {
+    font-size: 0.9em;
+}
+
+.gd-training-help {
+    margin-bottom: 1rem;
+}
+
+.gd-training-help ul {
+    margin-bottom: 0;
+}
+
+@media (max-width: 767.98px) {
+    .gd-training-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .gd-training-nav {
+        border-bottom: 1px solid var(--border-color, #ced4da);
+        padding-bottom: 1rem;
+    }
+}
+
+[data-bs-theme="dark"] .gd-training-card {
+    background: transparent;
+}
+
+[data-bs-theme="dark"] .gd-training-body th {
+    background: rgba(255, 255, 255, 0.05);
+}

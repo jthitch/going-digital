@@ -1,0 +1,44 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/admin-training.css' %}">
+{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans 'Home' %}</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'admin:admin_training_index' %}">{% trans 'Training' %}</a></li>
+    <li class="breadcrumb-item active">{{ guide.title }}</li>
+</ol>
+{% endblock %}
+
+{% block content_title %}{{ guide.title }}{% endblock %}
+
+{% block content %}
+<div class="gd-training-layout">
+    <nav class="gd-training-nav" aria-label="Training guides">
+        <h2 class="h6 text-muted text-uppercase">Guides</h2>
+        <ul class="list-unstyled mb-0">
+            {% for item in guides %}
+            <li>
+                <a
+                    href="{% url 'admin:admin_training_guide' item.slug %}"
+                    class="{% if item.slug == guide.slug %}active{% endif %}"
+                >{{ item.title }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+        <p class="mt-3 mb-0">
+            <a href="{% url 'admin:admin_training_index' %}">&larr; All guides</a>
+        </p>
+    </nav>
+    <article class="gd-training-guide">
+        <p class="text-muted">{{ guide.summary }}</p>
+        <div class="gd-training-body">
+            {{ guide_html }}
+        </div>
+    </article>
+</div>
+{% endblock %}
