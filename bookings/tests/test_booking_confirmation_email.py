@@ -100,7 +100,7 @@ class BookingConfirmationEmailContextTests(SimpleTestCase):
         self.assertTrue(context['needs_camera_details'])
         self.assertEqual(
             context['camera_details_url'],
-            'https://example.com/account/booking-details/?ref=REF1',
+            'https://example.com/account/booking-details/?ref=REF1&email=ada%40example.com',
         )
 
     @patch('bookings.email_context.facebook_share_items_for_bookings', return_value=[])

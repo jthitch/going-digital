@@ -4,6 +4,7 @@ from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 
 from bookings.attendee_details import (
@@ -50,8 +51,13 @@ from core.student_auth import (
 
 
 def _safe_next_url(request, fallback):
+    """Return a same-origin relative redirect target, else fallback."""
     next_url = request.GET.get('next') or request.POST.get('next')
-    if next_url and next_url.startswith('/') and not next_url.startswith('//'):
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
         return next_url
     return fallback
 
@@ -142,6 +148,36 @@ def _authorise_account_setup_email(request, email):
     return False
 
 
+def _prime_account_setup_email_from_booking_ref(request):
+    """
+    Store account-setup email only when the browser already proved access
+    (checkout session) or supplies a matching email with the booking ref.
+    Never trust a booking reference alone.
+    """
+    ref = (request.GET.get('ref') or request.POST.get('ref') or '').strip()
+    if not ref:
+        return
+    booking = Booking.objects.filter(booking_reference=ref).first()
+    if not booking or not booking.student_email:
+        return
+
+    student_email = booking.student_email.strip().lower()
+    from payments.checkout_session_context import load_bookings_from_checkout_context
+
+    checkout_bookings = load_bookings_from_checkout_context(request)
+    if any(item.pk == booking.pk for item in checkout_bookings):
+        request.session['account_setup_email'] = student_email
+        return
+
+    supplied_email = (
+        request.GET.get('email')
+        or request.POST.get('email')
+        or ''
+    ).strip().lower()
+    if supplied_email and supplied_email == student_email:
+        request.session['account_setup_email'] = student_email
+
+
 class CompleteAccountSetupView(View):
     """Let a student set a password immediately after booking."""
     template_name = 'account/complete_setup.html'
@@ -164,39 +200,10 @@ class CompleteAccountSetupView(View):
             'booking_reference': '',
         }
 
-    @staticmethod
-    def _prime_session_from_booking_ref(request):
-        """
-        Store account-setup email only when the browser already proved access
-        (checkout session) or supplies a matching email with the booking ref.
-        """
-        ref = (request.GET.get('ref') or request.POST.get('ref') or '').strip()
-        if not ref:
-            return
-        booking = Booking.objects.filter(booking_reference=ref).first()
-        if not booking or not booking.student_email:
-            return
-
-        student_email = booking.student_email.strip().lower()
-        from payments.checkout_session_context import load_bookings_from_checkout_context
-
-        checkout_bookings = load_bookings_from_checkout_context(request)
-        if any(item.pk == booking.pk for item in checkout_bookings):
-            request.session['account_setup_email'] = student_email
-            return
-
-        supplied_email = (
-            request.GET.get('email')
-            or request.POST.get('email')
-            or ''
-        ).strip().lower()
-        if supplied_email and supplied_email == student_email:
-            request.session['account_setup_email'] = student_email
-
     def get(self, request):
         if is_customer_authenticated(request):
             return redirect(reverse('account:my_bookings'))
-        self._prime_session_from_booking_ref(request)
+        _prime_account_setup_email_from_booking_ref(request)
         setup = self._build_setup(request)
         if not setup:
             messages.info(request, 'Sign in or create an account to view your bookings.')
@@ -210,7 +217,7 @@ class CompleteAccountSetupView(View):
         if is_customer_authenticated(request):
             return redirect(reverse('account:my_bookings'))
 
-        self._prime_session_from_booking_ref(request)
+        _prime_account_setup_email_from_booking_ref(request)
         email = (request.POST.get('email') or '').strip().lower()
         setup = self._build_setup(request, email=email)
         if not setup:
@@ -332,12 +339,8 @@ def student_logout(request):
 
 
 def _prime_community_session_from_booking_ref(request):
-    ref = (request.GET.get('ref') or '').strip()
-    if not ref:
-        return
-    booking = Booking.objects.filter(booking_reference=ref).first()
-    if booking and booking.student_email:
-        request.session['account_setup_email'] = booking.student_email.strip().lower()
+    """Backward-compatible name; delegates to the shared secure primer. """
+    _prime_account_setup_email_from_booking_ref(request)
 
 
 def _bookings_for_community_page(request):

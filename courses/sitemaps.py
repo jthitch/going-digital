@@ -4,7 +4,6 @@ Sitemaps for courses app - XML sitemap for search engines.
 from django.db.models import Q
 from django.contrib.sitemaps import Sitemap
 from django.urls import reverse
-from django.utils import timezone
 
 from .models import Course, Venue
 from .workshop_querysets import bookable_workshop_ordering, bookable_workshops_queryset
@@ -34,7 +33,8 @@ class StaticViewSitemap(Sitemap):
         return reverse(item)
 
     def lastmod(self, item):
-        return timezone.now()
+        # Avoid claiming every crawl that static pages changed "now".
+        return None
 
 
 class CourseOverviewSitemap(Sitemap):

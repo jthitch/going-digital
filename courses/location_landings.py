@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from django.core.cache import cache
 from django.db.models import Exists, OuterRef, QuerySet
 from django.urls import reverse
 from django.utils.text import slugify
@@ -12,6 +13,11 @@ from courses.models import Region, Venue
 from courses.venue_list import public_venues_queryset
 from courses.venue_schema import extract_uk_postcode
 from courses.workshop_querysets import bookable_workshop_ordering, bookable_workshops_queryset
+
+# Short TTL: landings follow workshop/venue changes without requiring explicit invalidation.
+_CACHE_TTL_SECONDS = 60 * 15
+_CACHE_CITIES = 'location_landings:cities:v1'
+_CACHE_REGION_SLUGS = 'location_landings:region_slugs:v1'
 
 # Address parts that usually are streets, not towns.
 _STREET_SUFFIX_RE = re.compile(
@@ -62,24 +68,47 @@ def venues_with_bookable_workshops() -> QuerySet[Venue]:
 def indexable_regions() -> QuerySet[Region]:
     """
     Active regions with a public slug that have ≥1 public venue with a bookable workshop.
+    Uses a distinct region_id list rather than nested Exists for clearer/faster SQL.
     """
-    venue_in_region = Exists(
-        venues_with_bookable_workshops().filter(region_id=OuterRef('pk'))
+    region_ids = (
+        venues_with_bookable_workshops()
+        .exclude(region_id__isnull=True)
+        .values_list('region_id', flat=True)
+        .distinct()
     )
     return (
-        Region.objects.filter(active=1)
+        Region.objects.filter(active=1, pk__in=region_ids)
         .exclude(slug='')
         .exclude(slug__isnull=True)
-        .filter(venue_in_region)
         .order_by('region_name')
     )
 
 
+def indexable_region_slugs() -> frozenset[str]:
+    """Cached set of region slugs that have public landings (for venue-list links)."""
+    cached = cache.get(_CACHE_REGION_SLUGS)
+    if cached is not None:
+        return cached
+    slugs = frozenset(indexable_regions().values_list('slug', flat=True))
+    cache.set(_CACHE_REGION_SLUGS, slugs, _CACHE_TTL_SECONDS)
+    return slugs
+
+
 def get_indexable_region(slug: str) -> Region | None:
+    """Resolve one region landing without scanning every indexable region."""
     slug = (slug or '').strip()
     if not slug:
         return None
-    return indexable_regions().filter(slug=slug).first()
+    region = (
+        Region.objects.filter(active=1, slug=slug)
+        .exclude(slug='')
+        .first()
+    )
+    if region is None:
+        return None
+    if not venues_with_bookable_workshops().filter(region_id=region.pk).exists():
+        return None
+    return region
 
 
 def region_landing_venues(region: Region) -> QuerySet[Venue]:
@@ -100,12 +129,8 @@ def _looks_like_street(part: str) -> bool:
 
 
 def _looks_like_county(part: str) -> bool:
-    lower = part.strip().lower()
-    if lower in _COUNTY_HINTS:
-        return True
-    # "Bucks." / "North Yorkshire"
-    cleaned = lower.rstrip('.')
-    return cleaned in _COUNTY_HINTS
+    lower = part.strip().lower().rstrip('.')
+    return lower in _COUNTY_HINTS
 
 
 def _is_usable_locality(name: str) -> bool:
@@ -210,7 +235,12 @@ def build_city_landings(venues=None) -> list[CityLanding]:
 
 
 def indexable_cities() -> list[CityLanding]:
-    return build_city_landings()
+    cached = cache.get(_CACHE_CITIES)
+    if cached is not None:
+        return cached
+    cities = build_city_landings()
+    cache.set(_CACHE_CITIES, cities, _CACHE_TTL_SECONDS)
+    return cities
 
 
 def get_indexable_city(slug: str) -> CityLanding | None:
@@ -224,6 +254,7 @@ def get_indexable_city(slug: str) -> CityLanding | None:
 
 
 def city_landing_venues(city: CityLanding) -> QuerySet[Venue]:
+    """Venues for a city landing; re-check bookable so stale cache cannot over-include."""
     return (
         venues_with_bookable_workshops()
         .filter(pk__in=city.venue_ids)
@@ -250,3 +281,9 @@ def region_landing_url(region: Region) -> str:
 def city_landing_url(city: CityLanding | str) -> str:
     slug = city.slug if isinstance(city, CityLanding) else city
     return reverse('courses:city_landing', kwargs={'slug': slug})
+
+
+def clear_location_landing_cache() -> None:
+    """Test helper / manual refresh."""
+    cache.delete(_CACHE_CITIES)
+    cache.delete(_CACHE_REGION_SLUGS)

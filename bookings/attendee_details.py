@@ -84,27 +84,43 @@ def bookings_need_attendee_details(bookings):
     return any(not b.attendee_details_collected_at for b in confirmed)
 
 
-def post_booking_community_url(*, ref=''):
+def post_booking_community_url(*, ref='', email=''):
+    from urllib.parse import urlencode
+
     url = reverse('account:post_booking_community')
+    params = {}
     ref = (ref or '').strip()
+    email = (email or '').strip()
     if ref:
-        return f'{url}?ref={ref}'
+        params['ref'] = ref
+    if email:
+        params['email'] = email
+    if params:
+        return f'{url}?{urlencode(params)}'
     return url
 
 
-def post_booking_attendee_details_url(*, ref=''):
+def post_booking_attendee_details_url(*, ref='', email=''):
+    from urllib.parse import urlencode
+
     url = reverse('account:post_booking_attendee_details')
+    params = {}
     ref = (ref or '').strip()
+    email = (email or '').strip()
     if ref:
-        return f'{url}?ref={ref}'
+        params['ref'] = ref
+    if email:
+        params['email'] = email
+    if params:
+        return f'{url}?{urlencode(params)}'
     return url
 
 
-def next_post_booking_step_url(bookings, *, ref=''):
+def next_post_booking_step_url(bookings, *, ref='', email=''):
     """Attendee details first, then the Facebook community wizard."""
     if bookings_need_attendee_details(bookings):
-        return post_booking_attendee_details_url(ref=ref)
-    return post_booking_community_url(ref=ref)
+        return post_booking_attendee_details_url(ref=ref, email=email)
+    return post_booking_community_url(ref=ref, email=email)
 
 
 def _field_value(post_data, suffix, booking_id):

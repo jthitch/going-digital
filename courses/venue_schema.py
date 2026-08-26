@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 from courses.postcode_lookup import normalise_postcode
 
@@ -25,6 +26,26 @@ def extract_uk_postcode(text: str | None) -> str:
         return ''
 
 
+@lru_cache(maxsize=1)
+def _county_name_by_id() -> dict[int, str]:
+    """Load county labels once per process to avoid N+1 on schema graphs."""
+    from courses.models import County
+    return {
+        pk: (name or '').strip()
+        for pk, name in County.objects.values_list('id', 'county')
+    }
+
+
+def venue_county_label(venue) -> str:
+    county_id = getattr(venue, 'county_id', None)
+    if not county_id:
+        return ''
+    name = _county_name_by_id().get(county_id, '')
+    if not name or name.startswith('County #'):
+        return ''
+    return name
+
+
 def venue_postal_address(venue) -> dict:
     """
     schema.org PostalAddress for a Venue.
@@ -45,11 +66,8 @@ def venue_postal_address(venue) -> dict:
     if locality:
         address['addressLocality'] = locality
 
-    county_label = ''
-    get_county = getattr(venue, 'get_county_display', None)
-    if callable(get_county):
-        county_label = (get_county() or '').strip()
-    if county_label and county_label != '—' and not county_label.startswith('County #'):
+    county_label = venue_county_label(venue)
+    if county_label:
         address['addressRegion'] = county_label
 
     postcode = extract_uk_postcode(street)

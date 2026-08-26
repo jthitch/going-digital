@@ -1,5 +1,5 @@
 from django.test import SimpleTestCase
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from courses.venue_schema import extract_uk_postcode, venue_postal_address, venue_place_schema
 
@@ -19,11 +19,12 @@ class ExtractUkPostcodeTests(SimpleTestCase):
 
 
 class VenuePostalAddressTests(SimpleTestCase):
-    def test_omits_empty_and_fills_derived_fields(self):
+    @patch('courses.venue_schema._county_name_by_id', return_value={7: 'Somerset'})
+    def test_omits_empty_and_fills_derived_fields(self, _counties):
         venue = MagicMock()
         venue.venue_address = 'The Mill, Station Road, Bath BA1 2AB'
         venue.location = 'Bath'
-        venue.get_county_display.return_value = 'Somerset'
+        venue.county_id = 7
 
         address = venue_postal_address(venue)
 
@@ -34,11 +35,12 @@ class VenuePostalAddressTests(SimpleTestCase):
         self.assertEqual(address['postalCode'], 'BA1 2AB')
         self.assertEqual(address['addressCountry'], 'GB')
 
-    def test_skips_placeholder_county(self):
+    @patch('courses.venue_schema._county_name_by_id', return_value={})
+    def test_skips_missing_county(self, _counties):
         venue = MagicMock()
         venue.venue_address = 'Somewhere'
         venue.location = ''
-        venue.get_county_display.return_value = 'County #99'
+        venue.county_id = 99
 
         address = venue_postal_address(venue)
 
@@ -46,15 +48,17 @@ class VenuePostalAddressTests(SimpleTestCase):
         self.assertNotIn('addressLocality', address)
         self.assertNotIn('postalCode', address)
 
-    def test_place_includes_geo(self):
+    @patch('courses.venue_schema._county_name_by_id', return_value={3: 'North Yorkshire'})
+    def test_place_includes_geo(self, _counties):
         venue = MagicMock()
         venue.venue_name = 'Test Venue'
         venue.venue_address = '1 Road, York YO1 7HH'
         venue.location = 'York'
         venue.latitude = 53.96
         venue.longitude = -1.08
-        venue.get_county_display.return_value = 'North Yorkshire'
+        venue.county_id = 3
 
         place = venue_place_schema(venue)
         self.assertEqual(place['geo']['latitude'], 53.96)
         self.assertEqual(place['address']['postalCode'], 'YO1 7HH')
+        self.assertEqual(place['address']['addressRegion'], 'North Yorkshire')

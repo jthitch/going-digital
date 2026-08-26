@@ -2,9 +2,11 @@ User-agent: *
 Allow: /
 
 Disallow: /admin/
+Disallow: /account/
 Disallow: /bookings/
 Disallow: /payments/
 Disallow: /api/
+Disallow: /dev-access/
 
 Sitemap: {{ sitemap_url }}
 

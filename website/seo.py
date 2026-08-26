@@ -1,4 +1,6 @@
 """Shared SEO and AEO helpers."""
+import json
+
 from django.conf import settings
 from django.urls import reverse
 
@@ -128,6 +130,14 @@ def aggregate_rating_schema(google_reviews):
         'bestRating': '5',
         'worstRating': '1',
     }
+
+
+def dumps_json_ld(data) -> str:
+    """
+    Serialize JSON-LD for embedding in <script type="application/ld+json">.
+    Escapes '<' so venue/course names cannot break out of the script tag (XSS).
+    """
+    return json.dumps(data, ensure_ascii=False).replace('<', '\\u003c')
 
 
 def organization_schema(request=None, *, google_reviews=None):

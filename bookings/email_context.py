@@ -103,10 +103,15 @@ def bookings_confirmation_context(bookings, *, request=None):
     account_setup_url = ''
     setup = account_setup_from_bookings(bookings)
     if setup and setup.get('booking_reference'):
+        from urllib.parse import urlencode
+
+        setup_qs = urlencode({
+            'ref': setup['booking_reference'],
+            'email': (setup.get('email') or primary.student_email or '').strip(),
+        })
         account_setup_url = absolute_url_from_base(
             site_url,
-            reverse('account:complete_setup')
-            + f'?ref={setup["booking_reference"]}',
+            reverse('account:complete_setup') + f'?{setup_qs}',
         )
 
     needs_camera_details = bookings_need_attendee_details(bookings)
@@ -114,7 +119,10 @@ def bookings_confirmation_context(bookings, *, request=None):
     if needs_camera_details and primary.booking_reference:
         camera_details_url = absolute_url_from_base(
             site_url,
-            post_booking_attendee_details_url(ref=primary.booking_reference),
+            post_booking_attendee_details_url(
+                ref=primary.booking_reference,
+                email=primary.student_email or '',
+            ),
         )
 
     total_price_paid = sum(

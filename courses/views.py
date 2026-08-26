@@ -38,8 +38,10 @@ from website.seo import (
     ORGANIZATION_NAME,
     absolute_url,
     breadcrumb_schema,
+    dumps_json_ld,
     homepage_faq_schema,
     local_business_schema,
+    organization_schema,
     site_base_url,
 )
 from website.google_reviews import get_google_reviews_display
@@ -475,12 +477,12 @@ class HomePageView(TemplateView):
                     'query-input': 'required name=search_term_string',
                 },
             },
+            organization_schema(self.request, google_reviews=google_reviews),
             local_business_schema(self.request, google_reviews=google_reviews),
             homepage_faq_schema(base),
         ]
-        context['homepage_schema_json'] = json.dumps(
+        context['homepage_schema_json'] = dumps_json_ld(
             {'@context': 'https://schema.org', '@graph': homepage_graph},
-            ensure_ascii=False,
         )
         context['homepage_faq_items'] = HOMEPAGE_FAQ_ITEMS
         context['og_title'] = 'Photography Courses - Start Your Photography Journey'
@@ -748,7 +750,7 @@ class CourseListView(ListView):
                 'is_full': instance.is_full,
             })
 
-        context['instances_data'] = json.dumps(instances_data)
+        context['instances_data'] = dumps_json_ld(instances_data)
         context['map_workshop_count'] = len(instances_data)
         
         # Current filters
@@ -938,7 +940,7 @@ class CourseListView(ListView):
                 }
                 for index, course in enumerate(courses_on_page, start=1)
             ]
-            context['course_list_schema_json'] = json.dumps(
+            context['course_list_schema_json'] = dumps_json_ld(
                 {
                     '@context': 'https://schema.org',
                     '@type': 'CollectionPage',
@@ -950,7 +952,6 @@ class CourseListView(ListView):
                         'itemListElement': item_list,
                     },
                 },
-                ensure_ascii=False,
             )
 
         pagination_links = []
@@ -1065,8 +1066,8 @@ class VenueListView(ListView):
         else:
             context['venue_groups'] = group_venues_by_region(venues)
             # Only link region headings to SEO landings that have bookable workshops.
-            from .location_landings import indexable_regions
-            indexable_slugs = set(indexable_regions().values_list('slug', flat=True))
+            from .location_landings import indexable_region_slugs
+            indexable_slugs = indexable_region_slugs()
             for group in context['venue_groups']:
                 if group.get('slug') and group['slug'] not in indexable_slugs:
                     group['slug'] = None
@@ -1165,9 +1166,8 @@ class VenueDetailView(DetailView):
                 (venue.venue_name, None),
             ]),
         ]
-        context['venue_schema_json'] = json.dumps(
+        context['venue_schema_json'] = dumps_json_ld(
             {'@context': 'https://schema.org', '@graph': graph},
-            ensure_ascii=False,
         )
         return context
 
@@ -1268,9 +1268,8 @@ def _location_landing_context(
         'og_title': meta_title,
         'og_description': meta_description[:160],
         'og_url': page_url,
-        'location_schema_json': json.dumps(
+        'location_schema_json': dumps_json_ld(
             {'@context': 'https://schema.org', '@graph': graph},
-            ensure_ascii=False,
         ),
     }
 
@@ -1299,7 +1298,7 @@ class LocationLandingIndexView(TemplateView):
             'og_title': 'Photography Courses by Location | Going Digital',
             'og_description': meta_description,
             'og_url': page_url,
-            'location_schema_json': json.dumps(
+            'location_schema_json': dumps_json_ld(
                 {
                     '@context': 'https://schema.org',
                     '@graph': [
@@ -1315,7 +1314,6 @@ class LocationLandingIndexView(TemplateView):
                         ]),
                     ],
                 },
-                ensure_ascii=False,
             ),
         })
         return context
@@ -1671,9 +1669,8 @@ class CourseDetailView(DetailView):
         if faq_schema:
             graph.append(faq_schema)
 
-        return json.dumps(
+        return dumps_json_ld(
             {'@context': 'https://schema.org', '@graph': graph},
-            ensure_ascii=False,
         )
 
 
@@ -1905,7 +1902,7 @@ class SiteMapPageView(TemplateView):
         }
         context['meta_description'] = meta_description
         context['sections'] = sections
-        context['site_map_json_ld_json'] = json.dumps(site_map_json_ld, ensure_ascii=False)
+        context['site_map_json_ld_json'] = dumps_json_ld(site_map_json_ld)
         context['xml_sitemap_url'] = xml_url
         return context
 

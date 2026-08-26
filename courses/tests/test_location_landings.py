@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.test import SimpleTestCase
 
@@ -7,12 +7,16 @@ from courses.location_landings import (
     CityLanding,
     build_city_landings,
     city_slug_for_location,
+    clear_location_landing_cache,
     get_indexable_city,
     infer_venue_locality,
 )
 
 
 class CitySlugTests(SimpleTestCase):
+    def setUp(self):
+        clear_location_landing_cache()
+
     def test_slugifies_location(self):
         self.assertEqual(city_slug_for_location('Bath'), 'bath')
         self.assertEqual(city_slug_for_location('  South East Scotland '), 'south-east-scotland')
@@ -20,6 +24,9 @@ class CitySlugTests(SimpleTestCase):
 
 
 class InferVenueLocalityTests(SimpleTestCase):
+    def setUp(self):
+        clear_location_landing_cache()
+
     def test_prefers_explicit_location(self):
         venue = SimpleNamespace(location='Bath', venue_address='1 High St, Bristol BS1 1AA')
         self.assertEqual(infer_venue_locality(venue), 'Bath')
@@ -51,6 +58,9 @@ class InferVenueLocalityTests(SimpleTestCase):
 
 
 class BuildCityLandingsTests(SimpleTestCase):
+    def setUp(self):
+        clear_location_landing_cache()
+
     def test_groups_venues_by_inferred_locality(self):
         venues = [
             SimpleNamespace(pk=1, location='Bath', venue_address=''),
@@ -88,17 +98,33 @@ class BuildCityLandingsTests(SimpleTestCase):
 
 
 class IndexableRegionFilterTests(SimpleTestCase):
+    def setUp(self):
+        clear_location_landing_cache()
+
     def test_get_indexable_region_requires_slug(self):
         from courses.location_landings import get_indexable_region
 
-        qs = MagicMock()
-        qs.filter.return_value.first.return_value = None
-        with patch('courses.location_landings.indexable_regions', return_value=qs):
-            self.assertIsNone(get_indexable_region(''))
-            qs.filter.assert_not_called()
+        self.assertIsNone(get_indexable_region(''))
 
-        with patch('courses.location_landings.indexable_regions', return_value=qs):
-            region = SimpleNamespace(slug='yorkshire', region_name='Yorkshire')
-            qs.filter.return_value.first.return_value = region
-            self.assertIs(get_indexable_region('yorkshire'), region)
-            qs.filter.assert_called_once_with(slug='yorkshire')
+    @patch('courses.location_landings.venues_with_bookable_workshops')
+    @patch('courses.location_landings.Region.objects')
+    def test_get_indexable_region_checks_bookable_venues(self, region_objects, venues_qs):
+        from courses.location_landings import get_indexable_region
+
+        region = SimpleNamespace(pk=3, slug='yorkshire', region_name='Yorkshire')
+        region_objects.filter.return_value.exclude.return_value.first.return_value = region
+        venues_qs.return_value.filter.return_value.exists.return_value = True
+
+        self.assertIs(get_indexable_region('yorkshire'), region)
+        venues_qs.return_value.filter.assert_called_once_with(region_id=3)
+
+    @patch('courses.location_landings.venues_with_bookable_workshops')
+    @patch('courses.location_landings.Region.objects')
+    def test_get_indexable_region_rejects_thin_region(self, region_objects, venues_qs):
+        from courses.location_landings import get_indexable_region
+
+        region = SimpleNamespace(pk=3, slug='yorkshire', region_name='Yorkshire')
+        region_objects.filter.return_value.exclude.return_value.first.return_value = region
+        venues_qs.return_value.filter.return_value.exists.return_value = False
+
+        self.assertIsNone(get_indexable_region('yorkshire'))
