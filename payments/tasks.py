@@ -10,7 +10,7 @@ from bookings.email_context import (
 )
 from bookings.gift_voucher_basket import get_basket
 from bookings.models import Booking
-from core.mail import franchisee_emails_for_workshop, send_filtered_mail, send_html_email
+from core.mail import booking_confirmation_bcc_emails, send_filtered_mail, send_html_email
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,12 @@ def send_booking_confirmation_emails(booking_ids):
 
     bookings = list(
         Booking.objects.filter(id__in=ids)
-        .select_related('workshop', 'workshop__course', 'workshop__venue', 'payment')
+        .select_related(
+            'workshop',
+            'workshop__course',
+            'workshop__venue',
+            'payment',
+        )
         .order_by('id')
     )
     if not bookings:
@@ -48,15 +53,7 @@ def send_booking_confirmation_emails(booking_ids):
     context = bookings_confirmation_context(ordered)
 
     student_email = ordered[0].student_email.strip()
-    bcc = []
-    seen_bcc = set()
-    for booking in ordered:
-        for addr in franchisee_emails_for_workshop(booking.workshop):
-            key = addr.lower()
-            if key == student_email.lower() or key in seen_bcc:
-                continue
-            seen_bcc.add(key)
-            bcc.append(addr)
+    bcc = booking_confirmation_bcc_emails(ordered, student_email=student_email)
 
     attachments = []
     seen_filenames = set()

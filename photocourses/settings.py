@@ -282,6 +282,7 @@ try:
         if addr.strip()
     ]
     EMAIL_FRANCHISEE_BCC_ENABLED = env.bool('EMAIL_FRANCHISEE_BCC_ENABLED', default=True)
+    EMAIL_SUPERUSER_BCC_ENABLED = env.bool('EMAIL_SUPERUSER_BCC_ENABLED', default=True)
 except NameError:
     EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
     EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
@@ -301,6 +302,9 @@ except NameError:
         if addr.strip()
     ]
     EMAIL_FRANCHISEE_BCC_ENABLED = os.environ.get('EMAIL_FRANCHISEE_BCC_ENABLED', 'True').lower() in (
+        '1', 'true', 'yes', 'on',
+    )
+    EMAIL_SUPERUSER_BCC_ENABLED = os.environ.get('EMAIL_SUPERUSER_BCC_ENABLED', 'True').lower() in (
         '1', 'true', 'yes', 'on',
     )
 

@@ -104,7 +104,7 @@ def send_filtered_mail(subject, message, from_email, recipient_list, **kwargs):
 
 
 def franchisee_emails_for_workshop(workshop):
-    """Emails for workshop owner, region franchisees, and tutor."""
+    """Emails for workshop owner/creator, course creator, region franchisees, and tutor."""
     from core.models import User
     from courses.models import RegionUser, Tutor
 
@@ -124,6 +124,12 @@ def franchisee_emails_for_workshop(workshop):
             RegionUser.objects.filter(region_id=workshop.region_id).values_list('user_id', flat=True)
         )
 
+    course = getattr(workshop, 'course', None)
+    if course is not None:
+        course_createdby = getattr(course, 'createdby_id', None)
+        if course_createdby:
+            user_ids.add(course_createdby)
+
     emails = set()
     for uid in user_ids:
         user = User.objects.filter(pk=uid, active=1).first()
@@ -136,3 +142,45 @@ def franchisee_emails_for_workshop(workshop):
             emails.add(tutor.email.strip().lower())
 
     return filter_suppressed_recipients(sorted(emails))
+
+
+def superuser_notification_emails():
+    """Active Super Users (user_type_id=1) to BCC on booking confirmations."""
+    from core.models import User
+
+    if not getattr(settings, 'EMAIL_SUPERUSER_BCC_ENABLED', True):
+        return []
+
+    emails = []
+    for user in User.objects.filter(active=1, user_type_id=1).exclude(email='').exclude(email__isnull=True):
+        addr = (user.email or '').strip().lower()
+        if addr:
+            emails.append(addr)
+    return filter_suppressed_recipients(sorted(set(emails)))
+
+
+def booking_confirmation_bcc_emails(bookings, *, student_email=''):
+    """
+    BCC list for booking confirmations: franchisees/tutors/course creators + super users.
+    Student address is excluded so they only appear in ``to``.
+    """
+    student_key = _normalise_email(student_email)
+    bcc = []
+    seen = set()
+
+    for booking in bookings or []:
+        for addr in franchisee_emails_for_workshop(getattr(booking, 'workshop', None)):
+            key = _normalise_email(addr)
+            if not key or key == student_key or key in seen:
+                continue
+            seen.add(key)
+            bcc.append(addr.strip())
+
+    for addr in superuser_notification_emails():
+        key = _normalise_email(addr)
+        if not key or key == student_key or key in seen:
+            continue
+        seen.add(key)
+        bcc.append(addr.strip())
+
+    return bcc
