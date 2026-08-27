@@ -1000,7 +1000,12 @@ class Workshop(models.Model):
     deposit_required = models.IntegerField(default=0, db_column='deposit_required')
     max_places = models.IntegerField(null=True, blank=True, db_column='max_places')
     places_booked = models.IntegerField(null=True, blank=True, db_column='places_booked')
-    strapline = models.TextField(null=True, blank=True, db_column='strapline')
+    strapline = models.TextField(
+        null=True,
+        blank=True,
+        db_column='strapline',
+        verbose_name='Strapline (Not displayed)',
+    )
     byline = models.TextField(null=True, blank=True, db_column='byline')
     comments = models.TextField(null=True, blank=True, db_column='comments')
     reminder_message = models.TextField(null=True, blank=True, db_column='reminder_message')

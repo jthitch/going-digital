@@ -1069,7 +1069,7 @@ class WorkshopAdminForm(forms.ModelForm):
     strapline = forms.CharField(
         required=False,
         widget=CKEditorWidget(config_name='default'),
-        label='Strapline',
+        label='Strapline (Not displayed)',
     )
     byline = forms.CharField(
         required=False,

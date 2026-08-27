@@ -612,3 +612,39 @@ CACHES = {
         'LOCATION': 'goingdigital',
     }
 }
+
+# Production error emails → active Super Users (DEBUG=False only)
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+    },
+    'handlers': {
+        'mail_superusers': {
+            'level': 'ERROR',
+            'filters': ['require_debug_false'],
+            'class': 'core.logging_handlers.SuperuserEmailHandler',
+            'include_html': True,
+        },
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['mail_superusers', 'console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.security': {
+            'handlers': ['mail_superusers', 'console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
+

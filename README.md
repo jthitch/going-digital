@@ -69,6 +69,9 @@ going-digital/
    # Defaults to enabled when DEBUG=True. For staging with DEBUG=False, set:
    # DEV_SITE_ACCESS_ENABLED=True
    # DEV_SITE_PASSWORD=your-secret-passcode
+   #
+   # With DEBUG=False, uncaught errors show a friendly page and email active
+   # Super Users (user_type_id=1). Keep DEBUG=False on staging/production.
    ```
    For production: `DEBUG=False`, real `SECRET_KEY`, set `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` (HTTPS origins), and use a transactional email backend. Behind a reverse proxy, set `USE_PROXY_SSL=True`. See `photocourses/settings.py` (secure cookies and HSTS apply when `DEBUG=False`). If you want staging locked behind a passcode while keeping `DEBUG=False`, set `DEV_SITE_ACCESS_ENABLED=True` and `DEV_SITE_PASSWORD`.
 

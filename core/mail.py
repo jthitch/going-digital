@@ -146,10 +146,17 @@ def franchisee_emails_for_workshop(workshop):
 
 def superuser_notification_emails():
     """Active Super Users (user_type_id=1) to BCC on booking confirmations."""
-    from core.models import User
-
     if not getattr(settings, 'EMAIL_SUPERUSER_BCC_ENABLED', True):
         return []
+    return server_error_recipient_emails()
+
+
+def server_error_recipient_emails():
+    """
+    Active Super Users (user_type_id=1) who should receive production 500 alerts.
+    Always on (not gated by EMAIL_SUPERUSER_BCC_ENABLED); still respects suppress list.
+    """
+    from core.models import User
 
     emails = []
     for user in User.objects.filter(active=1, user_type_id=1).exclude(email='').exclude(email__isnull=True):

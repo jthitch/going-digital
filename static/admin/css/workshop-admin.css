@@ -153,10 +153,13 @@ body.app-courses.model-workshop.add-form .field-byline .cke_contents {
     min-height: 150px;
 }
 
-body.app-courses.model-workshop.change-form .field-byline label,
-body.app-courses.model-workshop.add-form .field-byline label {
+/* Info button sits beside the text; keep label height natural so it stays at the top */
+body.app-courses.model-workshop.change-form .form-group.field-byline > .row > label.col-sm-3,
+body.app-courses.model-workshop.add-form .form-group.field-byline > .row > label.col-sm-3 {
     display: inline-flex;
     align-items: center;
+    align-self: flex-start;
+    height: auto;
     gap: 0.35rem;
 }
 
@@ -194,6 +197,17 @@ body.app-courses.model-workshop.change-form .field-byline .flex-container,
 body.app-courses.model-workshop.add-form .field-byline .flex-container {
     flex-direction: column;
     align-items: stretch;
+}
+
+/* Keep the Byline label at the top of col-sm-3 (not vertically centred mid-help box) */
+body.app-courses.model-workshop.change-form .form-group.field-byline > .row,
+body.app-courses.model-workshop.add-form .form-group.field-byline > .row {
+    align-items: flex-start !important;
+}
+
+body.app-courses.model-workshop.change-form .field-byline > .flex-container,
+body.app-courses.model-workshop.add-form .field-byline > .flex-container {
+    align-items: flex-start;
 }
 
 body.app-courses.model-workshop.change-form .field-byline .gd-byline-help,

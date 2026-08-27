@@ -41,7 +41,8 @@ Set:
 | **Tutor** | Who delivers the session. |
 | **Active** | Off = hidden from booking. |
 | **Max places** / enrolment | Capacity and whether booking is open. |
-| **Strapline / byline** | Optional marketing line on the listing. |
+| **Strapline (Not displayed)** | Optional internal note — not shown to students. |
+| **Byline** | Optional marketing text on the course listing and in emails. |
 
 ### 3. Documents & extras (optional)
 
