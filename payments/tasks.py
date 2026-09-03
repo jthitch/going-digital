@@ -10,7 +10,7 @@ from bookings.email_context import (
 )
 from bookings.gift_voucher_basket import get_basket
 from bookings.models import Booking
-from core.mail import booking_confirmation_bcc_emails, send_filtered_mail, send_html_email
+from core.mail import booking_confirmation_bcc_emails, send_html_email
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +115,11 @@ def _format_voucher_codes(voucher_codes):
 
 
 def send_gift_voucher_confirmation_email(basket_id, voucher_codes):
-    """Send gift voucher purchase confirmation and voucher details to purchaser."""
+    """Send gift voucher purchase confirmation to purchaser; BCC super users when enabled."""
+    from django.core.mail import EmailMessage
+
+    from core.mail import filter_suppressed_recipients, superuser_notification_emails
+
     basket = get_basket(basket_id)
     if not basket or basket.get('basket_data', {}).get('type') != 'gift_voucher':
         logger.warning('Gift voucher basket %s not found for confirmation email', basket_id)
@@ -134,6 +138,17 @@ def send_gift_voucher_confirmation_email(basket_id, voucher_codes):
         logger.warning('No voucher codes to email for basket %s', basket_id)
         return False
 
+    recipients = filter_suppressed_recipients([purchaser_email])
+    if not recipients:
+        logger.warning('Purchaser email suppressed for gift voucher basket %s', basket_id)
+        return False
+
+    purchaser_key = purchaser_email.lower()
+    bcc = [
+        addr for addr in superuser_notification_emails()
+        if addr and addr.strip().lower() != purchaser_key
+    ]
+
     codes_text = _format_voucher_codes(voucher_codes)
     subject = f'Your Going Digital Gift Voucher - {quantity} voucher(s)'
     message = f"""
@@ -148,12 +163,19 @@ The voucher(s) are valid for 9 months and can be used towards any of our photogr
 
 If you have any questions, please contact us.
 """
-    send_filtered_mail(
+    msg = EmailMessage(
         subject,
         message.strip(),
         settings.DEFAULT_FROM_EMAIL,
-        [purchaser_email],
-        fail_silently=False,
+        recipients,
+        bcc=bcc or None,
+    )
+    msg.send(fail_silently=False)
+    logger.info(
+        'Sent gift voucher confirmation for basket %s to %s (bcc=%s)',
+        basket_id,
+        recipients,
+        bcc,
     )
     return True
 
