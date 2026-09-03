@@ -46,9 +46,17 @@ urlpatterns = [
         name='location_landing_index',
     ),
     path(
+        'photography-courses/regions/',
+        RedirectView.as_view(pattern_name='courses:location_landing_index', permanent=True),
+    ),
+    path(
         'photography-courses/regions/<slug:slug>/',
         views.RegionLandingView.as_view(),
         name='region_landing',
+    ),
+    path(
+        'photography-courses/in/',
+        RedirectView.as_view(pattern_name='courses:location_landing_index', permanent=True),
     ),
     path(
         'photography-courses/in/<slug:slug>/',

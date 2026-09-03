@@ -79,6 +79,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'website.middleware.AdminNoIndexMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'website.middleware.DevSiteAccessMiddleware',
     'website.middleware.PhotographyWorkshopsRedirectMiddleware',

@@ -1,7 +1,8 @@
 User-agent: *
 Allow: /
 
-Disallow: /admin/
+# Admin must not appear in search results (also X-Robots-Tag + meta robots).
+Disallow: /admin
 Disallow: /account/
 Disallow: /bookings/
 Disallow: /payments/

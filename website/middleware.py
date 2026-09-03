@@ -85,6 +85,19 @@ def _canonical_photography_courses_path(path):
     return None
 
 
+class AdminNoIndexMiddleware(MiddlewareMixin):
+    """
+    Tell crawlers not to index Django admin, even if they ignore robots.txt.
+    Complements Disallow: /admin/ in templates/robots.txt and the admin <meta robots>.
+    """
+
+    def process_response(self, request, response):
+        path = request.path or ''
+        if path == '/admin' or path.startswith('/admin/'):
+            response['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
+        return response
+
+
 class PhotographyWorkshopsRedirectMiddleware(MiddlewareMixin):
     """
     301 redirect the legacy /photography-workshops/ section to /photography-courses/.

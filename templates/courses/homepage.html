@@ -75,7 +75,7 @@
             <div class="journey-level-box level-box-1"{% if course.image %} style="--tile-image: url('{{ course.image.url }}');"{% elif course.first_uploaded_image %} style="--tile-image: url('{{ course.first_uploaded_image.image.url }}');"{% endif %}>
                 <a href="{% url 'courses:course_list' %}?level=beginner" class="level-box-link">
                     <h3 class="level-box-title">Beginner</h3>
-                    <p class="level-box-description">Beginner courses to get you started</p>
+                    <p class="level-box-description">Complete beginners or anyone wanting to get their camera off Auto mode to unlock its true potential.</p>
                 </a>
                 <button type="button" class="level-expand-btn" aria-expanded="false" aria-controls="level-1-courses">Expand</button>
                 <div id="level-1-courses" class="level-box-courses-wrap collapsed">
@@ -100,7 +100,7 @@
             <div class="journey-level-box level-box-2"{% if course.image %} style="--tile-image: url('{{ course.image.url }}');"{% elif course.first_uploaded_image %} style="--tile-image: url('{{ course.first_uploaded_image.image.url }}');"{% endif %}>
                 <a href="{% url 'courses:course_list' %}?level=intermediate" class="level-box-link">
                     <h3 class="level-box-title">Intermediate</h3>
-                    <p class="level-box-description">Intermediate courses to expand your skills</p>
+                    <p class="level-box-description"> You have attended our Introduction to Photography Get Off Auto workshop or you are already familiar with the use of Aperture Priority, Exposure Compensation and ISO.</p>
                 </a>
                 <button type="button" class="level-expand-btn" aria-expanded="false" aria-controls="level-2-courses">Expand</button>
                 <div id="level-2-courses" class="level-box-courses-wrap collapsed">
@@ -125,7 +125,7 @@
             <div class="journey-level-box level-box-3"{% if course.image %} style="--tile-image: url('{{ course.image.url }}');"{% elif course.first_uploaded_image %} style="--tile-image: url('{{ course.first_uploaded_image.image.url }}');"{% endif %}>
                 <a href="{% url 'courses:course_list' %}?level=advanced" class="level-box-link">
                     <h3 class="level-box-title">Advanced</h3>
-                    <p class="level-box-description">Advanced courses for experienced photographers</p>
+                    <p class="level-box-description">You have attended one or more of our intermediate workshops, or have a good understanding of use of Aperture Priority, ISO and Exposure Compensation and wish to learn new techniques and develop your skills.</p>
                 </a>
                 <button type="button" class="level-expand-btn" aria-expanded="false" aria-controls="level-3-courses">Expand</button>
                 <div id="level-3-courses" class="level-box-courses-wrap collapsed">
