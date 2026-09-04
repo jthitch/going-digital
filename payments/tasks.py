@@ -23,7 +23,7 @@ def send_booking_confirmation_email(booking_id):
 def send_booking_confirmation_emails(booking_ids):
     """
     Send one confirmation email covering all booking ids in a checkout.
-    BCC franchisees/tutors for every workshop involved.
+    BCC franchisees/tutors for every workshop involved, plus the office inbox.
     """
     ids = [int(booking_id) for booking_id in booking_ids if booking_id]
     if not ids:
@@ -115,10 +115,10 @@ def _format_voucher_codes(voucher_codes):
 
 
 def send_gift_voucher_confirmation_email(basket_id, voucher_codes):
-    """Send gift voucher purchase confirmation to purchaser; BCC super users when enabled."""
+    """Send gift voucher purchase confirmation to purchaser; BCC office inbox."""
     from django.core.mail import EmailMessage
 
-    from core.mail import filter_suppressed_recipients, superuser_notification_emails
+    from core.mail import filter_suppressed_recipients, order_office_notification_emails
 
     basket = get_basket(basket_id)
     if not basket or basket.get('basket_data', {}).get('type') != 'gift_voucher':
@@ -145,7 +145,7 @@ def send_gift_voucher_confirmation_email(basket_id, voucher_codes):
 
     purchaser_key = purchaser_email.lower()
     bcc = [
-        addr for addr in superuser_notification_emails()
+        addr for addr in order_office_notification_emails()
         if addr and addr.strip().lower() != purchaser_key
     ]
 

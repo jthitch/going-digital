@@ -73,14 +73,37 @@ class SuperuserNotificationEmailsTests(SimpleTestCase):
         self.assertEqual(superuser_notification_emails(), [])
 
 
+class OrderOfficeNotificationEmailsTests(SimpleTestCase):
+    @override_settings(
+        CONTACT_EMAIL='enquiries@goingdigital.co.uk',
+        EMAIL_SUPPRESS_RECIPIENTS=[],
+    )
+    def test_returns_contact_email(self):
+        from core.mail import order_office_notification_emails
+
+        self.assertEqual(
+            order_office_notification_emails(),
+            ['enquiries@goingdigital.co.uk'],
+        )
+
+    @override_settings(CONTACT_EMAIL='', EMAIL_SUPPRESS_RECIPIENTS=[])
+    def test_empty_when_contact_unset(self):
+        from core.mail import order_office_notification_emails
+
+        self.assertEqual(order_office_notification_emails(), [])
+
+
 class BookingConfirmationBccEmailsTests(SimpleTestCase):
     @override_settings(EMAIL_SUPPRESS_RECIPIENTS=[])
-    @patch('core.mail.superuser_notification_emails', return_value=['admin@example.com', 'tutor@example.com'])
+    @patch(
+        'core.mail.order_office_notification_emails',
+        return_value=['enquiries@goingdigital.co.uk', 'tutor@example.com'],
+    )
     @patch(
         'core.mail.franchisee_emails_for_workshop',
         return_value=['tutor@example.com', 'franchisee@example.com', 'student@example.com'],
     )
-    def test_merges_dedupes_and_excludes_student(self, _franchisee, _super):
+    def test_merges_dedupes_and_excludes_student(self, _franchisee, _office):
         booking = SimpleNamespace(workshop=object())
         bcc = booking_confirmation_bcc_emails(
             [booking],
@@ -88,5 +111,5 @@ class BookingConfirmationBccEmailsTests(SimpleTestCase):
         )
         self.assertEqual(
             bcc,
-            ['tutor@example.com', 'franchisee@example.com', 'admin@example.com'],
+            ['tutor@example.com', 'franchisee@example.com', 'enquiries@goingdigital.co.uk'],
         )

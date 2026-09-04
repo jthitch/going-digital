@@ -145,10 +145,21 @@ def franchisee_emails_for_workshop(workshop):
 
 
 def superuser_notification_emails():
-    """Active Super Users (user_type_id=1) to BCC on booking confirmations."""
+    """Active Super Users (user_type_id=1); used for ops alerts when enabled."""
     if not getattr(settings, 'EMAIL_SUPERUSER_BCC_ENABLED', True):
         return []
     return server_error_recipient_emails()
+
+
+def order_office_notification_emails():
+    """
+    Office inbox BCC for booking / gift voucher order confirmations.
+    Defaults to CONTACT_EMAIL (enquiries@goingdigital.co.uk).
+    """
+    addr = (getattr(settings, 'CONTACT_EMAIL', '') or '').strip()
+    if not addr:
+        return []
+    return filter_suppressed_recipients([addr])
 
 
 def server_error_recipient_emails():
@@ -168,7 +179,7 @@ def server_error_recipient_emails():
 
 def booking_confirmation_bcc_emails(bookings, *, student_email=''):
     """
-    BCC list for booking confirmations: franchisees/tutors/course creators + super users.
+    BCC list for booking confirmations: franchisees/tutors/course creators + office inbox.
     Student address is excluded so they only appear in ``to``.
     """
     student_key = _normalise_email(student_email)
@@ -183,7 +194,7 @@ def booking_confirmation_bcc_emails(bookings, *, student_email=''):
             seen.add(key)
             bcc.append(addr.strip())
 
-    for addr in superuser_notification_emails():
+    for addr in order_office_notification_emails():
         key = _normalise_email(addr)
         if not key or key == student_key or key in seen:
             continue
