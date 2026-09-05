@@ -1,5 +1,5 @@
 [Unit]
-Description=Going Digital Gunicorn service
+Description=Going Digital Gunicorn
 After=network.target
 
 [Service]
@@ -8,10 +8,20 @@ User=www-data
 Group=www-data
 WorkingDirectory=/var/www/going-digital
 EnvironmentFile=/var/www/going-digital/.env
-ExecStart=/var/www/going-digital/venv/bin/gunicorn photocourses.wsgi:application --bind 127.0.0.1:8000 --workers 3 --timeout 120
+# Ensure media uploads written by gunicorn are group-readable by nginx if needed
+UMask=0002
+ExecStart=/var/www/going-digital/venv/bin/gunicorn photocourses.wsgi:application \
+    --bind 127.0.0.1:8000 \
+    --workers 3 \
+    --timeout 120 \
+    --access-logfile - \
+    --error-logfile -
 ExecReload=/bin/kill -s HUP $MAINPID
 Restart=always
 RestartSec=5
+
+# Soft resource limits (adjust for droplet size)
+LimitNOFILE=65535
 
 [Install]
 WantedBy=multi-user.target

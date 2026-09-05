@@ -95,12 +95,14 @@ going-digital/
 
 ## Staging/Production Deployment (Nginx + Gunicorn)
 
-This repo includes deployment templates for running Django behind Gunicorn and Nginx on `80/443`.
+This repo includes deployment templates for running Django behind Gunicorn and Nginx on `80/443`. See **[deploy/README.md](deploy/README.md)** for the full checklist.
 
 ### Deployment files in this repo
-- Nginx vhost template: `deploy/nginx/staging.goingdigital.co.uk.conf`
-- systemd service template: `deploy/systemd/goingdigital.service`
-- production env template: `deploy/env/.env.production.example`
+- Production env template: `deploy/env/.env.production.example`
+- Staging env template: `deploy/env/.env.staging.example`
+- Production Nginx vhost: `deploy/nginx/goingdigital.co.uk.conf` (www → apex)
+- Staging Nginx vhost: `deploy/nginx/staging.goingdigital.co.uk.conf`
+- systemd service: `deploy/systemd/goingdigital.service`
 
 ### Recommended deployment flow
 1. **Install dependencies and collect static:**
@@ -110,7 +112,8 @@ This repo includes deployment templates for running Django behind Gunicorn and N
    ```
 
 2. **Create `.env` from template** and fill real secrets/credentials:
-   - copy `deploy/env/.env.production.example` to project root as `.env`
+   - production: copy `deploy/env/.env.production.example` to project root as `.env`
+   - staging: copy `deploy/env/.env.staging.example` to project root as `.env`
    - keep comma-separated lists with no extra spaces
 
 3. **Install Gunicorn as a service:**
@@ -124,8 +127,8 @@ This repo includes deployment templates for running Django behind Gunicorn and N
    ```
 
 4. **Install Nginx vhost:**
-   - copy `deploy/nginx/staging.goingdigital.co.uk.conf` to `/etc/nginx/sites-available/staging.goingdigital.co.uk`
-   - enable it with a symlink in `/etc/nginx/sites-enabled/`
+   - production: copy `deploy/nginx/goingdigital.co.uk.conf` and enable it
+   - staging: copy `deploy/nginx/staging.goingdigital.co.uk.conf` and enable it
    - disable the default vhost if it conflicts
    - then run:
    ```bash
@@ -135,16 +138,19 @@ This repo includes deployment templates for running Django behind Gunicorn and N
 
 5. **Issue TLS certificate (Let's Encrypt):**
    ```bash
+   # production
+   sudo certbot --nginx -d goingdigital.co.uk -d www.goingdigital.co.uk
+   # staging
    sudo certbot --nginx -d staging.goingdigital.co.uk
    ```
 
 6. **Verify**
    ```bash
-   curl -I http://staging.goingdigital.co.uk
-   curl -I https://staging.goingdigital.co.uk
+   curl -I https://goingdigital.co.uk
+   curl -I https://www.goingdigital.co.uk
    ```
 
-If the Nginx welcome page appears, your staging vhost is not enabled or the default vhost is still taking precedence.
+If the Nginx welcome page appears, your vhost is not enabled or the default vhost is still taking precedence.
 
 ## Models
 
