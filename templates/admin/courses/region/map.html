@@ -45,5 +45,6 @@
 {% block extrajs %}
 {{ block.super }}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'js/basemap-tiles.js' %}"></script>
 <script src="{% static 'courses/js/admin-region-map.js' %}"></script>
 {% endblock %}

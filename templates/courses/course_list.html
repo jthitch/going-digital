@@ -133,7 +133,9 @@
 
 {% block extra_js %}
 <!-- Leaflet JS for map -->
+<script>window.GD_BASEMAPS_API_KEY = "{{ basemaps_api_key|default:''|escapejs }}";</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'js/basemap-tiles.js' %}?v=1"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="{% static 'js/map-date-range.js' %}?v=3"></script>
 <script>
@@ -837,12 +839,15 @@ function initializeMap() {
     
     map = L.map('course-map').setView([centerLat, centerLng], 6);
     
-    // Add Carto Positron tiles (light, clean style)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 19
-    }).addTo(map);
+    // CARTO Voyager tiles (API key from BASEMAPS_API_KEY)
+    if (window.GDBasemaps && typeof window.GDBasemaps.addTileLayer === 'function') {
+        window.GDBasemaps.addTileLayer(map);
+    } else {
+        L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            maxZoom: 20
+        }).addTo(map);
+    }
     
     // Group instances by location for clustering
     const locationGroups = {};

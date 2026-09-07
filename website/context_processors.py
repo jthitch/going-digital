@@ -67,3 +67,10 @@ def analytics(request):
     return {
         'gtm_container_id': getattr(django_settings, 'GTM_CONTAINER_ID', '') or '',
     }
+
+
+def basemaps(request):
+    """CARTO basemap API key for Leaflet maps (public + admin)."""
+    return {
+        'basemaps_api_key': getattr(django_settings, 'BASEMAPS_API_KEY', '') or '',
+    }

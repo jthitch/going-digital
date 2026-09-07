@@ -12,6 +12,7 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <!--  Prevent admin panel being crawled by search engines -->
     <meta name="robots" content="none, noarchive">
+    <script>window.GD_BASEMAPS_API_KEY = "{{ basemaps_api_key|default:''|escapejs }}";</script>
     <script>
         (function() {
             var mode = localStorage.getItem('jazzmin-theme-mode') || '{{ jazzmin_ui.default_theme_mode|default:"light" }}';

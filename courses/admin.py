@@ -1781,6 +1781,7 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
             'admin/js/urlify.js',
             'admin/js/prepopulate.js',
             'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+            'js/basemap-tiles.js',
             'courses/js/admin-venue.js',
         )
 

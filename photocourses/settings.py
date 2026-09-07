@@ -103,6 +103,7 @@ _template_context_processors = [
     'website.context_processors.newsletter_modal',
     'website.context_processors.seo',
     'website.context_processors.analytics',
+    'website.context_processors.basemaps',
 ]
 if DEBUG:
     _template_context_processors.insert(0, 'django.template.context_processors.debug')
@@ -263,6 +264,12 @@ try:
 except NameError:
     GOOGLE_PLACES_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY', '').strip()
     GOOGLE_PLACE_ID = os.environ.get('GOOGLE_PLACE_ID', '').strip()
+
+# CARTO basemap tiles for Leaflet course/admin maps
+try:
+    BASEMAPS_API_KEY = env('BASEMAPS_API_KEY', default='').strip()
+except NameError:
+    BASEMAPS_API_KEY = os.environ.get('BASEMAPS_API_KEY', '').strip()
 
 # Google Tag Manager (optional — Klaro consent gates analytics until accepted)
 try:
