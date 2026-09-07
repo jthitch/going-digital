@@ -63,9 +63,12 @@ def seo(request):
 
 
 def analytics(request):
-    """GTM container ID for Klaro + Consent Mode (empty disables tags)."""
+    """Analytics IDs for templates (empty values disable the matching tags)."""
     return {
         'gtm_container_id': getattr(django_settings, 'GTM_CONTAINER_ID', '') or '',
+        'cloudflare_analytics_token': getattr(
+            django_settings, 'CLOUDFLARE_ANALYTICS_TOKEN', '',
+        ) or '',
     }
 
 

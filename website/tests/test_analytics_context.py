@@ -16,3 +16,15 @@ class AnalyticsContextTests(SimpleTestCase):
     def test_empty_when_unset(self):
         request = self.factory.get('/')
         self.assertEqual(analytics(request)['gtm_container_id'], '')
+
+    @override_settings(CLOUDFLARE_ANALYTICS_TOKEN='abc123def456')
+    def test_exposes_cloudflare_analytics_token(self):
+        request = self.factory.get('/')
+        self.assertEqual(
+            analytics(request)['cloudflare_analytics_token'], 'abc123def456',
+        )
+
+    @override_settings(CLOUDFLARE_ANALYTICS_TOKEN='')
+    def test_cloudflare_token_empty_when_unset(self):
+        request = self.factory.get('/')
+        self.assertEqual(analytics(request)['cloudflare_analytics_token'], '')

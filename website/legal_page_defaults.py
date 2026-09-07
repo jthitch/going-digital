@@ -149,6 +149,7 @@ PRIVACY_BODY = """
     <ul>
         <li><strong>Essential cookies</strong> — required for the website to work securely, including sign-in, your basket and booking flow (for example session and CSRF cookies). These do not require consent.</li>
         <li><strong>Analytics cookies</strong> — with your permission, we use Google Tag Manager to load Google Analytics so we can understand how the site is used and improve it. Google may process this information in accordance with <a href="https://policies.google.com/privacy" rel="noopener noreferrer">Google’s privacy policy</a>.</li>
+        <li><strong>Cookieless visitor measurement</strong> — we use Cloudflare Web Analytics to count page views and see which countries and websites our visitors arrive from. It sets no cookies, stores nothing on your device and does not track you across other websites or build a profile of you, so it runs on every visit. See <a href="https://www.cloudflare.com/en-gb/privacypolicy/" rel="noopener noreferrer">Cloudflare’s privacy policy</a>.</li>
     </ul>
     <p>You can accept or refuse analytics cookies via our cookie banner (Klaro), and change your mind later using the “Cookie preferences” link in the website footer. Payment details are handled by Stripe and are not stored by us as card numbers; see <a href="https://stripe.com/gb/privacy" rel="noopener noreferrer">Stripe’s privacy policy</a>.</p>
 </section>

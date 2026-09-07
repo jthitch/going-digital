@@ -1,0 +1,13 @@
+{% comment %}
+  Cloudflare Web Analytics beacon.
+
+  Cookieless and no localStorage, so it sits outside the Klaro consent gate and
+  still counts visitors who choose "Essential only". Gives daily page views,
+  visits, referrers and countries — GA4 (via GTM) remains the consented source
+  for anything user-level. Set CLOUDFLARE_ANALYTICS_TOKEN to enable.
+{% endcomment %}
+{% if cloudflare_analytics_token %}
+<!-- Cloudflare Web Analytics -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "{{ cloudflare_analytics_token }}"}'></script>
+<!-- End Cloudflare Web Analytics -->
+{% endif %}

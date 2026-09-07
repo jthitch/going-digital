@@ -277,6 +277,13 @@ try:
 except NameError:
     GTM_CONTAINER_ID = os.environ.get('GTM_CONTAINER_ID', '').strip()
 
+# Cloudflare Web Analytics site token (optional). Cookieless, so it runs
+# outside the Klaro consent gate and counts visitors who decline analytics.
+try:
+    CLOUDFLARE_ANALYTICS_TOKEN = env('CLOUDFLARE_ANALYTICS_TOKEN', default='').strip()
+except NameError:
+    CLOUDFLARE_ANALYTICS_TOKEN = os.environ.get('CLOUDFLARE_ANALYTICS_TOKEN', '').strip()
+
 # Email Configuration
 try:
     EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
