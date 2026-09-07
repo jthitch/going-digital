@@ -52,6 +52,9 @@ from .checkout_completion import checkout_session_is_paid, complete_checkout_ses
 from .forms import VoucherCheckoutForm
 from .models import Payment
 
+# Card covers Apple Pay / Google Pay wallets on Checkout; PayPal needs Dashboard enablement too.
+STRIPE_CHECKOUT_PAYMENT_METHOD_TYPES = ['card', 'paypal']
+
 
 def _redirect_to_open_checkout(booking):
     """Reuse an existing open Stripe Checkout session instead of creating duplicates."""
@@ -157,7 +160,7 @@ def _start_stripe_checkout(request, booking):
 
     try:
         checkout_session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
+            payment_method_types=STRIPE_CHECKOUT_PAYMENT_METHOD_TYPES,
             line_items=[{
                 'price_data': {
                     'currency': 'gbp',
@@ -387,7 +390,7 @@ def _start_stripe_basket_checkout(request, basket_id, ctx):
 
     try:
         checkout_session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
+            payment_method_types=STRIPE_CHECKOUT_PAYMENT_METHOD_TYPES,
             line_items=line_items,
             mode='payment',
             success_url=_stripe_checkout_success_url(request),
@@ -548,7 +551,7 @@ class CreateGiftVoucherCheckoutView(View):
                 product_name = f"Gift Vouchers - £{int(amount)} each x {quantity}"
 
             checkout_session = stripe.checkout.Session.create(
-                payment_method_types=['card'],
+                payment_method_types=STRIPE_CHECKOUT_PAYMENT_METHOD_TYPES,
                 line_items=[{
                     'price_data': {
                         'currency': 'gbp',
