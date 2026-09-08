@@ -8,7 +8,7 @@
 <!-- Leaflet CSS for map -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=35">
+<link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=36">
 {% if course_list_schema_json %}
 <script type="application/ld+json">{{ course_list_schema_json|safe }}</script>
 {% endif %}
@@ -700,9 +700,13 @@ function closeMapMobileSheet() {
     }
 }
 
+// Drag-to-dismiss thresholds: a short pull closes, and so does a quick flick.
+var MAP_SHEET_CLOSE_DISTANCE = 44;
+var MAP_SHEET_FLICK_VELOCITY = 0.4; // px per ms
+var MAP_SHEET_FLICK_DISTANCE = 12;
+
 function setupMapMobileSheet() {
     var backdrop = document.getElementById('map-sheet-backdrop');
-    var handle = document.getElementById('map-sheet-handle');
     var sheet = document.getElementById('map-sidebar');
     if (!sheet) return;
     if (backdrop) {
@@ -710,45 +714,75 @@ function setupMapMobileSheet() {
             clearMapSidebarFilter();
         });
     }
-    if (!handle) return;
+    // Handle and header both drag, so the whole top of the sheet is grabbable.
+    var dragZones = [
+        document.getElementById('map-sheet-handle'),
+        sheet.querySelector('.map-sidebar-header')
+    ].filter(Boolean);
+    if (!dragZones.length) return;
+
     var startY = 0;
+    var lastY = 0;
+    var lastTime = 0;
+    var velocity = 0;
     var dragging = false;
     var pointerId = null;
+    var activeZone = null;
+
     function onPointerMove(e) {
         if (!dragging || pointerId !== e.pointerId) return;
+        var now = e.timeStamp || Date.now();
+        var dt = now - lastTime;
+        if (dt > 0) {
+            velocity = (e.clientY - lastY) / dt;
+        }
+        lastY = e.clientY;
+        lastTime = now;
         var dy = e.clientY - startY;
         if (dy > 0) {
             sheet.style.transition = 'none';
             sheet.style.transform = 'translateY(' + dy + 'px)';
         }
     }
-    function endDrag(e, forceClose) {
+
+    function endDrag(e) {
         if (!dragging || pointerId !== e.pointerId) return;
         var dy = e.clientY - startY;
         dragging = false;
         pointerId = null;
         sheet.style.transition = '';
         sheet.style.transform = '';
-        try {
-            handle.releasePointerCapture(e.pointerId);
-        } catch (err) { /* ignore */ }
-        if (forceClose || dy > 72) {
+        if (activeZone) {
+            try {
+                activeZone.releasePointerCapture(e.pointerId);
+            } catch (err) { /* ignore */ }
+            activeZone = null;
+        }
+        var flicked = dy > MAP_SHEET_FLICK_DISTANCE && velocity > MAP_SHEET_FLICK_VELOCITY;
+        if (dy > MAP_SHEET_CLOSE_DISTANCE || flicked) {
             clearMapSidebarFilter();
         }
     }
-    handle.addEventListener('pointerdown', function(e) {
-        if (!isMapMobileSheet() || !sheet.classList.contains('map-sheet--open')) return;
-        if (e.pointerType === 'mouse' && e.button !== 0) return;
-        dragging = true;
-        pointerId = e.pointerId;
-        startY = e.clientY;
-        try {
-            handle.setPointerCapture(e.pointerId);
-        } catch (err) { /* ignore */ }
+
+    dragZones.forEach(function(zone) {
+        zone.addEventListener('pointerdown', function(e) {
+            if (!isMapMobileSheet() || !sheet.classList.contains('map-sheet--open')) return;
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+            dragging = true;
+            pointerId = e.pointerId;
+            activeZone = zone;
+            startY = e.clientY;
+            lastY = e.clientY;
+            lastTime = e.timeStamp || Date.now();
+            velocity = 0;
+            try {
+                zone.setPointerCapture(e.pointerId);
+            } catch (err) { /* ignore */ }
+        });
+        zone.addEventListener('pointermove', onPointerMove);
+        zone.addEventListener('pointerup', endDrag);
+        zone.addEventListener('pointercancel', endDrag);
     });
-    handle.addEventListener('pointermove', onPointerMove);
-    handle.addEventListener('pointerup', function(e) { endDrag(e, false); });
-    handle.addEventListener('pointercancel', function(e) { endDrag(e, false); });
 }
 
 function onMapViewportResize() {

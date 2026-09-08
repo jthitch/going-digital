@@ -786,8 +786,8 @@ body.map-view-active .filter-group {
         justify-content: center;
         flex-shrink: 0;
         margin: 0;
-        padding: 10px 0 8px;
-        min-height: 28px;
+        padding: 16px 0 12px;
+        min-height: 44px;
         cursor: grab;
         touch-action: none;
         box-sizing: border-box;
@@ -796,10 +796,10 @@ body.map-view-active .filter-group {
 
     .map-sheet-handle::after {
         content: '';
-        width: 40px;
+        width: 52px;
         height: 5px;
         border-radius: 3px;
-        background: var(--border-color, rgba(0, 0, 0, 0.2));
+        background: var(--border-color, rgba(0, 0, 0, 0.28));
         flex-shrink: 0;
     }
 
@@ -840,9 +840,18 @@ body.map-view-active .filter-group {
         display: block;
     }
 
+    /* Header doubles as a drag zone so the whole top of the sheet pulls down. */
     .map-sidebar-header {
         flex-shrink: 0;
         padding: 0.35rem 1rem 0.75rem;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    .map-sidebar-header:active {
+        cursor: grabbing;
     }
 
     .map-sidebar-list {
