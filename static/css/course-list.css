@@ -622,11 +622,23 @@ body.map-view-active .filter-group {
     flex-direction: column;
 }
 
-/* Mobile: pull-up sheet lives inside .map-container; children cannot stack above .course-list-top (z-index ~101)
+/* Mobile: pull-up sheet lives inside .map-container; children cannot stack above .course-list-top (z-index 1000)
    without raising this layer — must be below site header (z-index 1200). */
 @media (max-width: 1023px) {
     body.map-view-active.map-mobile-sheet-open .map-container {
         z-index: 900;
+    }
+
+    /* Filter bar and "N workshops on map" count overlay the top of the sheet;
+       clear them while it is open. Restored by closeMapMobileSheet(). */
+    body.map-view-active .course-list-top {
+        transition: opacity 0.24s ease, visibility 0.24s ease;
+    }
+
+    body.map-view-active.map-mobile-sheet-open .course-list-top {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
     }
 }
 

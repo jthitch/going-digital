@@ -84,6 +84,27 @@ class WorkshopRegionFilter(admin.SimpleListFilter):
         return queryset
 
 
+def tutor_ids_matching(term):
+    """
+    Tutor PKs matching an admin search term.
+
+    gd_tutor is not an ORM FK target, so callers filter on `tutor_id__in`.
+    Each word must match a name or email, so "Richard Berry" matches the tutor
+    whose firstname and lastname each match one word.
+    """
+    term = (term or '').strip()
+    if not term:
+        return []
+    query = Q()
+    for word in term.split():
+        query &= (
+            Q(firstname__icontains=word)
+            | Q(lastname__icontains=word)
+            | Q(email__icontains=word)
+        )
+    return list(Tutor.objects.filter(query).values_list('pk', flat=True))
+
+
 class WorkshopTutorFilter(admin.SimpleListFilter):
     """Filter workshops by legacy tutor_id (integer, not an ORM FK)."""
 
@@ -577,7 +598,7 @@ class CourseAdmin(
     list_display = ['course_name', 'course_skill_level', 'course_category', 'active', 'created_at']
     list_filter = [GdActiveFilter, 'course_skill_level', 'course_category', 'created_at']
     search_fields = ['course_name', 'course_description', 'description_for_workshop', 'slug']
-    search_help_text = 'Search by course name, description, or URL slug.'
+    search_help_text = 'Search by course name, description, URL slug, or tutor.'
     prepopulated_fields = {'slug': ('course_name',)}
     readonly_fields = [
         'createdby_id', 'updatedby_id', 'created_at', 'updated_at',
@@ -591,6 +612,18 @@ class CourseAdmin(
             'courses/js/admin-course-card-image.js',
         )
         css = {'all': ('admin/css/course-admin.css',)}
+
+    def get_search_results(self, request, queryset, search_term):
+        """Also match courses that have a workshop run by a matching tutor."""
+        search_qs, use_distinct = super().get_search_results(request, queryset, search_term)
+        tutor_ids = tutor_ids_matching(search_term)
+        if tutor_ids:
+            # Integer FK: reach tutors through workshops rather than a related lookup.
+            search_qs = (
+                search_qs | queryset.filter(workshops__tutor_id__in=tutor_ids)
+            ).distinct()
+            use_distinct = True
+        return search_qs, use_distinct
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -1136,15 +1169,7 @@ class WorkshopAdmin(
         search_qs, use_distinct = super().get_search_results(request, queryset, search_term)
         term = (search_term or '').strip()
         if term:
-            from django.db.models import Q
-
-            tutor_ids = list(
-                Tutor.objects.filter(
-                    Q(firstname__icontains=term)
-                    | Q(lastname__icontains=term)
-                    | Q(email__icontains=term)
-                ).values_list('pk', flat=True)
-            )
+            tutor_ids = tutor_ids_matching(term)
             region_ids = list(
                 Region.objects.filter(region_name__icontains=term).values_list('pk', flat=True)
             )
