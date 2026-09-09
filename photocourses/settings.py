@@ -195,6 +195,10 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# List-card images: cards display ~300–400 CSS px; serve a 2x WebP instead of 1920px uploads.
+GD_LIST_CARD_IMAGE_WIDTH = int(os.environ.get('GD_LIST_CARD_IMAGE_WIDTH', '720'))
+GD_LIST_CARD_IMAGE_QUALITY = int(os.environ.get('GD_LIST_CARD_IMAGE_QUALITY', '72'))
+
 # reCAPTCHA (get keys at https://www.google.com/recaptcha/admin)
 try:
     RECAPTCHA_PUBLIC_KEY = env('RECAPTCHA_PUBLIC_KEY', default='')

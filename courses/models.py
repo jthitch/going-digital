@@ -844,6 +844,18 @@ class VenueMedia(models.Model):
     def __str__(self):
         return self.caption or f"Image for {self.venue.venue_name}"
 
+    @property
+    def card_image(self):
+        """Resized list-card image (URL + intrinsic size) when the file is available."""
+        from courses.list_card_images import cached_image_for_field_file
+
+        return cached_image_for_field_file(self.image)
+
+    @property
+    def card_image_url(self):
+        """Resized list-card URL when the file is available."""
+        return self.card_image.url
+
 
 class VenueWorkshopAccess(models.Model):
     """
@@ -1504,6 +1516,11 @@ class Course(models.Model):
         """Image used on the photography-courses listing card."""
         from .list_card import list_card_thumbnail_url
         return list_card_thumbnail_url(self)
+
+    def list_card_thumbnail(self):
+        """Resized list-card image with intrinsic dimensions."""
+        from .list_card import list_card_thumbnail
+        return list_card_thumbnail(self)
 
     def list_card_thumbnail_style(self):
         """Inline CSS for object-position and zoom on course list cards."""

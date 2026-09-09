@@ -13,6 +13,9 @@
 <link rel="preload" as="style" href="{% static 'vendor/leaflet-1.9.4/leaflet.css' %}">
 <link rel="preload" as="script" href="{% static 'vendor/leaflet-1.9.4/leaflet.js' %}">
 {% endif %}
+{% if lcp_preload_image_url %}
+<link rel="preload" as="image" href="{{ lcp_preload_image_url }}" fetchpriority="high">
+{% endif %}
 <link rel="stylesheet" href="{% static 'vendor/flatpickr-4.6.13/flatpickr.min.css' %}">
 {# loadLeaflet() inserts leaflet.css before this link so these overrides still win. #}
 <link id="course-list-css" rel="stylesheet" href="{% static 'css/course-list.css' %}?v=38">
@@ -1133,6 +1136,9 @@ function buildMap() {
         var imageUrl = safeMediaUrl(c.image_url);
         var posterHtml = imageUrl
             ? '<img src="' + escapeHtml(imageUrl) + '" alt="" class="course-thumbnail course-card-poster" loading="lazy" decoding="async"'
+              + (c.image_width && c.image_height
+                    ? ' width="' + escapeHtml(c.image_width) + '" height="' + escapeHtml(c.image_height) + '"'
+                    : '')
               + (cardStyle ? ' style="' + cardStyle + '"' : '') + '>'
             : '<div class="course-placeholder course-card-poster" aria-hidden="true">📷</div>';
         var videoHtml = '';

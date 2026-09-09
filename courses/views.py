@@ -926,6 +926,14 @@ class CourseListView(ListView):
         context['og_url'] = context['canonical_url']
 
         courses_on_page = list(context.get('courses') or [])
+        # Preload the first card image early so LCP does not wait on HTML parse.
+        lcp_preload_image_url = ''
+        if courses_on_page and not context.get('map_view_active'):
+            from courses.list_card import list_card_thumbnail_url
+
+            lcp_preload_image_url = list_card_thumbnail_url(courses_on_page[0]) or ''
+        context['lcp_preload_image_url'] = lcp_preload_image_url
+
         if courses_on_page:
             item_list = [
                 {
@@ -1097,6 +1105,9 @@ class VenueListView(ListView):
             near_radius + NEAR_RADIUS_STEP_MILES,
         )
         context['seo_noindex'] = bool(context['current_search'] or location_search_active)
+        from courses.list_card_images import first_venue_card_image_url
+
+        context['lcp_preload_image_url'] = first_venue_card_image_url(venues)
         return context
 
 
@@ -1183,6 +1194,8 @@ def _location_landing_context(
     breadcrumb_tail,
 ):
     """Shared SEO + list context for city/region landings."""
+    from courses.list_card_images import first_venue_card_image_url
+
     venue_count = len(venues)
     course_titles = []
     seen_courses = set()
@@ -1268,6 +1281,7 @@ def _location_landing_context(
         'og_title': meta_title,
         'og_description': meta_description[:160],
         'og_url': page_url,
+        'lcp_preload_image_url': first_venue_card_image_url(venues),
         'location_schema_json': dumps_json_ld(
             {'@context': 'https://schema.org', '@graph': graph},
         ),

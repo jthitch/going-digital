@@ -2,19 +2,20 @@
     {% comment %}
       eager_image marks above-the-fold cards. Lazy-loading the LCP image hides it
       from the preload scanner and defers its fetch until after layout, which was
-      pushing LCP past 4s on mobile.
+      pushing LCP past 4s on mobile. list_card_thumbnail serves a ~720px WebP
+      instead of the full upload (often up to 1920px). width/height must match the
+      file's intrinsic size (not a fixed 3:4) so the browser reserves the right space.
     {% endcomment %}
-    {% if course.image %}
-    <img src="{{ course.image.url }}" alt="" class="course-thumbnail course-card-poster"
+    {% with thumb=course.list_card_thumbnail %}
+    {% if thumb.url %}
+    <img src="{{ thumb.url }}" alt="" class="course-thumbnail course-card-poster"
          {% if eager_image %}loading="eager" fetchpriority="high"{% else %}loading="lazy"{% endif %} decoding="async"
-         style="{{ course.list_card_thumbnail_style }}">
-    {% elif course.first_uploaded_image %}
-    <img src="{{ course.first_uploaded_image.image.url }}" alt="" class="course-thumbnail course-card-poster"
-         {% if eager_image %}loading="eager" fetchpriority="high"{% else %}loading="lazy"{% endif %} decoding="async"
+         {% if thumb.width and thumb.height %}width="{{ thumb.width }}" height="{{ thumb.height }}"{% endif %}
          style="{{ course.list_card_thumbnail_style }}">
     {% else %}
     <div class="course-placeholder course-card-poster" aria-hidden="true">📷</div>
     {% endif %}
+    {% endwith %}
     {% if list_video %}
         {% if list_video.kind == 'file' %}
         <video class="course-card-video" muted loop playsinline preload="none"

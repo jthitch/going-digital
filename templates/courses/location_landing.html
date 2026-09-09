@@ -5,6 +5,9 @@
 {% block meta_description %}{{ meta_description }}{% endblock %}
 
 {% block extra_head %}
+{% if lcp_preload_image_url %}
+<link rel="preload" as="image" href="{{ lcp_preload_image_url }}" fetchpriority="high">
+{% endif %}
 {% if location_schema_json %}
 <script type="application/ld+json">{{ location_schema_json|safe }}</script>
 {% endif %}
@@ -36,12 +39,19 @@
             <article class="venue-card">
                 <a href="{% url 'courses:venue_detail' location_slug=venue.slug %}" class="venue-card-link">
                     {% with first_media=venue.media.first %}
-                    {% if first_media and first_media.image %}
+                    {% if first_media %}
+                    {% with card=first_media.card_image %}
+                    {% if card.url %}
                     <div class="venue-card-image">
                         {# Above-the-fold cards load eagerly; lazy-loading the LCP image delays it. #}
-                        <img src="{{ first_media.image.url }}" alt="{{ venue.name }}"
+                        <img src="{{ card.url }}" alt="{{ venue.name }}"
+                             {% if card.width and card.height %}width="{{ card.width }}" height="{{ card.height }}"{% endif %}
                              {% if forloop.counter <= 3 %}loading="eager" fetchpriority="high"{% else %}loading="lazy"{% endif %}>
                     </div>
+                    {% else %}
+                    <div class="venue-card-placeholder" aria-hidden="true"></div>
+                    {% endif %}
+                    {% endwith %}
                     {% else %}
                     <div class="venue-card-placeholder" aria-hidden="true"></div>
                     {% endif %}

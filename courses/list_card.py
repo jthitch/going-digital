@@ -61,22 +61,32 @@ def card_object_position_style(course):
     return f'object-position:{x}% {y}%;'
 
 
-def list_card_thumbnail_url(course):
-    from courses.display_images import course_media_image_url, gd_image_public_url
+def list_card_thumbnail(course):
+    """Resized list-card image (URL + intrinsic width/height) for a course."""
+    from courses.list_card_images import (
+        ListCardImage,
+        cached_image_for_field_file,
+        cached_image_for_gd_image,
+    )
 
     try:
         if course.image_id and course.image:
-            url = gd_image_public_url(course.image)
-            if url:
-                return url
+            image = cached_image_for_gd_image(course.image)
+            if image:
+                return image
     except (ValueError, OSError):
         pass
     for media in course.media.all():
-        if media.media_type == 'image':
-            url = course_media_image_url(media)
-            if url:
-                return url
-    return ''
+        if media.media_type == 'image' and media.image:
+            image = cached_image_for_field_file(media.image)
+            if image:
+                return image
+    return ListCardImage('')
+
+
+def list_card_thumbnail_url(course):
+    """Public URL for the list-card image (resized WebP when possible)."""
+    return list_card_thumbnail(course).url
 
 
 def list_card_video_data(course):
@@ -116,6 +126,7 @@ def serialize_list_card(course, *, locations=None, detail_query=''):
     detail_url = reverse('courses:course_detail', kwargs={'slug': course.slug})
     if detail_query:
         detail_url = f'{detail_url}?{detail_query}'
+    thumb = list_card_thumbnail(course)
     return {
         'id': course.id,
         'title': course.title,
@@ -124,7 +135,9 @@ def serialize_list_card(course, *, locations=None, detail_query=''):
         'level': course.level,
         'level_display': course.get_level_display(),
         'min_price': str(course.min_price),
-        'image_url': list_card_thumbnail_url(course),
+        'image_url': thumb.url,
+        'image_width': thumb.width,
+        'image_height': thumb.height,
         'card_image_style': card_thumbnail_style(course),
         'video': list_card_video_data(course),
         'locations': locations,
