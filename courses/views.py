@@ -933,8 +933,10 @@ class CourseListView(ListView):
 
             eager_count = 0 if context.get('map_view_active') else 3
             attach_list_card_thumbnails(courses_on_page, eager_count=eager_count)
-            if eager_count and courses_on_page[0].list_card_thumbnail.url:
-                lcp_preload_image_url = courses_on_page[0].list_card_thumbnail.url
+            if eager_count:
+                thumb = courses_on_page[0].list_card_thumbnail()
+                if thumb and thumb.url:
+                    lcp_preload_image_url = thumb.url
         context['lcp_preload_image_url'] = lcp_preload_image_url
 
         if courses_on_page:
