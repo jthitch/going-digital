@@ -8,9 +8,19 @@
     var mobileLayout = window.matchMedia('(max-width: 767px)').matches;
     var inViewCards = new Set();
 
+    // Hidden cards must never start playback: IntersectionObserver ignores
+    // `visibility`, so an off-screen-but-laid-out grid still reports as visible.
+    function cardIsVisible(card) {
+        if (!card || !card.isConnected) {
+            return false;
+        }
+        var style = window.getComputedStyle(card);
+        return style.visibility !== 'hidden' && style.display !== 'none';
+    }
+
     function playCard(card) {
         var video = card.querySelector('.course-card-video');
-        if (!video) {
+        if (!video || !cardIsVisible(card)) {
             return;
         }
         window.clearTimeout(pauseTimer);
@@ -156,7 +166,21 @@
         }
     }
 
+    // Called when leaving the grid (e.g. switching to map view) so nothing keeps
+    // decoding video behind a hidden grid.
+    function pauseAllCourseCardVideos() {
+        inViewCards.forEach(function (card) {
+            pauseCard(card);
+        });
+        inViewCards.clear();
+        if (hoverCard) {
+            pauseCard(hoverCard);
+            hoverCard = null;
+        }
+    }
+
     window.initCourseCardVideos = initCourseCardVideos;
+    window.pauseAllCourseCardVideos = pauseAllCourseCardVideos;
 
     function onReady() {
         initCourseCardVideos();

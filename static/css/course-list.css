@@ -2516,16 +2516,12 @@ body.map-filter-modal-open {
     position: relative;
 }
 
+/* display:none, not visibility:hidden. A visibility-hidden grid keeps its layout
+   box, so IntersectionObserver still reports its cards as on-screen — in map view
+   that silently autoplays card videos and keeps infinite scroll fetching pages,
+   which exhausts memory on iOS Safari. */
 .course-grid-container.hidden {
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(20px) scale(0.98);
-    pointer-events: none;
-    position: absolute;
-    width: 100%;
-    top: 0;
-    left: 0;
-    z-index: 1;
+    display: none;
 }
 
 .course-grid {

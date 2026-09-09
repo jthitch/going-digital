@@ -8,7 +8,7 @@
 <!-- Leaflet CSS for map -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=36">
+<link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=37">
 {% if course_list_schema_json %}
 <script type="application/ld+json">{{ course_list_schema_json|safe }}</script>
 {% endif %}
@@ -41,7 +41,7 @@
     </div>
     
     <!-- Course listings -->
-    <section class="course-grid course-grid-container" id="course-grid" aria-label="Course Listings"
+    <section class="course-grid course-grid-container{% if map_view_active %} hidden{% endif %}" id="course-grid" aria-label="Course Listings"
              data-infinite-url="{{ infinite_scroll_url }}"
              data-next-page="{% if is_paginated and page_obj.has_next %}{{ page_obj.next_page_number }}{% else %}0{% endif %}"
              data-has-next="{% if is_paginated and page_obj.has_next %}true{% else %}false{% endif %}">
@@ -287,6 +287,9 @@ function showGridView() {
     
     setTimeout(function() {
         gridContainer.classList.remove('hidden');
+        if (window.gdCourseGridInfiniteScroll) {
+            window.gdCourseGridInfiniteScroll.resume();
+        }
     }, 50);
 }
 
@@ -296,6 +299,13 @@ function showMapView() {
     
     syncMapViewToggleButtons(true);
     syncQuickFormViewInput(true);
+    // Stop grid work before hiding it, so nothing keeps loading or playing offscreen.
+    if (window.gdCourseGridInfiniteScroll) {
+        window.gdCourseGridInfiniteScroll.pause();
+    }
+    if (window.pauseAllCourseCardVideos) {
+        window.pauseAllCourseCardVideos();
+    }
     gridContainer.classList.add('hidden');
     document.body.classList.add('map-view-active');
     updateViewUrl(true);
@@ -1194,12 +1204,23 @@ function initializeMap() {
             });
     }
 
-    observer = new IntersectionObserver(function(entries) {
-        if (entries[0].isIntersecting && hasNext) loadMore();
-    }, { rootMargin: '400px 0px', threshold: 0 });
+    function startObserving() {
+        if (observer || !hasNext || nextPage < 1) return;
+        observer = new IntersectionObserver(function(entries) {
+            if (entries[0].isIntersecting && hasNext) loadMore();
+        }, { rootMargin: '400px 0px', threshold: 0 });
+        observer.observe(sentinel);
+    }
 
-    observer.observe(sentinel);
+    // Map view hides the grid; without pausing, the sentinel keeps fetching pages
+    // of cards nobody can see.
+    window.gdCourseGridInfiniteScroll = {
+        pause: stopObserving,
+        resume: startObserving
+    };
+
+    startObserving();
 })();
 </script>
-<script src="{% static 'js/course-card-video.js' %}?v=3" defer></script>
+<script src="{% static 'js/course-card-video.js' %}?v=4" defer></script>
 {% endblock %}
