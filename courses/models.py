@@ -847,9 +847,14 @@ class VenueMedia(models.Model):
     @property
     def card_image(self):
         """Resized list-card image (URL + intrinsic size) when the file is available."""
+        cached = getattr(self, '_card_image', None)
+        if cached is not None:
+            return cached
         from courses.list_card_images import cached_image_for_field_file
 
-        return cached_image_for_field_file(self.image)
+        image = cached_image_for_field_file(self.image, generate=False)
+        self._card_image = image
+        return image
 
     @property
     def card_image_url(self):
@@ -1515,12 +1520,12 @@ class Course(models.Model):
     def list_card_thumbnail_url(self):
         """Image used on the photography-courses listing card."""
         from .list_card import list_card_thumbnail_url
-        return list_card_thumbnail_url(self)
+        return list_card_thumbnail_url(self, generate=False)
 
     def list_card_thumbnail(self):
-        """Resized list-card image with intrinsic dimensions."""
+        """Resized list-card image with intrinsic dimensions (request-safe hot path)."""
         from .list_card import list_card_thumbnail
-        return list_card_thumbnail(self)
+        return list_card_thumbnail(self, generate=False)
 
     def list_card_thumbnail_style(self):
         """Inline CSS for object-position and zoom on course list cards."""

@@ -926,12 +926,15 @@ class CourseListView(ListView):
         context['og_url'] = context['canonical_url']
 
         courses_on_page = list(context.get('courses') or [])
-        # Preload the first card image early so LCP does not wait on HTML parse.
+        # Resolve card images once: sync-encode only above-the-fold (LCP) cards.
         lcp_preload_image_url = ''
-        if courses_on_page and not context.get('map_view_active'):
-            from courses.list_card import list_card_thumbnail_url
+        if courses_on_page:
+            from courses.list_card import attach_list_card_thumbnails
 
-            lcp_preload_image_url = list_card_thumbnail_url(courses_on_page[0]) or ''
+            eager_count = 0 if context.get('map_view_active') else 3
+            attach_list_card_thumbnails(courses_on_page, eager_count=eager_count)
+            if eager_count and courses_on_page[0].list_card_thumbnail.url:
+                lcp_preload_image_url = courses_on_page[0].list_card_thumbnail.url
         context['lcp_preload_image_url'] = lcp_preload_image_url
 
         if courses_on_page:
@@ -1105,9 +1108,36 @@ class VenueListView(ListView):
             near_radius + NEAR_RADIUS_STEP_MILES,
         )
         context['seo_noindex'] = bool(context['current_search'] or location_search_active)
-        from courses.list_card_images import first_venue_card_image_url
+        from courses.list_card_images import (
+            cached_image_for_field_file,
+            first_venue_card_image_url,
+            schedule_list_card_warm,
+        )
 
-        context['lcp_preload_image_url'] = first_venue_card_image_url(venues)
+        # Sync-encode the first few venue cards; warm the rest off-request.
+        warm_paths = []
+        seen = 0
+        for group in context.get('venue_groups') or []:
+            for venue in group.get('venues') or []:
+                media = venue.media.first() if hasattr(venue, 'media') else None
+                if not media or not media.image:
+                    continue
+                generate = seen < 3
+                image = cached_image_for_field_file(media.image, generate=generate)
+                media._card_image = image
+                seen += 1
+                if not generate:
+                    try:
+                        warm_paths.append(media.image.path)
+                    except (ValueError, NotImplementedError, AttributeError):
+                        pass
+        if warm_paths:
+            schedule_list_card_warm(warm_paths)
+        context['lcp_preload_image_url'] = first_venue_card_image_url(venues, generate=False)
+        if not context['lcp_preload_image_url'] and venues:
+            context['lcp_preload_image_url'] = first_venue_card_image_url(
+                venues[:1], generate=True,
+            )
         return context
 
 
@@ -1194,9 +1224,30 @@ def _location_landing_context(
     breadcrumb_tail,
 ):
     """Shared SEO + list context for city/region landings."""
-    from courses.list_card_images import first_venue_card_image_url
+    from courses.list_card_images import (
+        cached_image_for_field_file,
+        first_venue_card_image_url,
+        schedule_list_card_warm,
+    )
 
     venue_count = len(venues)
+    warm_paths = []
+    for index, venue in enumerate(venues):
+        media = venue.media.first() if hasattr(venue, 'media') else None
+        if not media or not media.image:
+            continue
+        generate = index < 3
+        media._card_image = cached_image_for_field_file(media.image, generate=generate)
+        if not generate:
+            try:
+                warm_paths.append(media.image.path)
+            except (ValueError, NotImplementedError, AttributeError):
+                pass
+    if warm_paths:
+        schedule_list_card_warm(warm_paths)
+    lcp_preload_image_url = first_venue_card_image_url(venues, generate=False)
+    if not lcp_preload_image_url and venues:
+        lcp_preload_image_url = first_venue_card_image_url(venues[:1], generate=True)
     course_titles = []
     seen_courses = set()
     for workshop in workshops:
@@ -1281,7 +1332,7 @@ def _location_landing_context(
         'og_title': meta_title,
         'og_description': meta_description[:160],
         'og_url': page_url,
-        'lcp_preload_image_url': first_venue_card_image_url(venues),
+        'lcp_preload_image_url': lcp_preload_image_url,
         'location_schema_json': dumps_json_ld(
             {'@context': 'https://schema.org', '@graph': graph},
         ),
