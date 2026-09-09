@@ -5,10 +5,17 @@
 {% block meta_description %}Browse hands-on photography courses and workshops across the UK. Beginner, intermediate and advanced levels — filter by date, skill level, category or map to book in-person training.{% endblock %}
 
 {% block extra_head %}
-<!-- Leaflet CSS for map -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link rel="stylesheet" href="{% static 'css/course-list.css' %}?v=37">
+{% comment %}
+  Leaflet is map-view only and is injected by loadLeaflet(). When we already know
+  the map is showing, preload it so the fetch overlaps the rest of the page.
+{% endcomment %}
+{% if map_view_active %}
+<link rel="preload" as="style" href="{% static 'vendor/leaflet-1.9.4/leaflet.css' %}">
+<link rel="preload" as="script" href="{% static 'vendor/leaflet-1.9.4/leaflet.js' %}">
+{% endif %}
+<link rel="stylesheet" href="{% static 'vendor/flatpickr-4.6.13/flatpickr.min.css' %}">
+{# loadLeaflet() inserts leaflet.css before this link so these overrides still win. #}
+<link id="course-list-css" rel="stylesheet" href="{% static 'css/course-list.css' %}?v=38">
 {% if course_list_schema_json %}
 <script type="application/ld+json">{{ course_list_schema_json|safe }}</script>
 {% endif %}
@@ -55,7 +62,11 @@
             {% with list_video=course.list_card_video %}
             <article class="course-card course-card--overlay{% if list_video %} course-card--has-video{% endif %}"{% if list_video %} data-has-video{% endif %}>
                 <a href="{% url 'courses:course_detail' slug=course.slug %}{% if course_detail_query %}?{{ course_detail_query }}{% endif %}" class="course-card-link">
+                    {% if forloop.parentloop.first and forloop.counter <= 3 %}
+                    {% include 'courses/partials/course_list_card_media.html' with list_video=list_video course=course eager_image=True %}
+                    {% else %}
                     {% include 'courses/partials/course_list_card_media.html' with list_video=list_video course=course %}
+                    {% endif %}
                     <div class="course-level-badge" data-level="{{ course.level }}">{{ course.get_level_display }}</div>
                     <div class="course-card-content">
                         <div class="course-header">
@@ -132,12 +143,55 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- Leaflet JS for map -->
 <script>window.GD_BASEMAPS_API_KEY = "{{ basemaps_api_key|default:''|escapejs }}";</script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="{% static 'js/basemap-tiles.js' %}?v=1"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="{% static 'vendor/flatpickr-4.6.13/flatpickr.min.js' %}"></script>
 <script src="{% static 'js/map-date-range.js' %}?v=3"></script>
+<script>
+// Leaflet is ~160KB of CSS + JS that only map view uses, so it is fetched on
+// first use rather than blocking every visit to the course list.
+var GD_LEAFLET_CSS = "{% static 'vendor/leaflet-1.9.4/leaflet.css' %}";
+var GD_LEAFLET_JS = "{% static 'vendor/leaflet-1.9.4/leaflet.js' %}";
+var gdLeafletPromise = null;
+
+function loadLeaflet() {
+    if (window.L) {
+        return Promise.resolve();
+    }
+    if (gdLeafletPromise) {
+        return gdLeafletPromise;
+    }
+
+    var cssReady = new Promise(function(resolve) {
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = GD_LEAFLET_CSS;
+        // Resolve either way — a missing stylesheet should not block the map.
+        link.onload = resolve;
+        link.onerror = resolve;
+        var siteCss = document.getElementById('course-list-css');
+        if (siteCss && siteCss.parentNode) {
+            siteCss.parentNode.insertBefore(link, siteCss);
+        } else {
+            document.head.appendChild(link);
+        }
+    });
+
+    var jsReady = new Promise(function(resolve, reject) {
+        var script = document.createElement('script');
+        script.src = GD_LEAFLET_JS;
+        script.onload = resolve;
+        script.onerror = function() { reject(new Error('Leaflet failed to load')); };
+        document.head.appendChild(script);
+    });
+
+    gdLeafletPromise = Promise.all([cssReady, jsReady]).catch(function(err) {
+        gdLeafletPromise = null;
+        throw err;
+    });
+    return gdLeafletPromise;
+}
+</script>
 <script>
 // View toggle functions with smooth transitions
 function syncQuickFormViewInput(isMap) {
@@ -819,6 +873,20 @@ function clearMapSidebarFilter() {
 
 function initializeMap() {
     // Only initialize if map doesn't exist yet
+    if (map) {
+        return;
+    }
+    loadLeaflet().then(buildMap).catch(function(err) {
+        console.error(err);
+        var mapEl = document.getElementById('course-map');
+        if (mapEl) {
+            mapEl.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">The map could not be loaded. Please refresh to try again.</div>';
+        }
+    });
+}
+
+function buildMap() {
+    // A second toggle can land while Leaflet is still downloading.
     if (map) {
         return;
     }

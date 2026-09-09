@@ -110,7 +110,9 @@
                             {% with first_media=venue.media.first %}
                             {% if first_media and first_media.image %}
                             <div class="venue-card-image">
-                                <img src="{{ first_media.image.url }}" alt="{{ venue.name }}" loading="lazy">
+                                {# Above-the-fold cards load eagerly; lazy-loading the LCP image delays it. #}
+                                <img src="{{ first_media.image.url }}" alt="{{ venue.name }}"
+                                     {% if forloop.parentloop.first and forloop.counter <= 3 %}loading="eager" fetchpriority="high"{% else %}loading="lazy"{% endif %}>
                             </div>
                             {% else %}
                             <div class="venue-card-placeholder">📍</div>

@@ -1796,7 +1796,7 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
     class Media:
         css = {
             'all': (
-                'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+                'vendor/leaflet-1.9.4/leaflet.css',
                 'admin/css/venue-admin.css',
                 'admin/css/course-admin.css',
                 'admin/css/venue-document.css',
@@ -1805,7 +1805,7 @@ class VenueAdmin(RegionScopedVenueAdminMixin, SearchFirstChangeListMixin, admin.
         js = (
             'admin/js/urlify.js',
             'admin/js/prepopulate.js',
-            'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+            'vendor/leaflet-1.9.4/leaflet.js',
             'js/basemap-tiles.js',
             'courses/js/admin-venue.js',
         )
