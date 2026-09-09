@@ -156,6 +156,50 @@
 var GD_LEAFLET_CSS = "{% static 'vendor/leaflet-1.9.4/leaflet.css' %}";
 var GD_LEAFLET_JS = "{% static 'vendor/leaflet-1.9.4/leaflet.js' %}";
 var gdLeafletPromise = null;
+// null on list view (fetch on demand); preloaded array when landing on ?view=map
+var gdMapInstances = {{ instances_data|safe }};
+var gdMapDataUrl = "{{ map_data_url|escapejs }}";
+var gdMapDataPromise = null;
+
+function updateMapWorkshopCount(count) {
+    var countEl = document.getElementById('course-filter-bar-count');
+    if (!countEl) return;
+    countEl.hidden = false;
+    if (!count) {
+        countEl.textContent = 'No workshops on map';
+    } else {
+        countEl.textContent = count + (count === 1 ? ' workshop' : ' workshops') + ' on map';
+    }
+}
+
+function fetchMapInstances() {
+    if (Array.isArray(gdMapInstances)) {
+        return Promise.resolve(gdMapInstances);
+    }
+    if (gdMapDataPromise) {
+        return gdMapDataPromise;
+    }
+    if (!gdMapDataUrl) {
+        return Promise.reject(new Error('Map data URL missing'));
+    }
+    gdMapDataPromise = fetch(gdMapDataUrl, {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin',
+    }).then(function(response) {
+        if (!response.ok) {
+            throw new Error('Map data request failed');
+        }
+        return response.json();
+    }).then(function(data) {
+        gdMapInstances = Array.isArray(data.instances) ? data.instances : [];
+        updateMapWorkshopCount(typeof data.count === 'number' ? data.count : gdMapInstances.length);
+        return gdMapInstances;
+    }).catch(function(err) {
+        gdMapDataPromise = null;
+        throw err;
+    });
+    return gdMapDataPromise;
+}
 
 function loadLeaflet() {
     if (window.L) {
@@ -339,6 +383,10 @@ function showGridView() {
     syncMapViewToggleButtons(false);
     syncQuickFormViewInput(false);
     updateViewUrl(false);
+    var countEl = document.getElementById('course-filter-bar-count');
+    if (countEl) {
+        countEl.hidden = true;
+    }
     
     mapContainer.classList.add('hidden');
     
@@ -366,6 +414,13 @@ function showMapView() {
     gridContainer.classList.add('hidden');
     document.body.classList.add('map-view-active');
     updateViewUrl(true);
+    var countEl = document.getElementById('course-filter-bar-count');
+    if (countEl) {
+        countEl.hidden = false;
+        if (!countEl.textContent.trim()) {
+            countEl.textContent = 'Loading workshops…';
+        }
+    }
     
     setTimeout(function() {
         mapContainer.classList.remove('hidden');
@@ -879,23 +934,32 @@ function initializeMap() {
     if (map) {
         return;
     }
-    loadLeaflet().then(buildMap).catch(function(err) {
-        console.error(err);
-        var mapEl = document.getElementById('course-map');
+    var mapEl = document.getElementById('course-map');
+    if (mapEl && !mapEl.dataset.mapLoading) {
+        mapEl.dataset.mapLoading = '1';
+        mapEl.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">Loading map…</div>';
+    }
+    Promise.all([loadLeaflet(), fetchMapInstances()]).then(function(results) {
         if (mapEl) {
+            delete mapEl.dataset.mapLoading;
+            mapEl.innerHTML = '';
+        }
+        buildMap(results[1]);
+    }).catch(function(err) {
+        console.error(err);
+        if (mapEl) {
+            delete mapEl.dataset.mapLoading;
             mapEl.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">The map could not be loaded. Please refresh to try again.</div>';
         }
     });
 }
 
-function buildMap() {
+function buildMap(instances) {
     // A second toggle can land while Leaflet is still downloading.
     if (map) {
         return;
     }
-    
-    // Instance data from Django - all bookable instances
-    const instances = {{ instances_data|safe }};
+    instances = instances || [];
     
     // Populate sidebar list (desktop sidebar + mobile pull-up sheet)
     const sidebarList = document.getElementById('map-sidebar-list');

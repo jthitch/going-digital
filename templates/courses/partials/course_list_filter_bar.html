@@ -50,6 +50,8 @@ Unified course list / map filter bar — compact search trigger (Airbnb-style) +
             No workshops on map
             {% endif %}
         </p>
+        {% else %}
+        <p class="map-filter-bar__count" id="course-filter-bar-count" hidden></p>
         {% endif %}
     </div>
     {% if active_filter_chips %}

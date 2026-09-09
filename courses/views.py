@@ -525,6 +525,7 @@ class CourseListView(ListView):
     List all active courses with search/filter capability.
     Supports server-side filtering for SEO.
     Infinite scroll: ?format=json&page=N returns JSON for that page.
+    Map markers: ?format=map_json (or embedded when ?view=map).
     """
     model = Course
     template_name = 'courses/course_list.html'
@@ -533,8 +534,11 @@ class CourseListView(ListView):
     
     def get(self, request, *args, **kwargs):
         self.object_list = self.get_queryset()
-        if request.GET.get('format') == 'json':
+        fmt = request.GET.get('format')
+        if fmt == 'json':
             return self.render_to_json_response()
+        if fmt == 'map_json':
+            return self.render_map_json_response()
         context = self.get_context_data()
         return self.render_to_response(context)
     
@@ -558,6 +562,14 @@ class CourseListView(ListView):
             'courses': courses_data,
             'has_next': page.has_next(),
             'next_page': page.number + 1 if page.has_next() else None,
+        })
+
+    def render_map_json_response(self):
+        """Return all filtered map markers (loaded only when map view is opened)."""
+        instances = self._build_map_instances_data()
+        return JsonResponse({
+            'instances': instances,
+            'count': len(instances),
         })
     
     def get_queryset(self):
@@ -659,27 +671,13 @@ class CourseListView(ListView):
             .prefetch_related('course__media', 'gallery_images__image')
             .order_by(*bookable_workshop_ordering())
         )
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['categories'] = [
-            (str(cat.id), cat.course_category)
-            for cat in CourseCategory.objects.filter(
-                active=1, exclude_from_course_list=0
-            ).order_by('display_order', 'course_category')
-        ]
-        context['levels'] = [(k, LEVEL_DISPLAY_NAMES.get(v, k.title())) for k, v in LEVEL_NAME_TO_ID.items()]
-        # Course stats for copy
-        context['total_course_count'] = Course.objects.filter(
-            active=True,
-        ).filter(
-            Exists(bookable_workshops_queryset().filter(course_id=OuterRef('pk')))
-        ).distinct().count()
-        context['filter_venues'] = filter_venues_for_course_list()
-        
-        # Prepare instance data for map from ALL matching workshops (not the
-        # paginated course page — otherwise venues for later courses never appear).
-        import json
+
+    def _build_map_instances_data(self):
+        """
+        Serialize all filtered bookable workshops for the map.
+
+        Expensive: only call for ?view=map HTML or format=map_json fetches.
+        """
         instances_data = []
         map_workshops = list(self._map_workshops_queryset())
         attach_gd_images_to_workshops(map_workshops)
@@ -749,9 +747,36 @@ class CourseListView(ListView):
                 'enrollment_open': instance.enrollment_open,
                 'is_full': instance.is_full,
             })
+        return instances_data
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['categories'] = [
+            (str(cat.id), cat.course_category)
+            for cat in CourseCategory.objects.filter(
+                active=1, exclude_from_course_list=0
+            ).order_by('display_order', 'course_category')
+        ]
+        context['levels'] = [(k, LEVEL_DISPLAY_NAMES.get(v, k.title())) for k, v in LEVEL_NAME_TO_ID.items()]
+        # Course stats for copy
+        context['total_course_count'] = Course.objects.filter(
+            active=True,
+        ).filter(
+            Exists(bookable_workshops_queryset().filter(course_id=OuterRef('pk')))
+        ).distinct().count()
+        context['filter_venues'] = filter_venues_for_course_list()
 
-        context['instances_data'] = dumps_json_ld(instances_data)
-        context['map_workshop_count'] = len(instances_data)
+        # Map markers are expensive; only embed them when landing directly on map view.
+        # List view fetches them via format=map_json when the user switches to map.
+        map_view_active = self.request.GET.get('view') == 'map'
+        context['map_view_active'] = map_view_active
+        if map_view_active:
+            instances_data = self._build_map_instances_data()
+            context['instances_data'] = dumps_json_ld(instances_data)
+            context['map_workshop_count'] = len(instances_data)
+        else:
+            context['instances_data'] = 'null'
+            context['map_workshop_count'] = 0
         
         # Current filters
         from courses.venue_list import (
@@ -797,8 +822,8 @@ class CourseListView(ListView):
         context['current_date_from'] = date_from.isoformat() if date_from else ''
         context['current_date_to'] = date_to.isoformat() if date_to else ''
         context['date_range_display'] = format_date_range_label(date_from, date_to)
-        context['map_view_active'] = self.request.GET.get('view') == 'map'
-        is_map_view = context['map_view_active']
+        context['map_view_active'] = map_view_active
+        is_map_view = map_view_active
         
         # Query string for category buttons (preserves other filters, excludes category & page)
         from urllib.parse import urlencode
@@ -891,6 +916,9 @@ class CourseListView(ListView):
             params.pop('city', None)
         base = reverse('courses:course_list')
         context['infinite_scroll_url'] = (base + '?' + urlencode(params)) if params else base
+        map_params = {k: v for k, v in params.items() if k not in ('format', 'view')}
+        map_params['format'] = 'map_json'
+        context['map_data_url'] = base + '?' + urlencode(map_params)
         context['course_detail_query'] = course_detail_filter_querystring(self.request)
 
         filter_keys = ('q', 'category', 'level', 'city', 'date_from', 'date_to', 'view', 'lat', 'lng')
