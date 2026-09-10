@@ -954,14 +954,12 @@ class CourseListView(ListView):
         context['og_url'] = context['canonical_url']
 
         courses_on_page = list(context.get('courses') or [])
-        # Resolve card images once: sync-encode only above-the-fold (LCP) cards.
         lcp_preload_image_url = ''
         if courses_on_page:
             from courses.list_card import attach_list_card_thumbnails
 
-            eager_count = 0 if context.get('map_view_active') else 3
-            attach_list_card_thumbnails(courses_on_page, eager_count=eager_count)
-            if eager_count:
+            attach_list_card_thumbnails(courses_on_page)
+            if not context.get('map_view_active'):
                 thumb = courses_on_page[0].list_card_thumbnail()
                 if thumb and thumb.url:
                     lcp_preload_image_url = thumb.url
@@ -1141,33 +1139,15 @@ class VenueListView(ListView):
         from courses.list_card_images import (
             cached_image_for_field_file,
             first_venue_card_image_url,
-            schedule_list_card_warm,
         )
 
-        # Sync-encode the first few venue cards; warm the rest off-request.
-        warm_paths = []
-        seen = 0
         for group in context.get('venue_groups') or []:
             for venue in group.get('venues') or []:
                 media = venue.media.first() if hasattr(venue, 'media') else None
                 if not media or not media.image:
                     continue
-                generate = seen < 3
-                image = cached_image_for_field_file(media.image, generate=generate)
-                media._card_image = image
-                seen += 1
-                if not generate:
-                    try:
-                        warm_paths.append(media.image.path)
-                    except (ValueError, NotImplementedError, AttributeError):
-                        pass
-        if warm_paths:
-            schedule_list_card_warm(warm_paths)
-        context['lcp_preload_image_url'] = first_venue_card_image_url(venues, generate=False)
-        if not context['lcp_preload_image_url'] and venues:
-            context['lcp_preload_image_url'] = first_venue_card_image_url(
-                venues[:1], generate=True,
-            )
+                media._card_image = cached_image_for_field_file(media.image)
+        context['lcp_preload_image_url'] = first_venue_card_image_url(venues)
         return context
 
 
@@ -1257,27 +1237,15 @@ def _location_landing_context(
     from courses.list_card_images import (
         cached_image_for_field_file,
         first_venue_card_image_url,
-        schedule_list_card_warm,
     )
 
     venue_count = len(venues)
-    warm_paths = []
-    for index, venue in enumerate(venues):
+    for venue in venues:
         media = venue.media.first() if hasattr(venue, 'media') else None
         if not media or not media.image:
             continue
-        generate = index < 3
-        media._card_image = cached_image_for_field_file(media.image, generate=generate)
-        if not generate:
-            try:
-                warm_paths.append(media.image.path)
-            except (ValueError, NotImplementedError, AttributeError):
-                pass
-    if warm_paths:
-        schedule_list_card_warm(warm_paths)
-    lcp_preload_image_url = first_venue_card_image_url(venues, generate=False)
-    if not lcp_preload_image_url and venues:
-        lcp_preload_image_url = first_venue_card_image_url(venues[:1], generate=True)
+        media._card_image = cached_image_for_field_file(media.image)
+    lcp_preload_image_url = first_venue_card_image_url(venues)
     course_titles = []
     seen_courses = set()
     for workshop in workshops:

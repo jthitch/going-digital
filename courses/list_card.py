@@ -63,13 +63,12 @@ def card_object_position_style(course):
 
 def list_card_thumbnail(course, *, generate: bool = False):
     """
-    Resized list-card image (URL + intrinsic width/height) for a course.
+    List-card image (URL + optional intrinsic width/height) for a course.
 
-    generate=False is the HTML hot path: use a warm cache entry or the original
-    upload without encoding. generate=True encodes a WebP when missing.
+    Serves the original upload. ``generate`` is ignored (API compatibility).
     """
     cached = getattr(course, '_list_card_thumb', None)
-    if cached is not None and not generate:
+    if cached is not None:
         return cached
 
     from courses.list_card_images import (
@@ -81,66 +80,30 @@ def list_card_thumbnail(course, *, generate: bool = False):
     image = ListCardImage('')
     try:
         if course.image_id and course.image:
-            image = cached_image_for_gd_image(course.image, generate=generate)
+            image = cached_image_for_gd_image(course.image)
     except (ValueError, OSError):
         image = ListCardImage('')
     if not image:
         for media in course.media.all():
             if media.media_type == 'image' and media.image:
-                image = cached_image_for_field_file(media.image, generate=generate)
+                image = cached_image_for_field_file(media.image)
                 if image:
                     break
 
-    if not generate or image:
-        course._list_card_thumb = image
+    course._list_card_thumb = image
     return image
 
 
 def list_card_thumbnail_url(course, *, generate: bool = False):
-    """Public URL for the list-card image (resized WebP when possible)."""
+    """Public URL for the list-card image (original upload)."""
     return list_card_thumbnail(course, generate=generate).url
 
 
-def _source_path_for_course(course):
-    """Filesystem path used for background warming, if available."""
-    from courses.display_images import gd_image_file_path
-
-    try:
-        if course.image_id and course.image:
-            path = gd_image_file_path(course.image)
-            if path:
-                return path
-    except (ValueError, OSError):
-        pass
-    for media in course.media.all():
-        if media.media_type == 'image' and media.image:
-            try:
-                return media.image.path
-            except (ValueError, NotImplementedError, AttributeError):
-                return None
-    return None
-
-
 def attach_list_card_thumbnails(courses, *, eager_count=3, warm_background=True):
-    """
-    Resolve list-card images once per course for the request.
-
-    Sync-encode only the first eager_count cards (LCP / above-the-fold).
-    Remaining cards use cache-or-original; missing variants warm in a daemon thread.
-    """
-    from courses.list_card_images import schedule_list_card_warm
-
+    """Resolve list-card image URLs once per course for the request."""
     course_list = list(courses or [])
-    warm_paths = []
-    for index, course in enumerate(course_list):
-        generate = index < eager_count
-        list_card_thumbnail(course, generate=generate)
-        if not generate:
-            path = _source_path_for_course(course)
-            if path:
-                warm_paths.append(path)
-    if warm_background and warm_paths:
-        schedule_list_card_warm(warm_paths)
+    for course in course_list:
+        list_card_thumbnail(course)
     return course_list
 
 
@@ -149,7 +112,7 @@ def list_card_video_data(course):
     for media in course.media.all():
         if media.media_type != CourseMedia.MEDIA_TYPE_VIDEO:
             continue
-        poster = list_card_thumbnail_url(course, generate=False)
+        poster = list_card_thumbnail_url(course)
         position_style = card_object_position_style(course)
         if media.video_file:
             try:
@@ -181,13 +144,7 @@ def serialize_list_card(course, *, locations=None, detail_query=''):
     detail_url = reverse('courses:course_detail', kwargs={'slug': course.slug})
     if detail_query:
         detail_url = f'{detail_url}?{detail_query}'
-    # Infinite-scroll cards are below the fold; prefer cache/original over encode.
-    thumb = list_card_thumbnail(course, generate=False)
-    path = _source_path_for_course(course)
-    if path and (not thumb.url or '/cache/list_cards/' not in thumb.url):
-        from courses.list_card_images import schedule_list_card_warm
-
-        schedule_list_card_warm([path])
+    thumb = list_card_thumbnail(course)
     return {
         'id': course.id,
         'title': course.title,

@@ -2,9 +2,9 @@
     {% comment %}
       eager_image marks above-the-fold cards. Lazy-loading the LCP image hides it
       from the preload scanner and defers its fetch until after layout, which was
-      pushing LCP past 4s on mobile. list_card_thumbnail serves a ~720px WebP
-      instead of the full upload (often up to 1920px). width/height must match the
-      file's intrinsic size (not a fixed 3:4) so the browser reserves the right space.
+      pushing LCP past 4s on mobile. Cards use the original upload. width/height
+      (when known) should match the file's intrinsic size so the browser reserves
+      the right space.
     {% endcomment %}
     {% with thumb=course.list_card_thumbnail %}
     {% if thumb.url %}

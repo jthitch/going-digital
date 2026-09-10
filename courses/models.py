@@ -846,19 +846,19 @@ class VenueMedia(models.Model):
 
     @property
     def card_image(self):
-        """Resized list-card image (URL + intrinsic size) when the file is available."""
+        """List-card image (URL + optional size) for venue cards."""
         cached = getattr(self, '_card_image', None)
         if cached is not None:
             return cached
         from courses.list_card_images import cached_image_for_field_file
 
-        image = cached_image_for_field_file(self.image, generate=False)
+        image = cached_image_for_field_file(self.image)
         self._card_image = image
         return image
 
     @property
     def card_image_url(self):
-        """Resized list-card URL when the file is available."""
+        """List-card image URL when the file is available."""
         return self.card_image.url
 
 
