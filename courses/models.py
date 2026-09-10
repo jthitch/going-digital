@@ -1208,7 +1208,7 @@ class Workshop(models.Model):
 
     @property
     def display_image_url(self):
-        """Student-facing image: workshop upload, then parent course images."""
+        """Student-facing image: workshop gallery, venue media, then course images."""
         from courses.display_images import primary_image_url
 
         return primary_image_url(workshop=self)
@@ -1410,7 +1410,7 @@ class Course(models.Model):
         """Alias for legacy related_name `instances` (CourseInstance); use workshops."""
         return self.workshops
 
-    # Not in gd_course; calculated from workshops when available
+    # Not in gd_course; derived from one dated workshop (prefer venue pages via the view).
     def _duration_workshop(self):
         return (
             self.workshops.filter(open_dated=0)

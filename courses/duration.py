@@ -83,3 +83,13 @@ def duration_iso8601(start, end, *, default_hours=DEFAULT_WORKSHOP_HOURS):
 
     hours = max(1, round((end - start).total_seconds() / 3600))
     return f'PT{hours}H'
+
+
+def first_dated_workshop(workshops):
+    """First non-open-dated workshop with a start time (for duration display)."""
+    for workshop in workshops or []:
+        if getattr(workshop, 'open_dated', False):
+            continue
+        if getattr(workshop, 'date', None):
+            return workshop
+    return None

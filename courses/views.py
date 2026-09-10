@@ -47,7 +47,13 @@ from website.seo import (
 from website.google_reviews import get_google_reviews_display
 from .serializers import WorkshopSerializer
 from .display_images import attach_gd_images_to_workshops, collect_header_images, primary_image_url
-from .duration import duration_iso8601
+from .duration import (
+    duration_hours_value,
+    duration_iso8601,
+    first_dated_workshop,
+    format_duration,
+    resolve_workshop_end,
+)
 from .list_card import serialize_list_card
 
 # Fallback when no admin image: optional legacy file in MEDIA_ROOT, then bundled static SVG.
@@ -729,8 +735,10 @@ class CourseListView(ListView):
                 'level_display': course.get_level_display(),
                 'category': course.get_card_category_display(),
                 'short_description': card_desc,
-                'duration_hours': course.duration_hours,
-                'duration_display': course.duration_display,
+                'duration_hours': duration_hours_value(
+                    instance.start_date, instance.end_date,
+                ) if instance.start_date else 0,
+                'duration_display': instance.duration_display,
                 'image_url': image_url,
                 'course_url': instance_url,
                 'location_name': v.name if v else 'TBC',
@@ -1478,7 +1486,10 @@ class CourseDetailView(DetailView):
         return Course.objects.prefetch_related(
             Prefetch('workshops', queryset=Workshop.objects.select_related(
                 'venue', 'course',
-            ).prefetch_related('gallery_images__image').filter(
+            ).prefetch_related(
+                'gallery_images__image',
+                'venue__media',
+            ).filter(
                 bookable_workshop_visibility_q(),
             ).order_by(*bookable_workshop_ordering())),
             'faqs',
@@ -1540,6 +1551,20 @@ class CourseDetailView(DetailView):
 
         # Check if this is a location-specific page (URL has location_slug, not venue.location which can be empty)
         context['is_location_specific'] = bool(getattr(course, '_filtered_location_slug', None) and instances_list)
+
+        # Duration varies by workshop; only show it on venue-specific pages.
+        duration_workshop = (
+            first_dated_workshop(instances_list)
+            if context['is_location_specific']
+            else None
+        )
+        if duration_workshop and duration_workshop.date:
+            end = resolve_workshop_end(duration_workshop)
+            context['duration_display'] = format_duration(duration_workshop.date, end)
+            context['duration_iso8601'] = duration_iso8601(duration_workshop.date, end)
+        else:
+            context['duration_display'] = ''
+            context['duration_iso8601'] = None
 
         filter_location_venues = []
         seen_filter_venue_ids = set()
@@ -1642,9 +1667,20 @@ class CourseDetailView(DetailView):
             "coursePrerequisites": course.prerequisites or None,
             "audience": {"@type": "Audience", "audienceType": course.audience}
         }
-        if course.duration_iso8601:
-            course_schema["timeRequired"] = course.duration_iso8601
-        
+        # Course-level pages list many venues/dates; only set timeRequired when
+        # this URL is for a specific location (duration comes from that venue's workshops).
+        if getattr(course, '_filtered_location_slug', None):
+            duration_workshop = first_dated_workshop(
+                getattr(course, '_filtered_instances', []),
+            )
+            if duration_workshop and duration_workshop.date:
+                workload = duration_iso8601(
+                    duration_workshop.date,
+                    resolve_workshop_end(duration_workshop),
+                )
+                if workload:
+                    course_schema["timeRequired"] = workload
+
         if course.image and course.image.url:
             course_schema["image"] = self.request.build_absolute_uri(course.image.url)
         

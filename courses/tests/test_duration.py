@@ -1,4 +1,5 @@
 from datetime import datetime
+from types import SimpleNamespace
 
 from django.test import SimpleTestCase
 
@@ -6,6 +7,7 @@ from courses.duration import (
     calendar_day_span,
     duration_hours_value,
     duration_iso8601,
+    first_dated_workshop,
     format_duration,
 )
 
@@ -40,3 +42,10 @@ class DurationHelpersTests(SimpleTestCase):
         start = datetime(2026, 6, 1, 10, 0)
         end = datetime(2026, 6, 1, 11, 0)
         self.assertEqual(format_duration(start, end), '1 hour')
+
+    def test_first_dated_workshop_skips_open_dated(self):
+        open_dated = SimpleNamespace(open_dated=1, date=datetime(2026, 6, 1, 10, 0))
+        dated = SimpleNamespace(open_dated=0, date=datetime(2026, 6, 2, 10, 0))
+        self.assertIs(first_dated_workshop([open_dated, dated]), dated)
+        self.assertIsNone(first_dated_workshop([open_dated]))
+        self.assertIsNone(first_dated_workshop([]))

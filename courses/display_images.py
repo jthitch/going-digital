@@ -44,6 +44,11 @@ def course_media_image_url(media_item):
     return ''
 
 
+def venue_media_image_url(media_item):
+    """URL for an uploaded VenueMedia image when the file exists."""
+    return course_media_image_url(media_item)
+
+
 def gd_image_for_id(image_id):
     if not image_id:
         return None
@@ -135,11 +140,24 @@ def workshop_gd_image(workshop):
     return images[0] if images else None
 
 
+def _venue_media_items(venue):
+    if not venue:
+        return []
+    media = getattr(venue, 'media', None)
+    if media is None:
+        return []
+    return list(media.all()) if hasattr(media, 'all') else list(media)
+
+
 def primary_image_url(*, workshop=None, course=None):
-    """First available image URL: workshop gallery, then course gd_image, then CourseMedia."""
+    """First available image URL: workshop gallery, venue media, then course images."""
     if workshop:
         for image in workshop_gallery_images(workshop):
             url = gd_image_public_url(image)
+            if url:
+                return url
+        for item in _venue_media_items(getattr(workshop, 'venue', None)):
+            url = venue_media_image_url(item)
             if url:
                 return url
         course = course or workshop.course
@@ -161,7 +179,10 @@ def primary_image_url(*, workshop=None, course=None):
 def collect_header_images(course, workshop=None):
     """
     Header / hero images for course detail.
-    Workshop gallery images are included first when viewing a specific workshop.
+
+    On a venue/workshop page: workshop gallery first, then venue images.
+    Course images are only included when the workshop has no gallery images
+    (or when there is no workshop context, i.e. the course-level page).
     """
     images = []
     seen = set()
@@ -172,13 +193,22 @@ def collect_header_images(course, workshop=None):
             seen.add(url)
             images.append({'url': url, 'alt': alt or title})
 
+    has_workshop_images = False
     if workshop:
         for image in workshop_gallery_images(workshop):
             url = gd_image_public_url(image)
             if url:
+                has_workshop_images = True
                 add(url, image.source_name or title)
 
-    if course:
+        venue = getattr(workshop, 'venue', None)
+        venue_name = (venue.name if venue else '') or title
+        for item in _venue_media_items(venue):
+            url = venue_media_image_url(item)
+            if url:
+                add(url, item.caption or venue_name)
+
+    if course and not has_workshop_images:
         if course.image:
             url = gd_image_public_url(course.image)
             if url:
