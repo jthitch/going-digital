@@ -124,6 +124,27 @@ class WorkshopTutorFilter(admin.SimpleListFilter):
         return queryset
 
 
+class WorkshopOpenDatedFilter(admin.SimpleListFilter):
+    """Filter workshops to open-dated vouchers or fixed calendar dates."""
+
+    title = 'Date type'
+    parameter_name = 'open_dated'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('1', 'Open dated'),
+            ('0', 'Fixed date'),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == '1':
+            return queryset.filter(open_dated=1)
+        if value == '0':
+            return queryset.filter(open_dated=0)
+        return queryset
+
+
 class ImageLiveOnSiteFilter(admin.SimpleListFilter):
     """Filter gd_image rows by whether they appear on the public site."""
 
@@ -919,12 +940,15 @@ class WorkshopAdmin(
     gd_changelist_show_date_range = True
     gd_changelist_date_field = 'date__date'
     gd_changelist_date_range_id_prefix = 'workshop'
+    gd_changelist_filters_expanded = True
     gd_changelist_date_range_hint = _(
         'Start date in range; open-dated workshops always included.'
     )
     filter_input_length = {
         'course__id__exact': 2,
     }
+    # Newest workshops first (ChangeList re-applies this; Meta.ordering is oldest-first).
+    ordering = ['-date', '-id']
     actions = [duplicate_workshop_action]
     inlines = [WorkshopDocumentInline]
     autocomplete_fields = ['course', 'venue']
@@ -943,6 +967,7 @@ class WorkshopAdmin(
     ]
     list_filter = [
         GdActiveFilter,
+        WorkshopOpenDatedFilter,
         WorkshopRegionFilter,
         WorkshopTutorFilter,
         ('course', admin.RelatedOnlyFieldListFilter),
@@ -1095,8 +1120,54 @@ class WorkshopAdmin(
                 self.admin_site.admin_view(self.students_csv_view),
                 name='courses_workshop_students_csv',
             ),
+            path(
+                'upload-image/',
+                self.admin_site.admin_view(self.upload_image_view),
+                name='courses_workshop_upload_image',
+            ),
         ]
         return custom_urls + urls
+
+    def upload_image_view(self, request):
+        """Upload a gd_image without saving the workshop form."""
+        if request.method != 'POST':
+            return JsonResponse({'ok': False, 'error': 'POST required.'}, status=405)
+        if not (
+            self.has_add_permission(request)
+            or self.has_change_permission(request)
+        ):
+            return JsonResponse({'ok': False, 'error': 'Permission denied.'}, status=403)
+
+        upload = request.FILES.get('image') or request.FILES.get('image_upload')
+        if not upload:
+            return JsonResponse({'ok': False, 'error': 'Choose a file first.'}, status=400)
+
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        from courses.forms import _workshop_image_option_label
+        from courses.gd_image_upload import create_gd_image_from_upload, validate_image_upload
+
+        try:
+            validate_image_upload(upload)
+            image = create_gd_image_from_upload(
+                upload,
+                user_id=getattr(request.user, 'pk', None),
+                source_name=upload.name or '',
+                description='Workshop image upload',
+            )
+        except DjangoValidationError as exc:
+            message = exc.messages[0] if getattr(exc, 'messages', None) else str(exc)
+            return JsonResponse({'ok': False, 'error': message}, status=400)
+        except Exception:
+            return JsonResponse({'ok': False, 'error': 'Upload failed.'}, status=500)
+
+        return JsonResponse({
+            'ok': True,
+            'id': image.pk,
+            'url': image.url or '',
+            'caption': image.source_name or image.file_name or f'Image #{image.pk}',
+            'option_html': str(_workshop_image_option_label(image)),
+        })
 
     def calendar_view(self, request):
         if not self.has_view_permission(request):
@@ -1160,6 +1231,8 @@ class WorkshopAdmin(
             'course', 'venue',
         ).prefetch_related('gallery_images__image', 'documents')
         if is_workshop_changelist_request(request):
+            # Re-apply after ModelAdmin.order_by so open-dated/undated stay first,
+            # then newest dates. ChangeList may order_by again using self.ordering.
             qs = order_workshop_changelist(qs)
             if not workshop_changelist_show_full_history(request):
                 qs = narrow_workshop_changelist(qs)

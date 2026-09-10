@@ -1125,7 +1125,10 @@ class WorkshopAdminForm(forms.ModelForm):
     image_upload = forms.ImageField(
         required=False,
         label='Upload image',
-        help_text=upload_help_text(),
+        help_text=(
+            f'{upload_help_text()} '
+            'Choose a file, then click Upload beside it to add the image without scrolling up to save.'
+        ),
     )
     add_document_to_booking_email = forms.BooleanField(
         required=False,
@@ -1258,6 +1261,9 @@ class WorkshopAdminForm(forms.ModelForm):
             self.fields.pop('add_document_to_booking_email', None)
         if 'image_upload' in self.fields:
             self.fields['image_upload'].widget.attrs.setdefault('accept', 'image/*')
+            self.fields['image_upload'].widget.attrs['data-upload-url'] = reverse(
+                'admin:courses_workshop_upload_image',
+            )
         self._order_image_fields()
 
     def _order_image_fields(self):

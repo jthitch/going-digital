@@ -109,6 +109,8 @@ class SearchFirstChangeListMixin:
     gd_changelist_date_field: str | None = None
     gd_changelist_date_range_hint = ''
     gd_changelist_date_range_id_prefix = 'gd'
+    # When True, the Filters panel starts expanded (workshop list needs this).
+    gd_changelist_filters_expanded = False
 
     def resolved_gd_changelist_extra_params(self):
         params = list(self.gd_changelist_extra_params or ())

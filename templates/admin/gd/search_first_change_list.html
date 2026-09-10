@@ -34,7 +34,7 @@
                             type="button"
                             data-bs-toggle="collapse"
                             data-bs-target="#gd-changelist-filters-panel"
-                            aria-expanded="{% if filters_active %}true{% else %}false{% endif %}"
+                            aria-expanded="{% if filters_active or cl.model_admin.gd_changelist_filters_expanded %}true{% else %}false{% endif %}"
                             aria-controls="gd-changelist-filters-panel"
                         >
                             <i class="fas fa-filter" aria-hidden="true"></i>
@@ -59,7 +59,7 @@
                 {% if cl.has_filters %}
                     {% block changelist_filters_panel %}
                     <div
-                        class="collapse gd-changelist-filters-panel{% if filters_active %} show{% endif %}"
+                        class="collapse gd-changelist-filters-panel{% if filters_active or cl.model_admin.gd_changelist_filters_expanded %} show{% endif %}"
                         id="gd-changelist-filters-panel"
                     >
                         <div class="gd-changelist-filters-card">

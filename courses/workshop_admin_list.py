@@ -58,6 +58,8 @@ def workshop_changelist_show_full_history(request) -> bool:
         return True
     if params.get('active') in ('0', '1'):
         return True
+    if params.get('open_dated') in ('0', '1'):
+        return True
     if params.get('course__id__exact'):
         return True
     if params.get('tutor_id'):

@@ -27,6 +27,10 @@ class WorkshopChangelistScopeTests(SimpleTestCase):
         request = MagicMock(GET={'course__id__exact': '12'})
         self.assertTrue(workshop_changelist_show_full_history(request))
 
+    def test_show_full_history_for_open_dated_filter(self):
+        request = MagicMock(GET={'open_dated': '1'})
+        self.assertTrue(workshop_changelist_show_full_history(request))
+
     def test_show_full_history_for_custom_date_range(self):
         request = MagicMock(GET={'date_from': '2024-01-01'})
         self.assertTrue(workshop_changelist_has_custom_date_range(request))
