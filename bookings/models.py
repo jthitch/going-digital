@@ -144,7 +144,19 @@ class Booking(models.Model):
         db_index=True,
         help_text='Secret token used in follow-up email star-rating links.',
     )
-    
+    legacy_gd_booking_id = models.IntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='gd_booking.id when this row bridges a legacy paid place for reminder/follow-up emails.',
+    )
+    legacy_attendee_id = models.IntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='gd_bookings_workshops_attendees.id when bridging a legacy attendee.',
+    )
+
     class Meta:
         db_table = 'bookings'
         ordering = ['-created_at']
@@ -173,9 +185,18 @@ class Booking(models.Model):
         super().save(*args, **kwargs)
     
     @property
+    def is_legacy_bridge(self):
+        """True when this row stands in for a legacy gd_booking / attendee."""
+        return self.legacy_gd_booking_id is not None or self.legacy_attendee_id is not None
+
+    @property
     def is_confirmed(self):
-        """Check if booking is confirmed."""
-        return self.status == 'confirmed' and self.payment and self.payment.status == 'succeeded'
+        """Check if booking is confirmed (Stripe-paid or legacy bridge)."""
+        if self.status != 'confirmed':
+            return False
+        if self.is_legacy_bridge:
+            return True
+        return bool(self.payment_id) and self.payment.status == 'succeeded'
     
     @property
     def can_cancel(self):

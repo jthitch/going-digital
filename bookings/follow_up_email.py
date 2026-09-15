@@ -3,6 +3,8 @@ Day-after workshop follow-up emails with star-rating links.
 
 Ops: run daily — `python manage.py send_workshop_follow_ups`
 (optional `--dry-run`, `--on-date YYYY-MM-DD`).
+
+Includes new-site Stripe bookings and paid legacy students (via bridge Booking rows).
 """
 from __future__ import annotations
 
@@ -15,6 +17,12 @@ from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
 
 from bookings.email_context import booking_follow_up_context, booking_follow_up_subject
+from bookings.legacy_workshop_emails import (
+    confirmed_paid_or_legacy_q,
+    ensure_legacy_bridge_bookings,
+    legacy_preview_recipients,
+    workshops_ending_on,
+)
 from bookings.models import Booking
 from core.mail import send_html_email
 
@@ -42,13 +50,13 @@ def ensure_follow_up_token(booking):
 
 def bookings_due_follow_up(*, on_date=None):
     """
-    Confirmed, paid bookings for fixed-date workshops that ended on the target date.
+    Confirmed, paid (or legacy bridge) bookings for fixed-date workshops
+    that ended on the target date.
     """
     target = follow_up_target_date(on_date=on_date)
     return (
         Booking.objects.filter(
-            status='confirmed',
-            payment__status='succeeded',
+            confirmed_paid_or_legacy_q(),
             follow_up_email_sent_at__isnull=True,
             workshop__open_dated=0,
             workshop__active=1,
@@ -121,6 +129,11 @@ def send_due_workshop_follow_ups(*, on_date=None, dry_run=False):
     Returns counts: sent, skipped, failed, and (when dry_run) recipients as
     (booking_reference, student_email) pairs for bookings that would be emailed.
     """
+    target = follow_up_target_date(on_date=on_date)
+    workshops = workshops_ending_on(target)
+    if not dry_run:
+        ensure_legacy_bridge_bookings(workshops)
+
     sent = skipped = failed = 0
     recipients = []
     for booking in bookings_due_follow_up(on_date=on_date).iterator(chunk_size=100):
@@ -140,10 +153,17 @@ def send_due_workshop_follow_ups(*, on_date=None, dry_run=False):
                 'Failed to send workshop follow-up for booking %s',
                 booking.booking_reference,
             )
+
+    if dry_run:
+        listed_emails = [email for _, email in recipients]
+        for pair in legacy_preview_recipients(workshops, already_listed_emails=listed_emails):
+            recipients.append(pair)
+            sent += 1
+
     return {
         'sent': sent,
         'skipped': skipped,
         'failed': failed,
-        'target_date': follow_up_target_date(on_date=on_date),
+        'target_date': target,
         'recipients': recipients,
     }

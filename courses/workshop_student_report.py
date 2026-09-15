@@ -54,6 +54,8 @@ class WorkshopStudentRow:
     booking_reference: str = ''
     status: str = ''
     created_at: Optional[datetime] = None
+    legacy_booking_id: Optional[int] = None
+    legacy_attendee_id: Optional[int] = None
 
 
 def _customer_field(customer, *attrs):
@@ -253,6 +255,8 @@ def load_legacy_workshop_student_rows(workshop_id):
                         status_label=booking_status,
                     ),
                     created_at=created_at,
+                    legacy_booking_id=int(booking_id) if booking_id else None,
+                    legacy_attendee_id=int(attendee_id) if attendee_id else None,
                 )
             )
 
@@ -294,6 +298,8 @@ def load_legacy_workshop_student_rows(workshop_id):
                     ),
                     status=_legacy_status(payment_complete, refund_amount),
                     created_at=created_at,
+                    legacy_booking_id=int(booking_id) if booking_id else None,
+                    legacy_attendee_id=None,
                 )
             )
     return rows

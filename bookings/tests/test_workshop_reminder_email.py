@@ -170,23 +170,30 @@ class WorkshopReminderSendTests(SimpleTestCase):
     def test_bookings_due_reminder_builds_expected_query(self, booking_model):
         tomorrow = timezone.localdate() + timedelta(days=1)
         qs = MagicMock()
-        booking_model.objects.filter.return_value.exclude.return_value.select_related.return_value.order_by.return_value = qs
+        (
+            booking_model.objects.filter.return_value.exclude.return_value
+            .select_related.return_value.order_by.return_value
+        ) = qs
         result = bookings_due_reminder()
-        booking_model.objects.filter.assert_called_once_with(
-            status='confirmed',
-            payment__status='succeeded',
-            reminder_email_sent_at__isnull=True,
-            workshop__open_dated=0,
-            workshop__active=1,
-            workshop__date__date=tomorrow,
-        )
+        self.assertTrue(booking_model.objects.filter.called)
+        args, kwargs = booking_model.objects.filter.call_args
+        self.assertTrue(kwargs['reminder_email_sent_at__isnull'])
+        self.assertEqual(kwargs['workshop__date__date'], tomorrow)
+        self.assertEqual(kwargs['workshop__open_dated'], 0)
+        self.assertEqual(kwargs['workshop__active'], 1)
+        self.assertEqual(len(args), 1)  # confirmed_paid_or_legacy_q()
         booking_model.objects.filter.return_value.exclude.return_value.select_related.return_value.order_by.assert_called_once_with('id')
         self.assertIs(result, qs)
         self.assertEqual(reminder_target_date(), tomorrow)
 
+    @patch('bookings.reminder_email.legacy_preview_recipients', return_value=[])
+    @patch('bookings.reminder_email.workshops_starting_on', return_value=[])
+    @patch('bookings.reminder_email.ensure_legacy_bridge_bookings', return_value=0)
     @patch('bookings.reminder_email.bookings_due_reminder')
     @patch('bookings.reminder_email.send_workshop_reminder_email', side_effect=[True, False])
-    def test_send_due_workshop_reminders_counts(self, _send_one, due_query):
+    def test_send_due_workshop_reminders_counts(
+        self, _send_one, due_query, _bridge, _workshops, _preview,
+    ):
         due_query.return_value.iterator.return_value = [_booking(1, 'A'), _booking(2, 'B')]
         counts = send_due_workshop_reminders(dry_run=True)
         self.assertEqual(counts['sent'], 1)

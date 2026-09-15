@@ -3,16 +3,24 @@ Day-before workshop reminder emails for confirmed bookings.
 
 Ops: run daily — `python manage.py send_workshop_reminders`
 (optional `--dry-run`, `--on-date YYYY-MM-DD`).
+
+Includes new-site Stripe bookings and paid legacy students (via bridge Booking rows).
 """
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
+from datetime import timedelta
 
 from django.db.models import Q
 from django.utils import timezone
 
 from bookings.email_context import booking_reminder_context, booking_reminder_subject
+from bookings.legacy_workshop_emails import (
+    confirmed_paid_or_legacy_q,
+    ensure_legacy_bridge_bookings,
+    legacy_preview_recipients,
+    workshops_starting_on,
+)
 from bookings.models import Booking
 from core.mail import send_html_email
 
@@ -26,13 +34,13 @@ def reminder_target_date(*, on_date=None):
 
 def bookings_due_reminder(*, on_date=None):
     """
-    Confirmed, paid bookings for fixed-date workshops starting on the reminder target date.
+    Confirmed, paid (or legacy bridge) bookings for fixed-date workshops
+    starting on the reminder target date.
     """
     target = reminder_target_date(on_date=on_date)
     return (
         Booking.objects.filter(
-            status='confirmed',
-            payment__status='succeeded',
+            confirmed_paid_or_legacy_q(),
             reminder_email_sent_at__isnull=True,
             workshop__open_dated=0,
             workshop__active=1,
@@ -96,6 +104,11 @@ def send_due_workshop_reminders(*, on_date=None, dry_run=False):
     Returns counts: sent, skipped, failed, and (when dry_run) recipients as
     (booking_reference, student_email) pairs for bookings that would be emailed.
     """
+    target = reminder_target_date(on_date=on_date)
+    workshops = workshops_starting_on(target)
+    if not dry_run:
+        ensure_legacy_bridge_bookings(workshops)
+
     sent = skipped = failed = 0
     recipients = []
     for booking in bookings_due_reminder(on_date=on_date).iterator(chunk_size=100):
@@ -115,10 +128,17 @@ def send_due_workshop_reminders(*, on_date=None, dry_run=False):
                 'Failed to send workshop reminder for booking %s',
                 booking.booking_reference,
             )
+
+    if dry_run:
+        listed_emails = [email for _, email in recipients]
+        for pair in legacy_preview_recipients(workshops, already_listed_emails=listed_emails):
+            recipients.append(pair)
+            sent += 1
+
     return {
         'sent': sent,
         'skipped': skipped,
         'failed': failed,
-        'target_date': reminder_target_date(on_date=on_date),
+        'target_date': target,
         'recipients': recipients,
     }

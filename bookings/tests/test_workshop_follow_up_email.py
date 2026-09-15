@@ -132,17 +132,26 @@ class WorkshopFollowUpSendTests(SimpleTestCase):
     @patch('bookings.follow_up_email.Booking')
     def test_due_queryset_filters(self, booking_model):
         qs = MagicMock()
-        booking_model.objects.filter.return_value.annotate.return_value.filter.return_value.exclude.return_value.select_related.return_value.order_by.return_value = qs
+        (
+            booking_model.objects.filter.return_value.annotate.return_value
+            .filter.return_value.exclude.return_value.select_related.return_value
+            .order_by.return_value
+        ) = qs
         result = bookings_due_follow_up(on_date=timezone.localdate())
         self.assertIs(result, qs)
         booking_model.objects.filter.assert_called_once()
-        kwargs = booking_model.objects.filter.call_args.kwargs
-        self.assertEqual(kwargs['status'], 'confirmed')
+        args, kwargs = booking_model.objects.filter.call_args
         self.assertTrue(kwargs['follow_up_email_sent_at__isnull'])
+        self.assertEqual(kwargs['workshop__open_dated'], 0)
+        self.assertEqual(kwargs['workshop__active'], 1)
+        self.assertEqual(len(args), 1)  # confirmed_paid_or_legacy_q()
 
+    @patch('bookings.follow_up_email.legacy_preview_recipients', return_value=[])
+    @patch('bookings.follow_up_email.workshops_ending_on', return_value=[])
+    @patch('bookings.follow_up_email.ensure_legacy_bridge_bookings', return_value=0)
     @patch('bookings.follow_up_email.bookings_due_follow_up')
     @patch('bookings.follow_up_email.send_workshop_follow_up_email', side_effect=[True, False])
-    def test_send_due_counts(self, _send, due):
+    def test_send_due_counts(self, _send, due, _bridge, _workshops, _preview):
         due.return_value.iterator.return_value = [MagicMock(), MagicMock()]
         counts = send_due_workshop_follow_ups()
         self.assertEqual(counts['sent'], 1)
@@ -150,9 +159,12 @@ class WorkshopFollowUpSendTests(SimpleTestCase):
         self.assertEqual(counts['failed'], 0)
         self.assertEqual(counts['recipients'], [])
 
+    @patch('bookings.follow_up_email.legacy_preview_recipients', return_value=[])
+    @patch('bookings.follow_up_email.workshops_ending_on', return_value=[])
+    @patch('bookings.follow_up_email.ensure_legacy_bridge_bookings', return_value=0)
     @patch('bookings.follow_up_email.bookings_due_follow_up')
     @patch('bookings.follow_up_email.send_workshop_follow_up_email', return_value=True)
-    def test_send_due_dry_run_lists_recipients(self, _send, due):
+    def test_send_due_dry_run_lists_recipients(self, _send, due, _bridge, _workshops, _preview):
         b1 = MagicMock(booking_reference='REF1', student_email='a@example.com')
         b2 = MagicMock(booking_reference='REF2', student_email='b@example.com')
         due.return_value.iterator.return_value = [b1, b2]

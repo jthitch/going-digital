@@ -235,7 +235,7 @@ Stripe integration includes:
 Run these daily (cron / Task Scheduler). Both commands are idempotent — bookings already emailed are skipped.
 
 ```bash
-# Day before: workshop starts tomorrow
+# Day before: workshop starts tomorrow (new-site + paid legacy students)
 python manage.py send_workshop_reminders
 python manage.py send_workshop_reminders --dry-run
 python manage.py send_workshop_reminders --on-date 2026-08-20
@@ -245,6 +245,8 @@ python manage.py send_workshop_follow_ups
 python manage.py send_workshop_follow_ups --dry-run   # prints booking ref → email for each recipient
 python manage.py send_workshop_follow_ups --on-date 2026-08-20
 ```
+
+Paid legacy places (`gd_bookings_workshops` / attendees) are included by creating lightweight bridge rows in `bookings` (with `legacy_gd_booking_id` / `legacy_attendee_id`) so the same templates and follow-up star links work. `--dry-run` lists them without creating bridges or sending.
 
 `--dry-run` lists each booking reference and student email that would be emailed, without sending.
 Editable copy lives in Django admin → **Website** → Workshop reminder email / Workshop follow-up email. Follow-up star links (1–5) record a rating; 5★ redirects to Google reviews, 1–4★ open a feedback form. Feedback is listed under **Bookings** → Workshop feedback (franchisees see only workshops they created/own). On staging with the dev passcode gate, `/bookings/follow-up/` is exempt so students can open star links without logging in.
