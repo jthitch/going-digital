@@ -137,7 +137,7 @@ def _draw_centered_block(draw, lines, center_x, y, font, color, line_gap=None):
 
 
 def _load_logo():
-    for name in ('logo-dark.png', 'logo.png'):
+    for name in ('logo.png', 'logo-dark-mode.png'):
         path = Path(settings.BASE_DIR) / 'static' / 'img' / 'logo' / name
         if path.exists():
             with path.open('rb') as logo_file:

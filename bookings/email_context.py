@@ -24,10 +24,12 @@ from .social_media import facebook_groups_context_for_bookings, facebook_share_i
 
 
 def _logo_url(site_url):
+    # Email header is dark (#1a1a1a); use the light-on-dark mark (same as site dark mode).
     static_url = settings.STATIC_URL.rstrip('/')
+    logo_path = f'{static_url}/img/logo/logo-dark-mode.png'
     if static_url.startswith('http://') or static_url.startswith('https://'):
-        return f'{static_url}/img/logo/logo-dark.png'
-    return absolute_url_from_base(site_url, f'{static_url}/img/logo/logo-dark.png')
+        return logo_path
+    return absolute_url_from_base(site_url, logo_path)
 
 
 def _booking_item_context(booking, *, site_url):

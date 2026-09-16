@@ -6,7 +6,7 @@ from django.urls import reverse
 
 
 ORGANIZATION_NAME = 'Going Digital'
-DEFAULT_OG_IMAGE_STATIC = 'img/logo/logo-dark.png'
+DEFAULT_OG_IMAGE_STATIC = 'img/logo/logo.png'
 
 # Shared homepage FAQ copy (visible HTML + JSON-LD must match for AEO).
 HOMEPAGE_FAQ_ITEMS = (
