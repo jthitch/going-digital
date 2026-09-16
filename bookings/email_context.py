@@ -24,9 +24,9 @@ from .social_media import facebook_groups_context_for_bookings, facebook_share_i
 
 
 def _logo_url(site_url):
-    # Email header is dark (#1a1a1a); use the light-on-dark mark (same as site dark mode).
+    # Light-mode mark (dark logo) for email headers / clients.
     static_url = settings.STATIC_URL.rstrip('/')
-    logo_path = f'{static_url}/img/logo/logo-dark-mode.png'
+    logo_path = f'{static_url}/img/logo/logo.png'
     if static_url.startswith('http://') or static_url.startswith('https://'):
         return logo_path
     return absolute_url_from_base(site_url, logo_path)
