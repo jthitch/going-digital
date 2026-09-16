@@ -1206,6 +1206,25 @@ class Workshop(models.Model):
             return self.byline_plain
         return ' '.join(words[:80]) + '…'
 
+    def landing_card_description(self, *, max_words=36):
+        """
+        Short plain-text summary for location-landing / venue-style workshop cards.
+        Prefer workshop blurb, then byline, then course list description.
+        """
+        for raw in (
+            (self.blurb or '').strip(),
+            self.byline_plain,
+            (self.course.get_card_short_description() if self.course_id else '') or '',
+        ):
+            text = (raw or '').strip()
+            if not text:
+                continue
+            words = text.split()
+            if len(words) <= max_words:
+                return text
+            return ' '.join(words[:max_words]) + '…'
+        return ''
+
     @property
     def display_image_url(self):
         """Student-facing image: workshop gallery, venue media, then course images."""

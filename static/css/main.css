@@ -2380,6 +2380,13 @@ footer,
     color: var(--primary-color);
 }
 
+.venue-instance-item .instance-short-desc {
+    margin: 0 0 0.75rem;
+    font-size: 0.9375rem;
+    line-height: 1.45;
+    color: var(--text-secondary, #555);
+}
+
 .instance-meta, .instance-price {
     display: block;
     font-size: 0.9rem;

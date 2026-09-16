@@ -86,6 +86,11 @@
                     </span>
                     <span class="instance-price">£{{ instance.price }}</span>
                 </a>
+                {% with short_desc=instance.landing_card_description %}
+                {% if short_desc %}
+                <p class="instance-short-desc">{{ short_desc }}</p>
+                {% endif %}
+                {% endwith %}
                 <div class="instance-actions">
                     {% if instance.is_full %}
                         <span class="status-badge full">Fully booked</span>
