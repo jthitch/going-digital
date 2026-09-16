@@ -119,7 +119,7 @@ class DiscountCodeAdmin(admin.ModelAdmin):
 
     def get_form(self, request, obj=None, **kwargs):
         form_class = super().get_form(request, obj, **kwargs)
-        workshop_qs = workshops_queryset_for_discount_admin(request.user)
+        workshop_qs = workshops_queryset_for_discount_admin(request.user, discount_code=obj)
 
         class ScopedDiscountCodeForm(form_class):
             def __init__(self, *args, **form_kwargs):

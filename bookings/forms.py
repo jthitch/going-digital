@@ -248,7 +248,11 @@ class DiscountCodeAdminForm(forms.ModelForm):
         queryset=DiscountCode._meta.get_field('workshops').related_model.objects.none(),
         required=True,
         widget=FilteredSelectMultiple('workshops', is_stacked=False),
-        help_text='Select the workshops this code can be used on.',
+        help_text=(
+            'Select upcoming workshops this code can be used on '
+            '(open-dated workshops are included). '
+            'New workshop dates created later must be added here to be eligible.'
+        ),
     )
 
     class Meta:

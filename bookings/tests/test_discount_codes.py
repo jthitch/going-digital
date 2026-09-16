@@ -8,6 +8,7 @@ from django.test import SimpleTestCase
 from bookings.discount_codes import (
     calculate_discount_amount,
     validate_discount_code_for_basket,
+    workshops_queryset_for_discount_admin,
 )
 from bookings.forms import DiscountCodeAdminForm
 from bookings.models import DiscountCode
@@ -94,3 +95,47 @@ class DiscountCodeAdminFormTests(SimpleTestCase):
         form._errors = ErrorDict()
         form.clean()
         self.assertIn('amount', form.errors)
+
+
+class DiscountCodeWorkshopPickerTests(SimpleTestCase):
+    @patch('bookings.discount_codes.filter_workshops_for_user', side_effect=lambda qs, user: qs)
+    @patch('bookings.discount_codes.timezone')
+    @patch('courses.models.Workshop')
+    def test_admin_queryset_limits_to_upcoming_and_open_dated(
+        self, workshop_model, mock_timezone, _scope,
+    ):
+        from datetime import datetime
+
+        now = datetime(2026, 9, 16, 12, 0, 0)
+        mock_timezone.now.return_value = now
+        base = MagicMock()
+        workshop_model.objects.select_related.return_value.filter.return_value = base
+        base.filter.return_value.order_by.return_value = 'qs'
+
+        result = workshops_queryset_for_discount_admin(user=MagicMock())
+        self.assertEqual(result, 'qs')
+        workshop_model.objects.select_related.assert_called_once_with('course', 'venue')
+        workshop_model.objects.select_related.return_value.filter.assert_called_once_with(active=1)
+        # Second filter should be the upcoming/open-dated Q
+        self.assertTrue(base.filter.called)
+        args, _kwargs = base.filter.call_args
+        self.assertEqual(len(args), 1)
+
+    @patch('bookings.discount_codes.filter_workshops_for_user', side_effect=lambda qs, user: qs)
+    @patch('bookings.discount_codes.timezone')
+    @patch('courses.models.Workshop')
+    def test_admin_queryset_keeps_already_linked_past_workshops(
+        self, workshop_model, mock_timezone, _scope,
+    ):
+        from datetime import datetime
+
+        mock_timezone.now.return_value = datetime(2026, 9, 16, 12, 0, 0)
+        base = MagicMock()
+        workshop_model.objects.select_related.return_value.filter.return_value = base
+        base.filter.return_value.order_by.return_value = 'qs'
+        code = SimpleNamespace(pk=5, workshops=MagicMock())
+        code.workshops.values_list.return_value = [101, 102]
+
+        workshops_queryset_for_discount_admin(user=MagicMock(), discount_code=code)
+        code.workshops.values_list.assert_called_once_with('pk', flat=True)
+        self.assertTrue(base.filter.called)

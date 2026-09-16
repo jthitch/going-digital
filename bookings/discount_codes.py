@@ -27,10 +27,27 @@ def filter_discount_codes_for_user(queryset, user):
     return queryset.filter(created_by=user)
 
 
-def workshops_queryset_for_discount_admin(user):
+def workshops_queryset_for_discount_admin(user, discount_code=None):
+    """
+    Workshops selectable on the discount-code admin form.
+
+    Only upcoming / open-dated workshops are listed so the M2M picker stays
+    within Django's POST field limits. When editing, workshops already linked
+    to the code remain available even if their date has passed.
+    """
+    from django.db.models import Q
+
     from courses.models import Workshop
 
-    qs = Workshop.objects.select_related('course', 'venue').order_by('-date', 'id')
+    now = timezone.now()
+    qs = Workshop.objects.select_related('course', 'venue').filter(active=1)
+    upcoming = Q(open_dated=1) | Q(date__gte=now)
+    if discount_code is not None and getattr(discount_code, 'pk', None):
+        linked_ids = discount_code.workshops.values_list('pk', flat=True)
+        qs = qs.filter(upcoming | Q(pk__in=linked_ids))
+    else:
+        qs = qs.filter(upcoming)
+    qs = qs.order_by('-date', 'id')
     return filter_workshops_for_user(qs, user)
 
 
