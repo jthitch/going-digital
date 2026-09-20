@@ -58,6 +58,7 @@ def render_workshop_bookings_table(workshop, request):
         )
 
     students_csv_url = ''
+    move_students_url = ''
     if request and workshop and workshop.pk:
         if user_has_full_region_access(request.user) or user_can_access_workshop(
             request.user, workshop
@@ -66,6 +67,14 @@ def render_workshop_bookings_table(workshop, request):
                 'admin:courses_workshop_students_csv',
                 args=[workshop.pk],
             )
+            if request.user.has_perm('courses.change_workshop'):
+                from bookings.workshop_student_move import movable_bookings_queryset
+
+                if movable_bookings_queryset(workshop).exists():
+                    move_students_url = reverse(
+                        'admin:courses_workshop_move_students',
+                        args=[workshop.pk],
+                    )
 
     return render_to_string(
         'admin/courses/workshop/workshop_bookings_table.html',
@@ -75,6 +84,7 @@ def render_workshop_bookings_table(workshop, request):
             'can_view_booking': can_view,
             'bookings_changelist_url': changelist_url,
             'students_csv_url': students_csv_url,
+            'move_students_url': move_students_url,
         },
         request=request,
     )

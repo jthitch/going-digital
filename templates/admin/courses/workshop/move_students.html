@@ -1,0 +1,105 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{% trans 'Move students' %} | {{ block.super }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{{ changelist_url }}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; <a href="{{ workshop_url }}">{{ workshop }}</a>
+    &rsaquo; {% trans 'Move students' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="gd-move-students">
+    <h1>{% trans 'Move students' %}</h1>
+    <p class="help">
+        {% blocktrans with name=workshop %}
+        Move confirmed students from <strong>{{ name }}</strong> to another future workshop
+        (any course). Each selected student can be emailed a standard booking confirmation
+        for the new workshop.
+        {% endblocktrans %}
+    </p>
+
+    {% if not has_movable_bookings %}
+    <p class="text-muted">{% trans 'There are no confirmed students on this workshop to move.' %}</p>
+    <p>
+        <a href="{{ workshop_url }}" class="btn btn-outline-secondary">{% trans 'Back to workshop' %}</a>
+    </p>
+    {% elif not has_destinations %}
+    <p class="text-muted">
+        {% trans 'No other active future workshops are available as a destination.' %}
+    </p>
+    <p>
+        <a href="{{ workshop_url }}" class="btn btn-outline-secondary">{% trans 'Back to workshop' %}</a>
+    </p>
+    {% else %}
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <fieldset class="module aligned mb-3">
+            <h2>{% trans 'Destination' %}</h2>
+            <div class="form-row">
+                {{ form.destination.errors }}
+                <label for="{{ form.destination.id_for_label }}">{{ form.destination.label }}</label>
+                {{ form.destination }}
+                {% if form.destination.help_text %}
+                <div class="help">{{ form.destination.help_text }}</div>
+                {% endif %}
+            </div>
+        </fieldset>
+
+        <fieldset class="module aligned mb-3">
+            <h2>{% trans 'Students' %}</h2>
+            <div class="form-row">
+                {{ form.bookings.errors }}
+                <div class="mb-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="gd-move-select-all">
+                        {% trans 'Select all' %}
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="gd-move-select-none">
+                        {% trans 'Select none' %}
+                    </button>
+                </div>
+                {{ form.bookings }}
+            </div>
+        </fieldset>
+
+        <fieldset class="module aligned mb-3">
+            <h2>{% trans 'Email' %}</h2>
+            <div class="form-row checkbox-row">
+                {{ form.send_confirmation_email.errors }}
+                <label for="{{ form.send_confirmation_email.id_for_label }}">
+                    {{ form.send_confirmation_email }}
+                    {{ form.send_confirmation_email.label }}
+                </label>
+            </div>
+        </fieldset>
+
+        <div class="submit-row">
+            <input type="submit" value="{% trans 'Move selected students' %}" class="default btn btn-primary">
+            <a href="{{ workshop_url }}" class="btn btn-outline-secondary">{% trans 'Cancel' %}</a>
+        </div>
+    </form>
+    <script>
+    (function () {
+        function setAll(checked) {
+            document.querySelectorAll('input[name="bookings"]').forEach(function (el) {
+                el.checked = checked;
+            });
+        }
+        var allBtn = document.getElementById('gd-move-select-all');
+        var noneBtn = document.getElementById('gd-move-select-none');
+        if (allBtn) allBtn.addEventListener('click', function () { setAll(true); });
+        if (noneBtn) noneBtn.addEventListener('click', function () { setAll(false); });
+    })();
+    </script>
+    {% endif %}
+</div>
+{% endblock %}

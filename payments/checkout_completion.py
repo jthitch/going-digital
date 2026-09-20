@@ -1,7 +1,7 @@
 """Shared logic to mark a Stripe Checkout Session as paid in Django."""
 from django.db import transaction
 from django.db.models import F
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, Greatest
 from django.utils import timezone
 
 from bookings.models import Booking
@@ -146,15 +146,32 @@ def _sync_legacy_report_for_booking(booking_id):
         )
 
 
-def _increment_workshop_places_booked(workshop_id, places=1):
-    """Increment gd_workshop.places_booked (NULL is treated as 0)."""
-    if not workshop_id or places < 1:
+def _adjust_workshop_places_booked(workshop_id, places):
+    """
+    Adjust gd_workshop.places_booked by ``places`` (positive or negative).
+
+    NULL is treated as 0. The counter is never reduced below 0.
+    """
+    if not workshop_id or not places:
         return
     from courses.models import Workshop
 
+    delta = int(places)
+    if delta > 0:
+        Workshop.objects.filter(pk=workshop_id).update(
+            places_booked=Coalesce(F('places_booked'), 0) + delta,
+        )
+        return
     Workshop.objects.filter(pk=workshop_id).update(
-        places_booked=Coalesce(F('places_booked'), 0) + places,
+        places_booked=Greatest(Coalesce(F('places_booked'), 0) + delta, 0),
     )
+
+
+def _increment_workshop_places_booked(workshop_id, places=1):
+    """Increment gd_workshop.places_booked (NULL is treated as 0)."""
+    if places < 1:
+        return
+    _adjust_workshop_places_booked(workshop_id, places)
 
 
 def _complete_workshop_basket(metadata, payment):

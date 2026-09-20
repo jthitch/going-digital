@@ -1121,12 +1121,95 @@ class WorkshopAdmin(
                 name='courses_workshop_students_csv',
             ),
             path(
+                '<path:object_id>/move-students/',
+                self.admin_site.admin_view(self.move_students_view),
+                name='courses_workshop_move_students',
+            ),
+            path(
                 'upload-image/',
                 self.admin_site.admin_view(self.upload_image_view),
                 name='courses_workshop_upload_image',
             ),
         ]
         return custom_urls + urls
+
+    def move_students_view(self, request, object_id):
+        workshop = get_object_or_404(self.get_queryset(request), pk=object_id)
+        if not self.has_change_permission(request, workshop):
+            return HttpResponseForbidden('You do not have permission to move students on this workshop.')
+        if not (
+            user_has_full_region_access(request.user)
+            or user_can_access_workshop(request.user, workshop)
+        ):
+            return HttpResponseForbidden('You do not have permission to move students on this workshop.')
+
+        from bookings.workshop_student_move import (
+            MoveWorkshopStudentsForm,
+            WorkshopStudentMoveError,
+            destination_workshops_queryset,
+            movable_bookings_queryset,
+            move_workshop_students,
+        )
+
+        movable = movable_bookings_queryset(workshop)
+        destinations = destination_workshops_queryset(workshop, request.user)
+        workshop_url = reverse('admin:courses_workshop_change', args=[workshop.pk])
+
+        if request.method == 'POST':
+            form = MoveWorkshopStudentsForm(
+                request.POST,
+                source=workshop,
+                user=request.user,
+            )
+            if form.is_valid():
+                try:
+                    moved = move_workshop_students(
+                        source=workshop,
+                        destination=form.cleaned_data['destination'],
+                        booking_ids=[b.pk for b in form.cleaned_data['bookings']],
+                        user=request.user,
+                        send_confirmation_email=bool(
+                            form.cleaned_data.get('send_confirmation_email')
+                        ),
+                    )
+                except WorkshopStudentMoveError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    dest = form.cleaned_data['destination']
+                    messages.success(
+                        request,
+                        f'Moved {len(moved)} student(s) to {dest}.',
+                    )
+                    return HttpResponseRedirect(
+                        reverse('admin:courses_workshop_change', args=[dest.pk])
+                    )
+        else:
+            form = MoveWorkshopStudentsForm(
+                source=workshop,
+                user=request.user,
+                initial={
+                    'bookings': list(movable.values_list('pk', flat=True)),
+                },
+            )
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Move students',
+            'opts': self.model._meta,
+            'workshop': workshop,
+            'workshop_url': workshop_url,
+            'changelist_url': reverse('admin:courses_workshop_changelist'),
+            'form': form,
+            'has_movable_bookings': movable.exists(),
+            'has_destinations': destinations.exists(),
+            'has_view_permission': self.has_view_permission(request, workshop),
+            'has_change_permission': self.has_change_permission(request, workshop),
+        }
+        return TemplateResponse(
+            request,
+            'admin/courses/workshop/move_students.html',
+            context,
+        )
 
     def upload_image_view(self, request):
         """Upload a gd_image without saving the workshop form."""
@@ -1220,6 +1303,14 @@ class WorkshopAdmin(
                 'admin:courses_workshop_students_csv',
                 args=[obj.pk],
             )
+            if self.has_change_permission(request, obj):
+                from bookings.workshop_student_move import movable_bookings_queryset
+
+                if movable_bookings_queryset(obj).exists():
+                    extra_context['move_students_url'] = reverse(
+                        'admin:courses_workshop_move_students',
+                        args=[obj.pk],
+                    )
         self._current_request = request
         return super().change_view(request, object_id, form_url, extra_context)
 
