@@ -30,6 +30,8 @@ from .workshop_querysets import (
     bookable_workshop_ordering,
     bookable_workshop_visibility_q,
     bookable_workshops_queryset,
+    instances_for_workshop_param,
+    matching_workshop,
     workshop_is_open_dated,
 )
 from website.models import GiftVoucherPageImage, HeroImage, BeforeAfterImage, FAQ
@@ -1534,6 +1536,19 @@ class CourseDetailView(DetailView):
             course._current_location_filter = normalize_city_param(location_raw)
 
         return course
+
+    def get(self, request, *args, **kwargs):
+        """Venue course pages require ?workshop= so details never mix variants."""
+        self.object = self.get_object()
+        location_slug = self.kwargs.get('location_slug') or ''
+        if location_slug:
+            instances = list(getattr(self.object, '_filtered_instances', []) or [])
+            if instances and matching_workshop(instances, request.GET.get('workshop')) is None:
+                params = request.GET.copy()
+                params['workshop'] = str(instances[0].pk)
+                return redirect(f'{request.path}?{params.urlencode()}')
+        context = self.get_context_data(object=self.object)
+        return self.render_to_response(context)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1547,17 +1562,24 @@ class CourseDetailView(DetailView):
 
         all_instances = getattr(course, '_all_instances', instances_list)
 
-        context['featured_instance'] = instances_list[0] if instances_list else None
+        instances_list, featured = instances_for_workshop_param(
+            instances_list,
+            self.request.GET.get('workshop'),
+        )
+        context['featured_instance'] = featured
+        context['instances_list'] = instances_list
 
         # Check if this is a location-specific page (URL has location_slug, not venue.location which can be empty)
         context['is_location_specific'] = bool(getattr(course, '_filtered_location_slug', None) and instances_list)
 
-        # Duration varies by workshop; only show it on venue-specific pages.
-        duration_workshop = (
-            first_dated_workshop(instances_list)
-            if context['is_location_specific']
-            else None
-        )
+        # Duration for the featured (selected) workshop when on a venue-specific page.
+        duration_workshop = None
+        if context['is_location_specific'] and context['featured_instance']:
+            featured = context['featured_instance']
+            if not workshop_is_open_dated(featured) and featured.date:
+                duration_workshop = featured
+            else:
+                duration_workshop = first_dated_workshop(instances_list)
         if duration_workshop and duration_workshop.date:
             end = resolve_workshop_end(duration_workshop)
             context['duration_display'] = format_duration(duration_workshop.date, end)

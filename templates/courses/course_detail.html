@@ -158,27 +158,14 @@
                 </div>
             </div>
             <div class="course-tab-panel is-active" role="tabpanel" id="course-panel-workshop" aria-labelledby="course-tab-workshop" data-course-panel="workshop">
-                <div class="course-main-content">
-                    {% with v=featured_instance.location %}
-                    {% if v.venue_address or v.location %}
-                    <div class="workshop-venue-details">
-                        <h3 class="workshop-venue-details__title">{{ v.name }}</h3>
-                        <address class="workshop-venue-details__address">
-                            {% if v.venue_address %}{{ v.venue_address|linebreaksbr }}{% endif %}
-                            {% if v.location %}
-                            {% if v.venue_address %}<br>{% endif %}
-                            <span class="workshop-venue-details__city">{{ v.location }}</span>
-                            {% endif %}
-                        </address>
-                    </div>
-                    {% endif %}
-                    {% if featured_instance.byline_display_html %}
-                        {{ featured_instance.byline_display_html|safe }}
-                    {% elif not v or not v.venue_address and not v.location %}
-                        <p class="course-tab-empty">Workshop details are not available yet.</p>
-                    {% endif %}
-                    {% endwith %}
+                <div class="course-main-content" id="workshop-details-content" data-active-workshop="{{ featured_instance.pk }}">
+                    {% include "courses/includes/workshop_details_panel.html" with workshop=featured_instance %}
                 </div>
+                {% for instance in instances_list %}
+                <template data-workshop-details-src="{{ instance.pk }}">
+                    {% include "courses/includes/workshop_details_panel.html" with workshop=instance %}
+                </template>
+                {% endfor %}
             </div>
         </div>
     </section>
@@ -349,7 +336,8 @@
             <div class="city-group" data-city-group>
                 <ul class="instance-list">
                     {% for instance in instances %}
-                    <li class="instance-item{% if instance.byline_plain %} instance-item--has-byline{% endif %}{% if instance.is_open_dated %} instance-item--open-dated{% endif %}"
+                    <li class="instance-item{% if instance.byline_plain %} instance-item--has-byline{% endif %}{% if instance.is_open_dated %} instance-item--open-dated{% endif %}{% if featured_instance and instance.pk == featured_instance.pk %} is-selected{% endif %}"
+                        data-workshop-id="{{ instance.pk }}"
                         data-venue-id="{% if instance.venue_id %}{{ instance.venue_id }}{% endif %}"
                         data-instance-date="{{ instance.filter_date }}"
                         {% if instance.is_open_dated %}data-open-dated="1"{% endif %}>
@@ -690,6 +678,47 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             });
         });
+    }
+
+    function showWorkshopDetails(workshopId) {
+        var id = String(workshopId);
+        var content = document.getElementById('workshop-details-content');
+        var tpl = document.querySelector('template[data-workshop-details-src="' + id + '"]');
+        if (content && tpl) {
+            content.innerHTML = tpl.innerHTML;
+            content.setAttribute('data-active-workshop', id);
+        }
+        document.querySelectorAll('.instance-item[data-workshop-id]').forEach(function (el) {
+            el.classList.toggle('is-selected', el.getAttribute('data-workshop-id') === id);
+        });
+        try {
+            var url = new URL(window.location.href);
+            url.searchParams.set('workshop', id);
+            history.replaceState(null, '', url.pathname + url.search + url.hash);
+        } catch (err) {
+            /* ignore */
+        }
+    }
+
+    document.querySelectorAll('.instance-item .instance-card-link').forEach(function (link) {
+        link.addEventListener('click', function (event) {
+            var item = link.closest('.instance-item');
+            var id = item && item.getAttribute('data-workshop-id');
+            if (!id || !document.querySelector('template[data-workshop-details-src="' + id + '"]')) {
+                return;
+            }
+            event.preventDefault();
+            showWorkshopDetails(id);
+            var workshopTab = document.querySelector('[data-course-tab="workshop"]');
+            if (workshopTab && workshopTab.getAttribute('aria-selected') !== 'true') {
+                workshopTab.click();
+            }
+        });
+    });
+
+    var selected = document.querySelector('.instance-item.is-selected');
+    if (selected) {
+        selected.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 });
 </script>

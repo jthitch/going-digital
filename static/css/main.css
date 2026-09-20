@@ -1236,6 +1236,11 @@ address.instance-address-inline {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
+.instance-item.is-selected {
+    border-color: var(--primary-color, #0066cc);
+    box-shadow: 0 0 0 0.12rem rgba(0, 102, 204, 0.2);
+}
+
 .instance-card-link {
     position: absolute;
     inset: 0;

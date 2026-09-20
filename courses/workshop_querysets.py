@@ -50,3 +50,52 @@ def apply_workshop_list_date_range(queryset, dt_from=None, dt_to=None):
 def bookable_workshop_ordering():
     """Open-dated first, then earliest scheduled date."""
     return ('-open_dated', 'date')
+
+
+def matching_workshop(instances, workshop_id=None):
+    """
+    Return the listed workshop whose pk matches ``workshop_id``, or None.
+
+    Used to detect a valid deep-link before featuring / narrowing the list.
+    """
+    if workshop_id is None or workshop_id == '':
+        return None
+    try:
+        workshop_id = int(workshop_id)
+    except (TypeError, ValueError):
+        return None
+    for inst in instances or []:
+        if inst.pk == workshop_id:
+            return inst
+    return None
+
+
+def resolve_featured_workshop(instances, workshop_id=None):
+    """
+    Pick the workshop to feature on a course detail page.
+
+    When ``workshop_id`` is present and matches a listed instance, use that
+    (deep-link from venue/date cards). Otherwise use the first listed instance.
+    """
+    instances = list(instances or [])
+    if not instances:
+        return None
+    matched = matching_workshop(instances, workshop_id)
+    if matched is not None:
+        return matched
+    return instances[0]
+
+
+def instances_for_workshop_param(instances, workshop_id=None):
+    """
+    When ``workshop_id`` matches a listed workshop, return only that workshop
+    (deep-linked venue/date cards). Otherwise return the full list.
+    """
+    instances = list(instances or [])
+    if not instances:
+        return [], None
+    matched = matching_workshop(instances, workshop_id)
+    if matched is not None:
+        return [matched], matched
+    featured = resolve_featured_workshop(instances, workshop_id)
+    return instances, featured

@@ -1239,14 +1239,20 @@ class Workshop(models.Model):
         return workshop_gallery_images(self)
 
     def get_absolute_url(self):
-        """URL for workshop - course detail with venue slug if available."""
+        """URL for workshop — course detail at venue, deep-linked to this date."""
+        from urllib.parse import urlencode
+
         if self.course and self.course.slug:
             if self.venue and self.venue.slug:
-                return reverse('courses:course_detail_by_location', kwargs={
+                path = reverse('courses:course_detail_by_location', kwargs={
                     'slug': self.course.slug,
                     'location_slug': self.venue.slug,
                 })
-            return reverse('courses:course_detail', kwargs={'slug': self.course.slug})
+            else:
+                path = reverse('courses:course_detail', kwargs={'slug': self.course.slug})
+            if self.pk:
+                return f'{path}?{urlencode({"workshop": self.pk})}'
+            return path
         return reverse('courses:course_list')
 
 

@@ -1,0 +1,19 @@
+{% with v=workshop.location %}
+{% if v.venue_address or v.location %}
+<div class="workshop-venue-details">
+    <h3 class="workshop-venue-details__title">{{ v.name }}</h3>
+    <address class="workshop-venue-details__address">
+        {% if v.venue_address %}{{ v.venue_address|linebreaksbr }}{% endif %}
+        {% if v.location %}
+        {% if v.venue_address %}<br>{% endif %}
+        <span class="workshop-venue-details__city">{{ v.location }}</span>
+        {% endif %}
+    </address>
+</div>
+{% endif %}
+{% if workshop.byline_display_html %}
+    {{ workshop.byline_display_html|safe }}
+{% elif not v or not v.venue_address and not v.location %}
+    <p class="course-tab-empty">Workshop details are not available yet.</p>
+{% endif %}
+{% endwith %}
