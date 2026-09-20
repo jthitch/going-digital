@@ -58,7 +58,7 @@
         <fieldset class="module aligned mb-3">
             <h2>{% trans 'Students' %}</h2>
             <div class="form-row">
-                {{ form.bookings.errors }}
+                {{ form.students.errors }}
                 <div class="mb-2">
                     <button type="button" class="btn btn-sm btn-outline-secondary" id="gd-move-select-all">
                         {% trans 'Select all' %}
@@ -67,7 +67,7 @@
                         {% trans 'Select none' %}
                     </button>
                 </div>
-                {{ form.bookings }}
+                {{ form.students }}
             </div>
         </fieldset>
 
@@ -90,7 +90,7 @@
     <script>
     (function () {
         function setAll(checked) {
-            document.querySelectorAll('input[name="bookings"]').forEach(function (el) {
+            document.querySelectorAll('input[name="students"]').forEach(function (el) {
                 el.checked = checked;
             });
         }

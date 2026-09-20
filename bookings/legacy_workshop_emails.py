@@ -73,6 +73,103 @@ def _existing_bridge(workshop_id, row):
     return None
 
 
+def find_legacy_bridge_any_workshop(row):
+    """Return an existing bridge Booking for this legacy student on any workshop."""
+    qs = Booking.objects.all()
+    if row.legacy_attendee_id:
+        return qs.filter(legacy_attendee_id=row.legacy_attendee_id).first()
+    if row.legacy_booking_id:
+        return qs.filter(
+            legacy_gd_booking_id=row.legacy_booking_id,
+            legacy_attendee_id__isnull=True,
+        ).first()
+    return None
+
+
+def get_or_create_legacy_bridge(workshop, row):
+    """
+    Ensure a confirmed bridge Booking exists on ``workshop`` for this legacy row.
+
+    Repoints an existing bridge from another workshop when found. Returns the
+    Booking, or None when the row has no email / legacy ids.
+    """
+    email = (row.email or '').strip()
+    if not email or not workshop or not workshop.pk:
+        return None
+    if not row.legacy_booking_id and not row.legacy_attendee_id:
+        return None
+
+    bridge = _existing_bridge(workshop.pk, row)
+    if bridge:
+        return bridge
+
+    bridge = find_legacy_bridge_any_workshop(row)
+    if bridge:
+        ref = _bridge_reference(
+            workshop.pk,
+            attendee_id=row.legacy_attendee_id,
+            booking_id=row.legacy_booking_id,
+        )
+        if Booking.objects.filter(booking_reference=ref).exclude(pk=bridge.pk).exists():
+            ref = f'{ref}-{secrets.token_hex(3)}'
+        bridge.workshop = workshop
+        bridge.booking_reference = ref
+        bridge.student_first_name = (row.first_name or '')[:100] or bridge.student_first_name
+        bridge.student_last_name = (row.last_name or '')[:100] or bridge.student_last_name
+        bridge.student_email = email[:254]
+        bridge.student_phone = _safe_phone(row.phone) or bridge.student_phone
+        bridge.loan_camera = bool(row.loan_camera)
+        bridge.camera_make = (row.camera_make or '')[:120]
+        bridge.camera_model = (row.camera_model or '')[:120]
+        bridge.status = 'confirmed'
+        bridge.save(
+            update_fields=[
+                'workshop',
+                'booking_reference',
+                'student_first_name',
+                'student_last_name',
+                'student_email',
+                'student_phone',
+                'loan_camera',
+                'camera_make',
+                'camera_model',
+                'status',
+                'updated_at',
+            ]
+        )
+        return bridge
+
+    ref = _bridge_reference(
+        workshop.pk,
+        attendee_id=row.legacy_attendee_id,
+        booking_id=row.legacy_booking_id,
+    )
+    if Booking.objects.filter(booking_reference=ref).exists():
+        ref = f'{ref}-{secrets.token_hex(3)}'
+
+    customer = Customer.objects.filter(email__iexact=email).first()
+    return Booking.objects.create(
+        workshop=workshop,
+        customer=customer,
+        user=None,
+        payment=None,
+        student_first_name=(row.first_name or '')[:100] or 'Guest',
+        student_last_name=(row.last_name or '')[:100] or 'Student',
+        student_email=email[:254],
+        student_phone=_safe_phone(row.phone),
+        special_requirements=(row.special_requirements or '')[:],
+        loan_camera=bool(row.loan_camera),
+        camera_make=(row.camera_make or '')[:120],
+        camera_model=(row.camera_model or '')[:120],
+        status='confirmed',
+        booking_reference=ref,
+        list_price=Decimal('0.00'),
+        price_paid=Decimal('0.00'),
+        legacy_gd_booking_id=row.legacy_booking_id,
+        legacy_attendee_id=row.legacy_attendee_id,
+    )
+
+
 def ensure_legacy_bridge_bookings(workshops):
     """
     Create confirmed Booking rows for paid legacy students on these workshops.

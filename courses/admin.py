@@ -1146,14 +1146,16 @@ class WorkshopAdmin(
         from bookings.workshop_student_move import (
             MoveWorkshopStudentsForm,
             WorkshopStudentMoveError,
+            build_movable_student_choices,
             destination_workshops_queryset,
-            movable_bookings_queryset,
+            has_movable_students,
             move_workshop_students,
         )
 
-        movable = movable_bookings_queryset(workshop)
         destinations = destination_workshops_queryset(workshop, request.user)
         workshop_url = reverse('admin:courses_workshop_change', args=[workshop.pk])
+        can_move = has_movable_students(workshop)
+        student_choices = build_movable_student_choices(workshop)
 
         if request.method == 'POST':
             form = MoveWorkshopStudentsForm(
@@ -1166,7 +1168,7 @@ class WorkshopAdmin(
                     moved = move_workshop_students(
                         source=workshop,
                         destination=form.cleaned_data['destination'],
-                        booking_ids=[b.pk for b in form.cleaned_data['bookings']],
+                        student_keys=form.cleaned_data['students'],
                         user=request.user,
                         send_confirmation_email=bool(
                             form.cleaned_data.get('send_confirmation_email')
@@ -1188,7 +1190,7 @@ class WorkshopAdmin(
                 source=workshop,
                 user=request.user,
                 initial={
-                    'bookings': list(movable.values_list('pk', flat=True)),
+                    'students': [value for value, _label in student_choices],
                 },
             )
 
@@ -1200,7 +1202,7 @@ class WorkshopAdmin(
             'workshop_url': workshop_url,
             'changelist_url': reverse('admin:courses_workshop_changelist'),
             'form': form,
-            'has_movable_bookings': movable.exists(),
+            'has_movable_bookings': can_move,
             'has_destinations': destinations.exists(),
             'has_view_permission': self.has_view_permission(request, workshop),
             'has_change_permission': self.has_change_permission(request, workshop),
@@ -1304,9 +1306,9 @@ class WorkshopAdmin(
                 args=[obj.pk],
             )
             if self.has_change_permission(request, obj):
-                from bookings.workshop_student_move import movable_bookings_queryset
+                from bookings.workshop_student_move import has_movable_students
 
-                if movable_bookings_queryset(obj).exists():
+                if has_movable_students(obj):
                     extra_context['move_students_url'] = reverse(
                         'admin:courses_workshop_move_students',
                         args=[obj.pk],

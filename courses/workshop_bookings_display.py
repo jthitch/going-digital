@@ -68,9 +68,9 @@ def render_workshop_bookings_table(workshop, request):
                 args=[workshop.pk],
             )
             if request.user.has_perm('courses.change_workshop'):
-                from bookings.workshop_student_move import movable_bookings_queryset
+                from bookings.workshop_student_move import has_movable_students
 
-                if movable_bookings_queryset(workshop).exists():
+                if has_movable_students(workshop):
                     move_students_url = reverse(
                         'admin:courses_workshop_move_students',
                         args=[workshop.pk],
