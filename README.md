@@ -60,6 +60,15 @@ going-digital/
    CONTACT_EMAIL=enquiries@goingdigital.co.uk
    GOING_DIGITAL_FACEBOOK_GROUP_URL=https://www.facebook.com/groups/your-going-digital-group
 
+   # Optional: Mailgun newsletter list sync (gd_customer.newsletter → mailing list).
+   # MAILGUN_API_KEY=key-...
+   # MAILGUN_API_BASE=https://api.mailgun.net/v3
+   # # EU: https://api.eu.mailgun.net/v3
+   # MAILGUN_NEWSLETTER_LIST=newsletter@mg.example.com
+   # MAILGUN_WEBHOOK_SIGNING_KEY=  # defaults to MAILGUN_API_KEY if blank
+   # Then: python manage.py sync_mailgun_newsletter
+   # Webhook: /newsletter/mailgun/webhook/ (unsubscribe → newsletter=0)
+
    # Optional: Google Tag Manager (enables Klaro cookie banner + Consent Mode).
    # Leave blank locally if you do not need analytics. In GTM, add GA4 and require
    # analytics_storage consent (and/or trigger on klaro-google-analytics-accepted).

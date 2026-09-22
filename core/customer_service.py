@@ -1,7 +1,11 @@
 """gd_customer lookup and creation for bookings and vouchers."""
+import logging
+
 from django.utils import timezone
 
 from core.models import Customer
+
+logger = logging.getLogger(__name__)
 
 
 def get_or_create_customer_record(email, firstname, lastname, phone=''):
@@ -86,20 +90,32 @@ def subscribe_customer_to_newsletter(email):
             customer.active = 1
             update_fields.append('active')
         customer.save(update_fields=update_fields)
-        return customer, False
+        created = False
+    else:
+        customer = Customer.objects.create(
+            active=1,
+            archived=0,
+            guest_account=1,
+            email=email,
+            password='',
+            firstname='',
+            lastname='',
+            contact_number='',
+            newsletter=1,
+            use_for_primary_booking=0,
+            created_at=now,
+            updated_at=now,
+        )
+        created = True
 
-    customer = Customer.objects.create(
-        active=1,
-        archived=0,
-        guest_account=1,
-        email=email,
-        password='',
-        firstname='',
-        lastname='',
-        contact_number='',
-        newsletter=1,
-        use_for_primary_booking=0,
-        created_at=now,
-        updated_at=now,
-    )
-    return customer, True
+    try:
+        from core.newsletter_sync import upsert_customer_to_mailgun
+
+        upsert_customer_to_mailgun(customer)
+    except Exception:
+        logger.exception(
+            'Failed syncing newsletter subscribe for %s to Mailgun',
+            email,
+        )
+
+    return customer, created
