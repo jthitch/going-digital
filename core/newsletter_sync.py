@@ -29,10 +29,9 @@ _BULK_CHUNK = 500
 
 
 def newsletter_customers_queryset():
-    """Active customers opted into the newsletter."""
+    """Customers opted into the newsletter (newsletter=1), any active/archived state."""
     return (
-        Customer.objects.filter(newsletter=1, active=1)
-        .exclude(archived=1)
+        Customer.objects.filter(newsletter=1)
         .exclude(email='')
         .exclude(email__isnull=True)
         .order_by('id')
@@ -203,10 +202,6 @@ def upsert_customer_to_mailjet(customer):
     if not mailjet_configured():
         return False
     if not customer or int(getattr(customer, 'newsletter', 0) or 0) != 1:
-        return False
-    if int(getattr(customer, 'active', 0) or 0) != 1:
-        return False
-    if int(getattr(customer, 'archived', 0) or 0) == 1:
         return False
 
     payload = member_payload_for_customer(customer)
