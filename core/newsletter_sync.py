@@ -1,21 +1,23 @@
-"""Sync gd_customer newsletter opt-ins to a Mailgun mailing list with region vars."""
+"""Sync gd_customer newsletter opt-ins to a Mailjet contact list with region properties."""
 from __future__ import annotations
 
 import logging
 from collections import defaultdict
+from datetime import date, datetime, timezone as dt_timezone
 
 from django.db import connection
 from django.utils import timezone
 
 from bookings.models import Booking
-from core.mailgun import (
-    MailgunError,
-    delete_list_member,
+from core.mailjet import (
+    MailjetError,
+    ensure_contact_properties,
     ensure_newsletter_list,
     iter_list_members,
-    mailgun_configured,
+    mailjet_configured,
+    manage_many_contacts,
+    remove_list_member,
     upsert_list_member,
-    upsert_list_members_bulk,
 )
 from core.models import Customer
 from courses.models import Region
@@ -23,7 +25,7 @@ from courses.models import Region
 logger = logging.getLogger(__name__)
 
 _BOOKING_STATUSES = ('pending', 'confirmed', 'completed')
-_BULK_CHUNK = 100
+_BULK_CHUNK = 500
 
 
 def newsletter_customers_queryset():
@@ -71,7 +73,6 @@ def region_ids_for_customers(customer_ids):
         if customer_id and region_id:
             region_map[int(customer_id)].add(int(region_id))
 
-    # Legacy gd_booking → workshop region (paid / non-refunded lines).
     placeholders = ','.join(['%s'] * len(id_list))
     legacy_sql = f"""
         SELECT DISTINCT b.customer_id, w.region_id
@@ -109,8 +110,8 @@ def region_ids_for_customer(customer):
     return sorted(region_ids_for_customers([customer.pk]).get(int(customer.pk), set()))
 
 
-def member_vars_for_customer(customer, region_ids=None, region_names=None):
-    """Mailgun member vars (all string values). Guests may have blank names."""
+def contact_properties_for_customer(customer, region_ids=None, region_names=None):
+    """Mailjet contact properties. Guests may have blank names."""
     if region_ids is None:
         region_ids = region_ids_for_customer(customer)
     region_ids = [int(rid) for rid in region_ids if rid]
@@ -120,13 +121,51 @@ def member_vars_for_customer(customer, region_ids=None, region_names=None):
     else:
         region_names = [name for name in region_names if name]
 
-    return {
+    props = {
         'customer_id': str(customer.pk or ''),
-        'first_name': (customer.firstname or '').strip(),
-        'last_name': (customer.lastname or '').strip(),
+        'firstname': (customer.firstname or '').strip(),
+        'lastname': (customer.lastname or '').strip(),
         'region_ids': ','.join(str(rid) for rid in region_ids),
         'regions': ','.join(region_names),
+        'newsletter': int(getattr(customer, 'newsletter', 0) or 0) == 1,
     }
+    # Prefer created_at; many legacy students only have registered_at populated.
+    created_at = _format_created_at(
+        getattr(customer, 'created_at', None)
+        or getattr(customer, 'registered_at', None)
+    )
+    if created_at is not None:
+        props['created_at'] = created_at
+    return props
+
+
+def _format_created_at(value):
+    """
+    Mailjet datetime property as RFC3339 (YYYY-MM-DDTHH:MM:SSZ).
+
+    Unix ints are accepted by the API docs but are often dropped by
+    managemanycontacts; date-only strings become epoch. Returns None when
+    unknown so we omit the property.
+    """
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        dt = value
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=dt_timezone.utc)
+        else:
+            dt = dt.astimezone(dt_timezone.utc)
+        return dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+    if isinstance(value, date):
+        return f'{value.isoformat()}T00:00:00Z'
+
+    return None
+
+
+# Backwards-compatible alias used by older tests/imports.
+member_vars_for_customer = contact_properties_for_customer
 
 
 def member_display_name(customer):
@@ -144,25 +183,24 @@ def member_payload_for_customer(customer, *, region_ids=None, region_names_by_id
         region_names_by_id = _region_names_by_id(region_ids)
     names = [region_names_by_id[rid] for rid in region_ids if region_names_by_id.get(rid)]
     return {
-        'address': email,
-        'name': member_display_name(customer),
-        'vars': member_vars_for_customer(
+        'Email': email,
+        'Name': member_display_name(customer),
+        'Properties': contact_properties_for_customer(
             customer,
             region_ids=region_ids,
             region_names=names,
         ),
-        'subscribed': True,
     }
 
 
-def upsert_customer_to_mailgun(customer):
+def upsert_customer_to_mailjet(customer):
     """
     Best-effort upsert of one opted-in customer.
 
-    Returns True on success, False when Mailgun is not configured.
-    Raises MailgunError on API failure.
+    Returns True on success, False when Mailjet is not configured.
+    Raises MailjetError on API failure.
     """
-    if not mailgun_configured():
+    if not mailjet_configured():
         return False
     if not customer or int(getattr(customer, 'newsletter', 0) or 0) != 1:
         return False
@@ -174,35 +212,34 @@ def upsert_customer_to_mailgun(customer):
     payload = member_payload_for_customer(customer)
     if not payload:
         return False
-    ensure_newsletter_list()
+    ensure_contact_properties()
     upsert_list_member(
-        email=payload['address'],
-        name=payload['name'],
-        vars_dict=payload['vars'],
-        subscribed=True,
+        email=payload['Email'],
+        name=payload.get('Name') or '',
+        properties=payload.get('Properties') or {},
     )
     return True
 
 
-def remove_customer_from_mailgun(email):
-    """Best-effort delete of a list member. Missing members are ignored."""
-    if not mailgun_configured():
+def remove_customer_from_mailjet(email):
+    """Best-effort remove of a list member. Missing members are ignored."""
+    if not mailjet_configured():
         return False
     email = (email or '').strip()
     if not email:
         return False
     try:
-        delete_list_member(email)
+        remove_list_member(email)
         return True
-    except MailgunError as exc:
-        if exc.status_code == 404:
+    except MailjetError as exc:
+        if exc.status_code in (404, 400):
             return False
         raise
 
 
 def mark_customer_unsubscribed(email):
     """
-    Honour a Mailgun unsubscribe: set gd_customer.newsletter=0 when a row exists.
+    Honour a Mailjet unsubscribe: set gd_customer.newsletter=0 when a row exists.
 
     Returns the updated Customer, or None if no matching row.
     """
@@ -211,20 +248,20 @@ def mark_customer_unsubscribed(email):
         return None
     customer = Customer.objects.filter(email__iexact=email).first()
     if not customer:
-        logger.info('Mailgun unsubscribe for unknown email %s', email)
+        logger.info('Mailjet unsubscribe for unknown email %s', email)
         return None
     if int(customer.newsletter or 0) == 0:
         return customer
     customer.newsletter = 0
     customer.updated_at = timezone.now()
     customer.save(update_fields=['newsletter', 'updated_at'])
-    logger.info('Set newsletter=0 for customer %s after Mailgun unsubscribe', customer.pk)
+    logger.info('Set newsletter=0 for customer %s after Mailjet unsubscribe', customer.pk)
     return customer
 
 
 def sync_newsletter_list(*, dry_run=False, remove_extras=True, ensure_list=True):
     """
-    Full sync of opted-in customers to the Mailgun newsletter list.
+    Full sync of opted-in customers to the Mailjet newsletter list.
 
     Returns a stats dict: upserted, removed, skipped, errors, dry_run.
     """
@@ -234,9 +271,9 @@ def sync_newsletter_list(*, dry_run=False, remove_extras=True, ensure_list=True)
         'skipped': 0,
         'errors': 0,
         'dry_run': bool(dry_run),
-        'configured': mailgun_configured(),
+        'configured': mailjet_configured(),
     }
-    if not mailgun_configured():
+    if not mailjet_configured():
         return stats
 
     customers = list(newsletter_customers_queryset())
@@ -266,70 +303,73 @@ def sync_newsletter_list(*, dry_run=False, remove_extras=True, ensure_list=True)
     if dry_run:
         stats['upserted'] = len(payloads)
         if remove_extras:
-            # Count extras without calling delete.
             try:
                 if ensure_list:
                     ensure_newsletter_list()
                 extras = 0
                 for member in iter_list_members():
-                    addr = (member.get('address') or '').strip().lower()
+                    if member.get('IsUnsubscribed'):
+                        continue
+                    addr = (member.get('Email') or '').strip().lower()
                     if addr and addr not in subscribed_emails:
                         extras += 1
                 stats['removed'] = extras
-            except MailgunError:
-                logger.exception('Dry-run could not list Mailgun members')
+            except MailjetError:
+                logger.exception('Dry-run could not list Mailjet members')
                 stats['errors'] += 1
         return stats
 
     try:
         if ensure_list:
             ensure_newsletter_list()
-    except MailgunError:
-        logger.exception('Failed ensuring Mailgun newsletter list')
+        ensure_contact_properties()
+    except MailjetError:
+        logger.exception('Failed ensuring Mailjet newsletter list/properties')
         stats['errors'] += 1
         return stats
 
     for start in range(0, len(payloads), _BULK_CHUNK):
         chunk = payloads[start:start + _BULK_CHUNK]
         try:
-            upsert_list_members_bulk(chunk)
+            manage_many_contacts(chunk, action='addnoforce')
             stats['upserted'] += len(chunk)
-        except MailgunError:
-            logger.exception('Bulk Mailgun upsert failed; falling back to single members')
+        except MailjetError:
+            logger.exception('Bulk Mailjet upsert failed; falling back to single contacts')
             for member in chunk:
                 try:
                     upsert_list_member(
-                        email=member['address'],
-                        name=member.get('name') or '',
-                        vars_dict=member.get('vars'),
-                        subscribed=True,
+                        email=member['Email'],
+                        name=member.get('Name') or '',
+                        properties=member.get('Properties') or {},
                     )
                     stats['upserted'] += 1
-                except MailgunError:
+                except MailjetError:
                     stats['errors'] += 1
                     logger.exception(
-                        'Failed upserting Mailgun member %s',
-                        member.get('address'),
+                        'Failed upserting Mailjet contact %s',
+                        member.get('Email'),
                     )
 
     if remove_extras:
         try:
             for member in iter_list_members():
-                addr = (member.get('address') or '').strip()
+                if member.get('IsUnsubscribed'):
+                    continue
+                addr = (member.get('Email') or '').strip()
                 if not addr:
                     continue
                 if addr.lower() in subscribed_emails:
                     continue
                 try:
-                    delete_list_member(addr)
+                    remove_list_member(addr)
                     stats['removed'] += 1
-                except MailgunError as exc:
-                    if exc.status_code == 404:
+                except MailjetError as exc:
+                    if exc.status_code in (404, 400):
                         continue
                     stats['errors'] += 1
-                    logger.exception('Failed removing Mailgun member %s', addr)
-        except MailgunError:
+                    logger.exception('Failed removing Mailjet contact %s', addr)
+        except MailjetError:
             stats['errors'] += 1
-            logger.exception('Failed listing Mailgun members for cleanup')
+            logger.exception('Failed listing Mailjet members for cleanup')
 
     return stats

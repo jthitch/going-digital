@@ -305,14 +305,11 @@ try:
     ]
     EMAIL_FRANCHISEE_BCC_ENABLED = env.bool('EMAIL_FRANCHISEE_BCC_ENABLED', default=True)
     EMAIL_SUPERUSER_BCC_ENABLED = env.bool('EMAIL_SUPERUSER_BCC_ENABLED', default=True)
-    MAILGUN_API_KEY = env('MAILGUN_API_KEY', default='').strip()
-    MAILGUN_API_BASE = env('MAILGUN_API_BASE', default='https://api.mailgun.net/v3').strip()
-    MAILGUN_NEWSLETTER_LIST = env('MAILGUN_NEWSLETTER_LIST', default='').strip()
-    MAILGUN_NEWSLETTER_LIST_DESCRIPTION = env(
-        'MAILGUN_NEWSLETTER_LIST_DESCRIPTION',
-        default='Going Digital newsletter subscribers',
-    ).strip()
-    MAILGUN_WEBHOOK_SIGNING_KEY = env('MAILGUN_WEBHOOK_SIGNING_KEY', default='').strip()
+    MAILJET_API_KEY = env('MAILJET_API_KEY', default='').strip()
+    MAILJET_API_SECRET = env('MAILJET_API_SECRET', default='').strip()
+    MAILJET_API_BASE = env('MAILJET_API_BASE', default='https://api.mailjet.com/v3').strip()
+    MAILJET_NEWSLETTER_LIST_ID = env('MAILJET_NEWSLETTER_LIST_ID', default='').strip()
+    MAILJET_WEBHOOK_TOKEN = env('MAILJET_WEBHOOK_TOKEN', default='').strip()
 except NameError:
     EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
     EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
@@ -337,14 +334,11 @@ except NameError:
     EMAIL_SUPERUSER_BCC_ENABLED = os.environ.get('EMAIL_SUPERUSER_BCC_ENABLED', 'True').lower() in (
         '1', 'true', 'yes', 'on',
     )
-    MAILGUN_API_KEY = os.environ.get('MAILGUN_API_KEY', '').strip()
-    MAILGUN_API_BASE = os.environ.get('MAILGUN_API_BASE', 'https://api.mailgun.net/v3').strip()
-    MAILGUN_NEWSLETTER_LIST = os.environ.get('MAILGUN_NEWSLETTER_LIST', '').strip()
-    MAILGUN_NEWSLETTER_LIST_DESCRIPTION = os.environ.get(
-        'MAILGUN_NEWSLETTER_LIST_DESCRIPTION',
-        'Going Digital newsletter subscribers',
-    ).strip()
-    MAILGUN_WEBHOOK_SIGNING_KEY = os.environ.get('MAILGUN_WEBHOOK_SIGNING_KEY', '').strip()
+    MAILJET_API_KEY = os.environ.get('MAILJET_API_KEY', '').strip()
+    MAILJET_API_SECRET = os.environ.get('MAILJET_API_SECRET', '').strip()
+    MAILJET_API_BASE = os.environ.get('MAILJET_API_BASE', 'https://api.mailjet.com/v3').strip()
+    MAILJET_NEWSLETTER_LIST_ID = os.environ.get('MAILJET_NEWSLETTER_LIST_ID', '').strip()
+    MAILJET_WEBHOOK_TOKEN = os.environ.get('MAILJET_WEBHOOK_TOKEN', '').strip()
 
 # Jazzmin Admin Theme Configuration
 JAZZMIN_SETTINGS = {

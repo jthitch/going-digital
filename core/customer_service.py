@@ -109,12 +109,12 @@ def subscribe_customer_to_newsletter(email):
         created = True
 
     try:
-        from core.newsletter_sync import upsert_customer_to_mailgun
+        from core.newsletter_sync import upsert_customer_to_mailjet
 
-        upsert_customer_to_mailgun(customer)
+        upsert_customer_to_mailjet(customer)
     except Exception:
         logger.exception(
-            'Failed syncing newsletter subscribe for %s to Mailgun',
+            'Failed syncing newsletter subscribe for %s to Mailjet',
             email,
         )
 

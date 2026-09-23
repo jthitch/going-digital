@@ -27,7 +27,7 @@ Default app path in these files: `/var/www/going-digital`. Change if yours diffe
 2. **Environment**
    ```bash
    cp deploy/env/.env.production.example .env
-   # edit .env — real SECRET_KEY, DB, Stripe live keys, Mailgun, reCAPTCHA, etc.
+   # edit .env — real SECRET_KEY, DB, Stripe live keys, Mailjet, reCAPTCHA, etc.
    ```
 
 3. **Database + static**

@@ -21,7 +21,7 @@ from courses.sitemaps import (
 from courses.views import RobotsTxtView, LlmsTxtView
 from core.forms import GdUserPasswordResetForm
 from core.views_newsletter import NewsletterSubscribeView
-from core.views_mailgun_webhook import MailgunNewsletterWebhookView
+from core.views_mailjet_webhook import MailjetNewsletterWebhookView
 from website.views import DevSiteAccessView
 
 # Customize admin site
@@ -72,9 +72,9 @@ urlpatterns = [
     path('account/', include('core.urls')),
     path('newsletter/subscribe/', NewsletterSubscribeView.as_view(), name='newsletter_subscribe'),
     path(
-        'newsletter/mailgun/webhook/',
-        MailgunNewsletterWebhookView.as_view(),
-        name='newsletter_mailgun_webhook',
+        'newsletter/mailjet/webhook/',
+        MailjetNewsletterWebhookView.as_view(),
+        name='newsletter_mailjet_webhook',
     ),
     path('bookings/', include('bookings.urls')),
     path('payments/', include('payments.urls')),

@@ -26,7 +26,7 @@ PHOTOGRAPHY_COURSES_PREFIX = '/photography-courses'
 # webhooks, or email deep-links opened without a prior session).
 DEV_SITE_ACCESS_EXEMPT_PREFIXES = (
     '/payments/webhook/',
-    '/newsletter/mailgun/webhook/',
+    '/newsletter/mailjet/webhook/',
     '/bookings/follow-up/',
     '/robots.txt',
     '/llms.txt',
