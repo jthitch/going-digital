@@ -234,23 +234,29 @@ def remove_customer_from_mailjet(email):
 
 def mark_customer_unsubscribed(email):
     """
-    Honour a Mailjet unsubscribe: set gd_customer.newsletter=0 when a row exists.
+    Honour a Mailjet unsubscribe: set newsletter=0 on every gd_customer
+    row with that email (duplicates included).
 
-    Returns the updated Customer, or None if no matching row.
+    Returns one matching Customer, or None if no row exists.
     """
     email = (email or '').strip()
     if not email:
         return None
-    customer = Customer.objects.filter(email__iexact=email).first()
+    qs = Customer.objects.filter(email__iexact=email)
+    customer = qs.first()
     if not customer:
         logger.info('Mailjet unsubscribe for unknown email %s', email)
         return None
-    if int(customer.newsletter or 0) == 0:
-        return customer
-    customer.newsletter = 0
-    customer.updated_at = timezone.now()
-    customer.save(update_fields=['newsletter', 'updated_at'])
-    logger.info('Set newsletter=0 for customer %s after Mailjet unsubscribe', customer.pk)
+    updated = qs.filter(newsletter=1).update(
+        newsletter=0,
+        updated_at=timezone.now(),
+    )
+    if updated:
+        logger.info(
+            'Set newsletter=0 for %s gd_customer row(s) matching %s after Mailjet unsubscribe',
+            updated,
+            email,
+        )
     return customer
 
 

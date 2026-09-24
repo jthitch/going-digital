@@ -119,14 +119,22 @@ class WebhookTokenTests(SimpleTestCase):
 
 class MarkUnsubscribedTests(SimpleTestCase):
     @patch('core.newsletter_sync.Customer.objects')
-    def test_sets_newsletter_zero(self, customer_objects):
+    def test_sets_newsletter_zero_on_all_matching_rows(self, customer_objects):
         customer = MagicMock(pk=9, newsletter=1)
-        customer_objects.filter.return_value.first.return_value = customer
+        qs = MagicMock()
+        qs.first.return_value = customer
+        qs.filter.return_value.update.return_value = 2
+        customer_objects.filter.return_value = qs
+
         result = mark_customer_unsubscribed('pat@example.com')
+
         self.assertIs(result, customer)
-        self.assertEqual(customer.newsletter, 0)
-        customer.save.assert_called_once()
-        self.assertIn('newsletter', customer.save.call_args.kwargs['update_fields'])
+        customer_objects.filter.assert_called_once_with(email__iexact='pat@example.com')
+        qs.filter.assert_called_once_with(newsletter=1)
+        qs.filter.return_value.update.assert_called_once()
+        update_kwargs = qs.filter.return_value.update.call_args.kwargs
+        self.assertEqual(update_kwargs['newsletter'], 0)
+        self.assertIn('updated_at', update_kwargs)
 
 
 @override_settings(
