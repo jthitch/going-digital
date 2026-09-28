@@ -30,6 +30,7 @@ from .forms import DiscountCodeAdminForm, ManualBookingAdminForm
 from .manual_booking import create_manual_booking
 from .models import (
     Booking,
+    BookingRefund,
     BookingTermsAcceptance,
     CameraMake,
     CameraModel,
@@ -658,6 +659,63 @@ class BookingTermsAcceptanceAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
     @admin.display(description='Bookings')
     def booking_count(self, obj):
         return len(obj.booking_ids or [])
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(BookingRefund)
+class BookingRefundAdmin(PlatformAdminOnlyMixin, admin.ModelAdmin):
+    """Audit trail of refunds recorded from the workshop "Record refund" page."""
+
+    list_display = [
+        'refunded_on',
+        'amount',
+        'student_name',
+        'booking_reference',
+        'workshop',
+        'method',
+        'recorded_by',
+    ]
+    list_filter = ['method', 'refunded_on']
+    search_fields = [
+        'student_name',
+        'student_email',
+        'booking_reference',
+        'reason',
+        'workshop__course__title',
+    ]
+    readonly_fields = [
+        'booking',
+        'workshop',
+        'legacy_gd_booking_id',
+        'legacy_attendee_id',
+        'legacy_bookings_workshops_id',
+        'booking_reference',
+        'student_name',
+        'student_email',
+        'amount',
+        'refunded_on',
+        'method',
+        'reason',
+        'recorded_by',
+        'created_at',
+    ]
+    date_hierarchy = 'refunded_on'
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'workshop',
+            'workshop__course',
+            'workshop__venue',
+            'recorded_by',
+        )
 
     def has_add_permission(self, request):
         return False

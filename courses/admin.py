@@ -1126,6 +1126,11 @@ class WorkshopAdmin(
                 name='courses_workshop_move_students',
             ),
             path(
+                '<path:object_id>/record-refund/',
+                self.admin_site.admin_view(self.record_refund_view),
+                name='courses_workshop_record_refund',
+            ),
+            path(
                 'upload-image/',
                 self.admin_site.admin_view(self.upload_image_view),
                 name='courses_workshop_upload_image',
@@ -1210,6 +1215,68 @@ class WorkshopAdmin(
         return TemplateResponse(
             request,
             'admin/courses/workshop/move_students.html',
+            context,
+        )
+
+    def record_refund_view(self, request, object_id):
+        workshop = get_object_or_404(self.get_queryset(request), pk=object_id)
+        if not self.has_change_permission(request, workshop):
+            return HttpResponseForbidden('You do not have permission to record refunds on this workshop.')
+
+        from bookings.workshop_refunds import (
+            RecordRefundForm,
+            WorkshopRefundError,
+            record_workshop_refund,
+            user_can_record_refund,
+        )
+
+        if not user_can_record_refund(request.user, workshop):
+            return HttpResponseForbidden('You do not have permission to record refunds on this workshop.')
+
+        workshop_url = reverse('admin:courses_workshop_change', args=[workshop.pk])
+
+        if request.method == 'POST':
+            form = RecordRefundForm(request.POST, workshop=workshop)
+            if form.is_valid():
+                try:
+                    refund = record_workshop_refund(
+                        workshop=workshop,
+                        student_key=form.cleaned_data['student'],
+                        amount=form.cleaned_data['amount'],
+                        refunded_on=form.cleaned_data['refunded_on'],
+                        method=form.cleaned_data['method'],
+                        reason=form.cleaned_data['reason'],
+                        user=request.user,
+                    )
+                except WorkshopRefundError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(
+                        request,
+                        f'Recorded £{refund.amount} refund for '
+                        f'{refund.student_name or refund.booking_reference}. '
+                        'The place has been released.',
+                    )
+                    return HttpResponseRedirect(workshop_url)
+        else:
+            form = RecordRefundForm(workshop=workshop)
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Record refund',
+            'opts': self.model._meta,
+            'workshop': workshop,
+            'workshop_url': workshop_url,
+            'changelist_url': reverse('admin:courses_workshop_changelist'),
+            'form': form,
+            'student_amounts': form.student_amounts,
+            'has_students': len(form.fields['student'].choices) > 1,
+            'has_view_permission': self.has_view_permission(request, workshop),
+            'has_change_permission': self.has_change_permission(request, workshop),
+        }
+        return TemplateResponse(
+            request,
+            'admin/courses/workshop/record_refund.html',
             context,
         )
 
@@ -1311,6 +1378,10 @@ class WorkshopAdmin(
                 if has_movable_students(obj):
                     extra_context['move_students_url'] = reverse(
                         'admin:courses_workshop_move_students',
+                        args=[obj.pk],
+                    )
+                    extra_context['record_refund_url'] = reverse(
+                        'admin:courses_workshop_record_refund',
                         args=[obj.pk],
                     )
         self._current_request = request

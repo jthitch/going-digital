@@ -109,11 +109,19 @@ class FranchiseeBookingRow:
 
 @dataclass
 class RefundReportRow:
-    refund_id: int
+    refund_id: str
     franchisee_name: str
     refund_amount: Decimal
     refund_date: datetime
     refund_reason: str
+    student_name: str = ''
+    booking_reference: str = ''
+    course_name: str = ''
+    workshop_date: datetime | None = None
+    method: str = ''
+    recorded_by: str = ''
+    source: str = 'Legacy'
+    refund_time_known: bool = True
 
 
 @dataclass
@@ -614,15 +622,72 @@ def _localize_legacy_datetime(value):
     return timezone.localtime(value)
 
 
-def format_refund_datetime(value):
+def format_refund_datetime(value, time_known=True):
     localized = _localize_legacy_datetime(value)
     if not localized:
         return ''
-    return localized.strftime('%d/%m/%Y %H:%M')
+    return localized.strftime('%d/%m/%Y %H:%M' if time_known else '%d/%m/%Y')
+
+
+def _recorded_refund_rows(start_date, end_date):
+    """Refunds recorded on the new site (BookingRefund), filtered by refund date."""
+    from bookings.models import BookingRefund
+    from core.models import User
+
+    refunds = list(
+        BookingRefund.objects.filter(
+            refunded_on__gte=start_date,
+            refunded_on__lte=end_date,
+        )
+        .select_related('workshop', 'workshop__course', 'recorded_by')
+        .order_by('-refunded_on', '-id')
+    )
+    owner_ids = {r.workshop.user_id for r in refunds if r.workshop and r.workshop.user_id}
+    owners = {u.pk: u for u in User.objects.filter(pk__in=owner_ids)} if owner_ids else {}
+
+    rows = []
+    for refund in refunds:
+        workshop = refund.workshop
+        owner = owners.get(workshop.user_id) if workshop else None
+        recorder = refund.recorded_by
+        rows.append(
+            RefundReportRow(
+                refund_id=f'R{refund.pk}',
+                franchisee_name=(
+                    (owner.get_full_name() or owner.email or '').strip() if owner else ''
+                ),
+                refund_amount=_quantize_money(refund.amount),
+                refund_date=timezone.make_aware(
+                    datetime.combine(refund.refunded_on, time.min),
+                    timezone.get_current_timezone(),
+                ),
+                refund_reason=(refund.reason or '').strip(),
+                student_name=refund.student_name or '',
+                booking_reference=refund.booking_reference or '',
+                course_name=(
+                    workshop.course.title if workshop and workshop.course else ''
+                ),
+                workshop_date=(
+                    _localize_legacy_datetime(workshop.date) if workshop else None
+                ),
+                method=refund.get_method_display(),
+                recorded_by=(
+                    (recorder.get_full_name() or recorder.email or '').strip()
+                    if recorder else ''
+                ),
+                source='New site',
+                refund_time_known=False,
+            )
+        )
+    return rows
 
 
 def build_refunds_report(user, start_date, end_date):
-    """Refunds recorded against legacy workshop bookings in a date range."""
+    """
+    Refunds in a date range: legacy gd_bookings_workshops refunds plus refunds
+    recorded on the new site (BookingRefund). Legacy lines written by the new
+    site are reported once, via their BookingRefund rows.
+    """
     end_exclusive = _inclusive_end_day(end_date)
     start_dt, end_dt = _aware_range(start_date, end_exclusive)
 
@@ -630,13 +695,19 @@ def build_refunds_report(user, start_date, end_date):
         cursor.execute(
             """
             SELECT bw.id, bw.refund_amount, bw.refund_date, bw.refund_reason,
-                   u.firstname, u.lastname
+                   u.firstname, u.lastname, bw.unique_code, cr.course_name, w.date
             FROM gd_bookings_workshops bw
             LEFT JOIN gd_user u ON u.id = bw.workshop_user_id
+            LEFT JOIN gd_workshop w ON w.id = bw.workshop_id
+            LEFT JOIN gd_course cr ON cr.id = COALESCE(w.course_id, bw.course_id)
             WHERE bw.refund_amount > 0
               AND bw.refund_date IS NOT NULL
               AND bw.refund_date >= %s
               AND bw.refund_date < %s
+              AND NOT EXISTS (
+                  SELECT 1 FROM booking_refunds r
+                  WHERE r.legacy_bookings_workshops_id = bw.id
+              )
             ORDER BY bw.refund_date DESC, bw.id DESC
             """,
             [start_dt, end_dt],
@@ -644,19 +715,33 @@ def build_refunds_report(user, start_date, end_date):
         raw_rows = cursor.fetchall()
 
     rows = []
-    total_amount = Decimal('0.00')
-    for refund_id, refund_amount, refund_date, refund_reason, firstname, lastname in raw_rows:
-        amount = _quantize_money(refund_amount)
-        total_amount += amount
+    for (
+        refund_id,
+        refund_amount,
+        refund_date,
+        refund_reason,
+        firstname,
+        lastname,
+        unique_code,
+        course_name,
+        workshop_date,
+    ) in raw_rows:
         rows.append(
             RefundReportRow(
-                refund_id=refund_id,
+                refund_id=str(refund_id),
                 franchisee_name=_format_franchisee_name(firstname, lastname),
-                refund_amount=amount,
+                refund_amount=_quantize_money(refund_amount),
                 refund_date=_localize_legacy_datetime(refund_date),
                 refund_reason=(refund_reason or '').strip(),
+                booking_reference=(unique_code or '').strip(),
+                course_name=(course_name or '').strip(),
+                workshop_date=_localize_legacy_datetime(workshop_date),
             )
         )
+
+    rows.extend(_recorded_refund_rows(start_date, end_date))
+    rows.sort(key=lambda r: r.refund_date or timezone.now(), reverse=True)
+    total_amount = sum((r.refund_amount for r in rows), Decimal('0.00'))
 
     return rows, {
         'refunds': len(rows),
@@ -953,14 +1038,28 @@ def iter_refunds_report_csv(rows):
         'Refund Amount',
         'Refund Date',
         'Refund Reason',
+        'Student',
+        'Booking Ref',
+        'Course',
+        'Workshop Date',
+        'Method',
+        'Recorded By',
+        'Source',
     ]
     for row in rows:
         yield [
             row.refund_id,
             row.franchisee_name,
             row.refund_amount,
-            format_refund_datetime(row.refund_date),
+            format_refund_datetime(row.refund_date, row.refund_time_known),
             row.refund_reason,
+            row.student_name,
+            row.booking_reference,
+            row.course_name,
+            format_refund_datetime(row.workshop_date, time_known=False),
+            row.method,
+            row.recorded_by,
+            row.source,
         ]
 
 

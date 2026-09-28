@@ -59,6 +59,7 @@ def render_workshop_bookings_table(workshop, request):
 
     students_csv_url = ''
     move_students_url = ''
+    record_refund_url = ''
     if request and workshop and workshop.pk:
         if user_has_full_region_access(request.user) or user_can_access_workshop(
             request.user, workshop
@@ -75,6 +76,10 @@ def render_workshop_bookings_table(workshop, request):
                         'admin:courses_workshop_move_students',
                         args=[workshop.pk],
                     )
+                    record_refund_url = reverse(
+                        'admin:courses_workshop_record_refund',
+                        args=[workshop.pk],
+                    )
 
     return render_to_string(
         'admin/courses/workshop/workshop_bookings_table.html',
@@ -85,6 +90,7 @@ def render_workshop_bookings_table(workshop, request):
             'bookings_changelist_url': changelist_url,
             'students_csv_url': students_csv_url,
             'move_students_url': move_students_url,
+            'record_refund_url': record_refund_url,
         },
         request=request,
     )

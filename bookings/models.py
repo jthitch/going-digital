@@ -20,6 +20,7 @@ class Booking(models.Model):
         ('confirmed', 'Confirmed'),
         ('cancelled', 'Cancelled'),
         ('completed', 'Completed'),
+        ('refunded', 'Refunded'),
     ]
     
     workshop = models.ForeignKey(
@@ -248,6 +249,80 @@ class WorkshopFeedback(models.Model):
 
     def __str__(self):
         return f'{self.rating}* — {self.booking.booking_reference}'
+
+
+class BookingRefund(models.Model):
+    """
+    A refund recorded by an admin/franchisee against a workshop place.
+
+    Refunds are usually paid to the student outside the site (bank transfer,
+    cash, etc.); this row is the audit record. The place is released when the
+    refund is recorded.
+    """
+
+    METHOD_BANK_TRANSFER = 'bank_transfer'
+    METHOD_CASH = 'cash'
+    METHOD_CHEQUE = 'cheque'
+    METHOD_STRIPE = 'stripe'
+    METHOD_OTHER = 'other'
+    METHOD_CHOICES = [
+        (METHOD_BANK_TRANSFER, 'Bank transfer'),
+        (METHOD_CASH, 'Cash'),
+        (METHOD_CHEQUE, 'Cheque'),
+        (METHOD_STRIPE, 'Stripe (refunded in Stripe dashboard)'),
+        (METHOD_OTHER, 'Other'),
+    ]
+
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='refunds',
+        help_text='New-site booking (or legacy bridge) that was refunded.',
+    )
+    workshop = models.ForeignKey(
+        Workshop,
+        on_delete=models.PROTECT,
+        related_name='refunds',
+    )
+    legacy_gd_booking_id = models.IntegerField(null=True, blank=True, db_index=True)
+    legacy_attendee_id = models.IntegerField(null=True, blank=True, db_index=True)
+    legacy_bookings_workshops_id = models.IntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='gd_bookings_workshops.id updated with refund_amount/date/reason.',
+    )
+    booking_reference = models.CharField(max_length=50, blank=True, default='')
+    student_name = models.CharField(max_length=255, blank=True, default='')
+    student_email = models.CharField(max_length=255, blank=True, default='')
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+    )
+    refunded_on = models.DateField(help_text='Date the money was returned to the student.')
+    method = models.CharField(max_length=20, choices=METHOD_CHOICES, default=METHOD_BANK_TRANSFER)
+    reason = models.TextField()
+    recorded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='recorded_refunds',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'booking_refunds'
+        ordering = ['-refunded_on', '-id']
+        verbose_name = 'Refund'
+        verbose_name_plural = 'Refunds'
+
+    def __str__(self):
+        who = self.student_name or self.booking_reference or f'#{self.pk}'
+        return f'£{self.amount} refund — {who}'
 
 
 class DiscountCode(models.Model):

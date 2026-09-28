@@ -1,0 +1,73 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{% trans 'Record refund' %} | {{ block.super }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{{ changelist_url }}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; <a href="{{ workshop_url }}">{{ workshop }}</a>
+    &rsaquo; {% trans 'Record refund' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="gd-record-refund">
+    <h1>{% trans 'Record refund' %}</h1>
+    <p class="help">
+        {% blocktrans with name=workshop %}
+        Record a refund you have already paid to a student on <strong>{{ name }}</strong>.
+        No money is sent from the website. The student's place is cancelled and released
+        so someone else can book it.
+        {% endblocktrans %}
+    </p>
+
+    {% if not has_students %}
+    <p class="text-muted">{% trans 'There are no confirmed students on this workshop to refund.' %}</p>
+    <p>
+        <a href="{{ workshop_url }}" class="btn btn-outline-secondary">{% trans 'Back to workshop' %}</a>
+    </p>
+    {% else %}
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <fieldset class="module aligned mb-3">
+            {% for field in form %}
+            <div class="form-row">
+                {{ field.errors }}
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}
+                <div class="help">{{ field.help_text }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </fieldset>
+
+        <div class="submit-row">
+            <input type="submit" value="{% trans 'Record refund and release place' %}" class="default btn btn-danger">
+            <a href="{{ workshop_url }}" class="btn btn-outline-secondary">{% trans 'Cancel' %}</a>
+        </div>
+    </form>
+    {{ student_amounts|json_script:"gd-refund-amounts" }}
+    <script>
+    (function () {
+        var amounts = JSON.parse(document.getElementById('gd-refund-amounts').textContent || '{}');
+        var student = document.getElementById('{{ form.student.id_for_label }}');
+        var amount = document.getElementById('{{ form.amount.id_for_label }}');
+        if (!student || !amount) return;
+        student.addEventListener('change', function () {
+            var paid = amounts[student.value];
+            if (paid && !amount.dataset.touched) amount.value = paid;
+        });
+        amount.addEventListener('input', function () { amount.dataset.touched = '1'; });
+    })();
+    </script>
+    {% endif %}
+</div>
+{% endblock %}

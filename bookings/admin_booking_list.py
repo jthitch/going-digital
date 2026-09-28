@@ -83,7 +83,7 @@ def _legacy_paid_clause():
 def _legacy_status_expr():
     return """
       CASE
-        WHEN IFNULL(bw.refund_amount, 0) > 0 THEN 'cancelled'
+        WHEN IFNULL(bw.refund_amount, 0) > 0 THEN 'refunded'
         WHEN bw.payment_complete = 1 OR b.payment_confirmed = 1 THEN 'confirmed'
         ELSE 'pending'
       END
@@ -138,7 +138,7 @@ def _status_clause_new(status):
 def _status_clause_legacy(status):
     if not status:
         return '', []
-    if status == 'cancelled':
+    if status in ('cancelled', 'refunded'):
         return ' AND IFNULL(bw.refund_amount, 0) > 0', []
     if status == 'confirmed':
         return (
@@ -370,6 +370,7 @@ _STATUS_LABELS = {
     'confirmed': 'Confirmed',
     'cancelled': 'Cancelled',
     'completed': 'Completed',
+    'refunded': 'Refunded',
 }
 
 _PAYMENT_LABELS = {

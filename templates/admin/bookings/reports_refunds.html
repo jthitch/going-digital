@@ -48,6 +48,13 @@
                     <th class="text-right">{% trans 'Refund amount' %}</th>
                     <th>{% trans 'Refund date' %}</th>
                     <th>{% trans 'Refund reason' %}</th>
+                    <th>{% trans 'Student' %}</th>
+                    <th>{% trans 'Booking ref' %}</th>
+                    <th>{% trans 'Course' %}</th>
+                    <th>{% trans 'Workshop date' %}</th>
+                    <th>{% trans 'Method' %}</th>
+                    <th>{% trans 'Recorded by' %}</th>
+                    <th>{% trans 'Source' %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -55,9 +62,16 @@
                 <tr>
                     <td>{{ row.refund_id }}</td>
                     <td>{{ row.franchisee_name }}</td>
-                    <td class="text-right">£{{ row.refund_amount|floatformat:0 }}</td>
-                    <td>{{ row.refund_date|date:"d/m/Y H:i" }}</td>
+                    <td class="text-right">£{{ row.refund_amount|floatformat:2 }}</td>
+                    <td>{% if row.refund_time_known %}{{ row.refund_date|date:"d/m/Y H:i" }}{% else %}{{ row.refund_date|date:"d/m/Y" }}{% endif %}</td>
                     <td>{{ row.refund_reason }}</td>
+                    <td>{{ row.student_name }}</td>
+                    <td>{{ row.booking_reference }}</td>
+                    <td>{{ row.course_name }}</td>
+                    <td>{{ row.workshop_date|date:"d/m/Y" }}</td>
+                    <td>{{ row.method }}</td>
+                    <td>{{ row.recorded_by }}</td>
+                    <td>{{ row.source }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -71,7 +85,7 @@
 </div>
 
 <p class="text-muted small mt-3">
-    {% trans 'Refunds are filtered by refund date and sourced from legacy workshop booking records.' %}
+    {% trans 'Refunds are filtered by refund date. Includes legacy workshop booking refunds and refunds recorded from the workshop "Record refund" page.' %}
 </p>
 {% elif request.GET %}
 <div class="alert alert-warning">{% trans 'Please correct the date range above.' %}</div>
